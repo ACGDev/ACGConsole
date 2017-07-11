@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="http://api.coverking.com/Orders" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" targetNamespace="http://api.coverking.com/Orders" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://api.coverking.com/Orders">
+      <s:element name="HelloWorld">
+        <s:complexType />
+      </s:element>
+      <s:element name="HelloWorldResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="HelloWorldResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Auth_Header" type="tns:Auth_Header" />
+      <s:complexType name="Auth_Header">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="DealerID" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Password" type="s:string" />
+        </s:sequence>
+        <s:anyAttribute />
+      </s:complexType>
+      <s:element name="URL_File">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="URL" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="URL_FileResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="URL_FileResult" type="tns:ArrayOfString" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfString">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="string" nillable="true" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="File_Header" type="tns:File_Header" />
+      <s:complexType name="File_Header">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="FileName" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="FileContentText" type="s:string" />
+        </s:sequence>
+        <s:anyAttribute />
+      </s:complexType>
+      <s:element name="Place_Orders">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Orders" type="tns:ArrayOfOrder" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="ArrayOfOrder">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="Order" nillable="true" type="tns:Order" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="Order">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="PO" type="s:string" />
+          <s:element minOccurs="1" maxOccurs="1" name="PO_Date" type="s:dateTime" />
+          <s:element minOccurs="0" maxOccurs="1" name="Ship_Company" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Ship_Name" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Ship_Addr" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Ship_Addr_2" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Ship_City" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Ship_State" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Ship_Zip" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Ship_Country" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Ship_Phone" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Ship_Email" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Ship_Service" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="CK_SKU" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="CK_Item" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="CK_Variant" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Customized_Code" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Customized_Msg" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Customized_Code2" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Customized_Msg2" type="s:string" />
+          <s:element minOccurs="1" maxOccurs="1" name="Qty" type="s:int" />
+          <s:element minOccurs="0" maxOccurs="1" name="Comment" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="Place_OrdersResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Place_OrdersResult" type="tns:Place_Order_Response" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="Place_Order_Response">
+        <s:sequence>
+          <s:element minOccurs="1" maxOccurs="1" name="Processed" type="s:boolean" />
+          <s:element minOccurs="0" maxOccurs="1" name="Response_message" type="tns:ArrayOfString" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="string" nillable="true" type="s:string" />
+      <s:element name="ArrayOfString" nillable="true" type="tns:ArrayOfString" />
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="HelloWorldSoapIn">
+    <wsdl:part name="parameters" element="tns:HelloWorld" />
+  </wsdl:message>
+  <wsdl:message name="HelloWorldSoapOut">
+    <wsdl:part name="parameters" element="tns:HelloWorldResponse" />
+  </wsdl:message>
+  <wsdl:message name="HelloWorldAuth_Header">
+    <wsdl:part name="Auth_Header" element="tns:Auth_Header" />
+  </wsdl:message>
+  <wsdl:message name="URL_FileSoapIn">
+    <wsdl:part name="parameters" element="tns:URL_File" />
+  </wsdl:message>
+  <wsdl:message name="URL_FileSoapOut">
+    <wsdl:part name="parameters" element="tns:URL_FileResponse" />
+  </wsdl:message>
+  <wsdl:message name="URL_FileAuth_Header">
+    <wsdl:part name="Auth_Header" element="tns:Auth_Header" />
+  </wsdl:message>
+  <wsdl:message name="URL_FileFile_Header">
+    <wsdl:part name="File_Header" element="tns:File_Header" />
+  </wsdl:message>
+  <wsdl:message name="Place_OrdersSoapIn">
+    <wsdl:part name="parameters" element="tns:Place_Orders" />
+  </wsdl:message>
+  <wsdl:message name="Place_OrdersSoapOut">
+    <wsdl:part name="parameters" element="tns:Place_OrdersResponse" />
+  </wsdl:message>
+  <wsdl:message name="Place_OrdersAuth_Header">
+    <wsdl:part name="Auth_Header" element="tns:Auth_Header" />
+  </wsdl:message>
+  <wsdl:message name="HelloWorldHttpGetIn" />
+  <wsdl:message name="HelloWorldHttpGetOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="URL_FileHttpGetIn">
+    <wsdl:part name="URL" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="URL_FileHttpGetOut">
+    <wsdl:part name="Body" element="tns:ArrayOfString" />
+  </wsdl:message>
+  <wsdl:message name="HelloWorldHttpPostIn" />
+  <wsdl:message name="HelloWorldHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="URL_FileHttpPostIn">
+    <wsdl:part name="URL" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="URL_FileHttpPostOut">
+    <wsdl:part name="Body" element="tns:ArrayOfString" />
+  </wsdl:message>
+  <wsdl:portType name="Order_PlacementSoap">
+    <wsdl:operation name="HelloWorld">
+      <wsdl:input message="tns:HelloWorldSoapIn" />
+      <wsdl:output message="tns:HelloWorldSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="URL_File">
+      <wsdl:input message="tns:URL_FileSoapIn" />
+      <wsdl:output message="tns:URL_FileSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Place_Orders">
+      <wsdl:input message="tns:Place_OrdersSoapIn" />
+      <wsdl:output message="tns:Place_OrdersSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:portType name="Order_PlacementHttpGet">
+    <wsdl:operation name="HelloWorld">
+      <wsdl:input message="tns:HelloWorldHttpGetIn" />
+      <wsdl:output message="tns:HelloWorldHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="URL_File">
+      <wsdl:input message="tns:URL_FileHttpGetIn" />
+      <wsdl:output message="tns:URL_FileHttpGetOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:portType name="Order_PlacementHttpPost">
+    <wsdl:operation name="HelloWorld">
+      <wsdl:input message="tns:HelloWorldHttpPostIn" />
+      <wsdl:output message="tns:HelloWorldHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="URL_File">
+      <wsdl:input message="tns:URL_FileHttpPostIn" />
+      <wsdl:output message="tns:URL_FileHttpPostOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="Order_PlacementSoap" type="tns:Order_PlacementSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="HelloWorld">
+      <soap:operation soapAction="http://api.coverking.com/Orders/HelloWorld" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+        <soap:header message="tns:HelloWorldAuth_Header" part="Auth_Header" use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="URL_File">
+      <soap:operation soapAction="http://api.coverking.com/Orders/URL_File" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+        <soap:header message="tns:URL_FileAuth_Header" part="Auth_Header" use="literal" />
+        <soap:header message="tns:URL_FileFile_Header" part="File_Header" use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Place_Orders">
+      <soap:operation soapAction="http://api.coverking.com/Orders/Place_Orders" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+        <soap:header message="tns:Place_OrdersAuth_Header" part="Auth_Header" use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="Order_PlacementSoap12" type="tns:Order_PlacementSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="HelloWorld">
+      <soap12:operation soapAction="http://api.coverking.com/Orders/HelloWorld" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+        <soap12:header message="tns:HelloWorldAuth_Header" part="Auth_Header" use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="URL_File">
+      <soap12:operation soapAction="http://api.coverking.com/Orders/URL_File" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+        <soap12:header message="tns:URL_FileAuth_Header" part="Auth_Header" use="literal" />
+        <soap12:header message="tns:URL_FileFile_Header" part="File_Header" use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Place_Orders">
+      <soap12:operation soapAction="http://api.coverking.com/Orders/Place_Orders" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+        <soap12:header message="tns:Place_OrdersAuth_Header" part="Auth_Header" use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="Order_PlacementHttpGet" type="tns:Order_PlacementHttpGet">
+    <http:binding verb="GET" />
+    <wsdl:operation name="HelloWorld">
+      <http:operation location="/HelloWorld" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="URL_File">
+      <http:operation location="/URL_File" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="Order_PlacementHttpPost" type="tns:Order_PlacementHttpPost">
+    <http:binding verb="POST" />
+    <wsdl:operation name="HelloWorld">
+      <http:operation location="/HelloWorld" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="URL_File">
+      <http:operation location="/URL_File" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="Order_Placement">
+    <wsdl:port name="Order_PlacementSoap" binding="tns:Order_PlacementSoap">
+      <soap:address location="http://api.coverking.com/orders/Order_Placement.asmx" />
+    </wsdl:port>
+    <wsdl:port name="Order_PlacementSoap12" binding="tns:Order_PlacementSoap12">
+      <soap12:address location="http://api.coverking.com/orders/Order_Placement.asmx" />
+    </wsdl:port>
+    <wsdl:port name="Order_PlacementHttpGet" binding="tns:Order_PlacementHttpGet">
+      <http:address location="http://api.coverking.com/orders/Order_Placement.asmx" />
+    </wsdl:port>
+    <wsdl:port name="Order_PlacementHttpPost" binding="tns:Order_PlacementHttpPost">
+      <http:address location="http://api.coverking.com/orders/Order_Placement.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>
