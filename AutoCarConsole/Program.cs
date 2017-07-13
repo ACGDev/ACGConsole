@@ -23,7 +23,7 @@ namespace AutoCarConsole
         static void Main(string[] args)
         {
             ConfigurationData config = GetConfigurationDetails();
-            //Console.WriteLine("..........Fetch Customer Record..........");
+            Console.WriteLine("..........Fetch Customer Record..........");
             //List<Customer> customers = new List<Customer>();
             //var skip = 0;
             ///*  */
