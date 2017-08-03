@@ -133,6 +133,13 @@ namespace AutoCarConsole
         public static string GenerateOrder(orders order)
         {
             string orderFinal = string.Empty;
+            string strMasterPakCode = "";
+            string strMasterPakCodeMsg = "";
+            if (order.order_items.Count > 1)
+            {
+                strMasterPakCode = "MASTERPACK";
+                strMasterPakCodeMsg = "Please Masterpack all items";
+            }
             foreach (var o in order.order_items)
             {
                 if (o.shipment_id > 0 || o.itemid == "111111")
@@ -173,7 +180,11 @@ namespace AutoCarConsole
                 //string s = reader.ReadContentAsString();
                 //DateTime when = DateTime.ParseExact(s, "M/d/yy hh:mm tt",
                 //    CultureInfo.InvariantCulture);
+                order.shipcompany = order.shipcompany.Trim();
+                if (order.shipcompany.Length > 25)
+                    order.shipcompany = order.shipcompany.Substring(0, 25);
 
+                // CK_SKU should be blank when Mfg ID and Variant are present.
                 string orderText = string.Format(@"<Order>
                                                         <PO>{0}</PO>
                                                         <PO_Date>{1}</PO_Date>
@@ -198,10 +209,10 @@ namespace AutoCarConsole
                                                         <Qty>{20}</Qty>
                                                         <Comment>{21}</Comment>
                                                     </Order>", order.orderno,
-                    DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"), order.shipcompany.Substring(0,25), (order.shipfirstname + order.shiplastname), order.shipaddress,
+                    DateTime.Now.ToString("MM/dd/yyyy"), order.shipcompany, (order.shipfirstname +" "+ order.shiplastname), order.shipaddress,
                     order.shipaddress2, order.shipcity, order.shipstate, order.shipzip, order.shipcountry,
-                    order.shipphone, order.shipemail, "R02", o.Product.SKU,
-                    o.Product.mfgid, variant, string.Empty, string.Empty, string.Empty, string.Empty, o.numitems,
+                    order.shipphone, order.shipemail, "R02", "",
+                    o.Product.mfgid, variant, strMasterPakCode, strMasterPakCodeMsg, string.Empty, string.Empty, o.numitems,
                     order.cus_comment);
                 orderFinal = orderFinal + "\n" + orderText;
             }
