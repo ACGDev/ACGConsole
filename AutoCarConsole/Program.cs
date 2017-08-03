@@ -26,7 +26,7 @@ namespace AutoCarConsole
             Console.WriteLine("..........Fetch Customer Record..........");
             List<Customer> customers = new List<Customer>();
             var skip = 0;
-            // Uncomment this to get Customer records 
+            //  Uncomment this to get Customer records 
 
             var customerGroups = RestHelper.GetRestAPIRecords<CustomerGroup>("", "CustomerGroups", config.PrivateKey, config.Token, config.Store, "100", 0, "");
             while (true)

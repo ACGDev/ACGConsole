@@ -6,6 +6,9 @@ packages
 *.sln.docstates
 .vs/
 
+# ignore a single file
+*.config
+
 # Build results
 [Dd]ebug/
 [Rr]elease/
