@@ -6,6 +6,9 @@ packages
 *.sln.docstates
 .vs/
 
+# ignore a single file
+*.config
+
 # Build results
 [Dd]ebug/
 [Rr]elease/
@@ -21,4 +24,3 @@ x64/
 *.ncrunchsolution
 *.ncrunchproject
 _NCrunch_WebCompiler
-
