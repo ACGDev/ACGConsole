@@ -7,7 +7,7 @@ packages
 .vs/
 
 # ignore a single file
-*.config
+app.config
 
 # Build results
 [Dd]ebug/
