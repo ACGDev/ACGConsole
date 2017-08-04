@@ -14,5 +14,8 @@ namespace AutoCarConsole.Model
         public string ConnectionString { get; set; }
         public string AuthUserName { get; set; }
         public string AuthPassowrd { get; set; }
+        public string FTPAddress { get; set; }
+        public string FTPUserName { get; set; }
+        public string FTPPassword { get; set; }
     }
 }

@@ -9,9 +9,32 @@ using DCartRestAPIClient;
 
 namespace AutoCarConsole.DAL
 {
-    public class CustomerDAL
+    public static class CustomerDAL
     {
-        public void AddCustomers(List<Customer> customers, List<CustomerGroup> customerGroups)
+        public static void AddCustomer(ConfigurationData config)
+        {
+            Console.WriteLine("..........Fetch Customer Record..........");
+
+            var customerGroups = RestHelper.GetRestAPIRecords<CustomerGroup>("", "CustomerGroups", config.PrivateKey, config.Token, config.Store, "100", 0, "");
+            List<Customer> customers = new List<Customer>();
+            var skip = 0;
+
+            while (true)
+            {
+                var records = RestHelper.GetRestAPIRecords<Customer>("", "Customers", config.PrivateKey, config.Token, config.Store, "200", skip, "");
+                int counter = records.Count;
+                Console.WriteLine("..........Fetches " + counter + " Customer Record..........");
+                customers.AddRange(records);
+                AddCustomers(customers, customerGroups);
+                if (counter < 200)
+                {
+                    break;
+                }
+                skip = 201 + skip;
+            }
+            Console.WriteLine("..........Finished..........");
+        }
+        private static void AddCustomers(List<Customer> customers, List<CustomerGroup> customerGroups)
         {
             var customerAndGroup = GetCustomers(customers, customerGroups);
             var customerDB = customerAndGroup.Item1;
@@ -35,7 +58,7 @@ namespace AutoCarConsole.DAL
         /// <param name="customers"></param>
         /// <param name="customerGroups"></param>
         /// <returns></returns>
-        private Tuple<List<customers>, List<customer_groups>> GetCustomers(List<Customer> customers, List<CustomerGroup> customerGroups)
+        private static Tuple<List<customers>, List<customer_groups>> GetCustomers(List<Customer> customers, List<CustomerGroup> customerGroups)
         {
             List<customers> dbCustomers = new List<customers>();
             List<customer_groups> dbCustomerGroups = new List<customer_groups>();

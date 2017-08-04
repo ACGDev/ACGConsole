@@ -1,17 +1,71 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Data.Entity.Migrations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using AutoCarConsole.Model;
 using DCartRestAPIClient;
+using MySql.Data.MySqlClient;
+using System.Data.Entity;
 
 namespace AutoCarConsole.DAL
 {
-    public class OrderDAL
+    public static class OrderDAL
     {
-        public List<orders> AddOrders(List<Order> orders)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="connectionString"></param>
+        /// <param name="fetchDate"></param>
+        /// <returns></returns>
+        public static List<orders> FetchOrders(string connectionString, bool fetchDate)
+        {
+            Console.WriteLine("..........Fetch Orders..........");
+            var strOrderStart = FetchLastOrderDate(connectionString, fetchDate);
+            List<orders> ordersDB;
+            using (var context = new AutoCareDataContext())
+            {
+                //ordersDB = context.Orders.Include(I => I.order_items).Include("order_items.Product").Where(I => I.shipcomplete != "shipped" && I.shipcomplete != "Cancelled").ToList();
+                DateTime dt = Convert.ToDateTime(strOrderStart);
+                ordersDB = context.Orders.Include(I => I.order_items).Include("order_items.Product").Where(I => I.orderdate >= dt).ToList();
+            }
+            Console.WriteLine("..........Finished..........");
+            return ordersDB;
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="config"></param>
+        /// <param name="fetchDate"></param>
+        /// <returns></returns>
+        public static List<orders> AddOrders(ConfigurationData config, bool fetchDate)
+        {
+            var strOrderStart = FetchLastOrderDate(config.ConnectionString, fetchDate);
+            List<DCartRestAPIClient.Order> orders = new List<DCartRestAPIClient.Order>();
+            var skip = 0;
+            while (true)
+            {
+                var records = RestHelper.GetRestAPIRecords<DCartRestAPIClient.Order>("", "Orders", config.PrivateKey, config.Token, config.Store, "100", skip, strOrderStart);
+                int counter = records.Count;
+                Console.WriteLine("..........Fetches " + counter + " Order Record..........");
+                orders.AddRange(records);
+                if (counter < 100)
+                {
+                    break;
+                }
+                skip = 101 + skip;
+            }
+            var ordersDb = AddOrders(orders);
+            return ordersDb;
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="orders"></param>
+        /// <returns></returns>
+        private static List<orders> AddOrders(List<Order> orders)
         {
             var orderDB = GetOrders(orders);
             using (var context = new AutoCareDataContext())
@@ -54,8 +108,13 @@ namespace AutoCarConsole.DAL
             }
             return orderDB;
         }
-
-        private List<order_shipments> GetOrderShipments(long? orderId, List<Shipment> shipments)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="orderId"></param>
+        /// <param name="shipments"></param>
+        /// <returns></returns>
+        private static List<order_shipments> GetOrderShipments(long? orderId, List<Shipment> shipments)
         {
             List<order_shipments> orderShipments = null;
             if (shipments.Count > 0)
@@ -82,7 +141,7 @@ namespace AutoCarConsole.DAL
         /// <param name="orderId"></param>
         /// <param name="orderItems"></param>
         /// <returns></returns>
-        private List<order_items> GetOrderItems(long? orderId, List<OrderItem> orderItems)
+        private static List<order_items> GetOrderItems(long? orderId, List<OrderItem> orderItems)
         {
             List<order_items> order_items = null;
             if (orderItems.Count > 0)
@@ -124,7 +183,7 @@ namespace AutoCarConsole.DAL
         /// </summary>
         /// <param name="orders"></param>
         /// <returns></returns>
-        private List<orders> GetOrders(List<Order> orders)
+        private static List<orders> GetOrders(List<Order> orders)
         {
             List<orders> dbOrders = new List<orders>();
             foreach (var order in orders)
@@ -232,6 +291,47 @@ namespace AutoCarConsole.DAL
                 dbOrders.Add(thisOrder);
             }
             return dbOrders;
+        }
+        /// <summary>
+        ///     To fetch ALL orders comment pass <para>fetchLastOrderDate</para> false
+        /// </summary>
+        /// <param name="myConnectionString"></param>
+        /// <param name="fetchDate"></param>
+        /// <returns></returns>
+        private static string FetchLastOrderDate(string myConnectionString, bool fetchDate)
+        {
+            string strOrderStart = DateTime.Today.AddDays(-3).ToString("MM/dd/yyyy");
+            if (!fetchDate)
+            {
+                return strOrderStart;
+            }
+            MySqlConnection conn;
+            try
+            {
+                using (conn = new MySqlConnection(myConnectionString))
+                {
+
+                    MySqlCommand cmd = conn.CreateCommand();
+                    cmd.CommandText =
+                        "select orderdate from orders where Shipcomplete = 'Pending' order by orderdate limit 1";
+                    //Command to get query needed value from DataBase
+                    conn.Open();
+                    MySqlDataReader reader = cmd.ExecuteReader();
+
+                    if (reader.Read())
+                    {
+                        var result = reader.GetDateTime("orderdate");
+                        strOrderStart = result.ToString("MM/dd/yyyy");
+
+                    }
+                    conn.Close();
+                }
+            }
+            catch (MySql.Data.MySqlClient.MySqlException ex)
+            {
+                Console.WriteLine("Error " + ex.Message);
+            }
+            return strOrderStart;
         }
     }
 }
