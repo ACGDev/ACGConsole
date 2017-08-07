@@ -74,11 +74,11 @@ namespace AutoCarConsole.DAL
                 foreach (var order in orderDB)
                 {
                     bool bAddthisOrder = false;
+                    // -- status: 4 - shipped, 5 - Cancelled, 7 - incomplete, 1 - new
                     if (order.order_status == 7)
                     {
                         continue;
                     }
-                    // -- status: 4 - shipped, 5 - Cancelled, 7 - incomplete, 1 - new
                     var record = context.Orders.FirstOrDefault(I => I.order_id == order.order_id);
                     // Handle if new order or not shipped or cancelled 
                     if (record == null)
@@ -229,17 +229,17 @@ namespace AutoCarConsole.DAL
                     salestax = order.SalesTax,
                     userid = order.UserID,
                     affiliate_approved = 0,
-                    affiliate_approvedreason = "Fake",
+                    affiliate_approvedreason = "",
                     affiliate_id = 0,
-                    ccauthorization = "Fake",
-                    coupon = "Fake",
+                    ccauthorization = "",
+                    coupon = "",
                     coupondiscount = 0,
                     coupondiscountdual = 0,
                     date_started = DateTime.Now,
                     errors = "Fake",
                     giftamountused = 0,
                     giftamountuseddual = 0,
-                    giftcertificate = "Fake",
+                    giftcertificate = "",
                     isrecurrent = 0,
                     last_auto_email = 0,
                     next_order = DateTime.Now,

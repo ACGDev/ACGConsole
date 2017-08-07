@@ -26,10 +26,16 @@ namespace AutoCarConsole
             Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
 
             ConfigurationData config = GetConfigurationDetails();
+            // Uncomment following to get Customer records
             //CustomerDAL.AddCustomer(config);
-            // Get first record that is not shipped or cancelled in the last 6 months
-            //OrderDAL.AddOrders(config, true);
-            List<orders> ordersDB = OrderDAL.FetchOrders(config.ConnectionString, true);
+
+            // Get first record that is not shipped or cancelled in the last 6 months. FetchDate=false will limit it to 3 days
+
+            // SM: Why do we need two calls ? AddOrders and FetchOrders seem to be returning the exact same set of orders ??
+            // why not List<orders> ordersDB = OrderDAL.AddOrders(config, false);   ??
+            OrderDAL.AddOrders(config, false);
+
+            List<orders> ordersDB = OrderDAL.FetchOrders(config.ConnectionString, false);
 
             // Create ACG-yyyyMMDDHHMM.csv for uploading
             string strFileName = string.Format("{0}\\ACG-{1}.csv",System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
@@ -63,13 +69,17 @@ namespace AutoCarConsole
 
         public static void UploadFile(ConfigurationData config, string fileName)
         {
-            FtpWebRequest request = (FtpWebRequest)WebRequest.Create(config.FTPAddress);
+            var ftAddress = "ftp://coverkingprod.cloudapp.net/";
+            //FtpWebRequest request = (FtpWebRequest)WebRequest.Create(config.FTPAddress);
+            FtpWebRequest request = (FtpWebRequest)WebRequest.Create(ftAddress);
             request.Method = WebRequestMethods.Ftp.UploadFile;
 
             // This example assumes the FTP site uses anonymous logon.  
             request.Credentials = new NetworkCredential(config.FTPUserName, config.FTPPassword);
 
             // Copy the contents of the file to the request stream.  
+            request.UsePassive = true;
+
             StreamReader sourceStream = new StreamReader(fileName);
             byte[] fileContents = Encoding.UTF8.GetBytes(sourceStream.ReadToEnd());
             sourceStream.Close();
