@@ -84,7 +84,7 @@ namespace AutoCarConsole
             // Copy the contents of the file to the request stream.  
             request.UsePassive = true;
 
-            StreamReader sourceStream = new StreamReader(filePath);
+            StreamReader sourceStream = new StreamReader(filePath + "\\" + fileName);
             byte[] fileContents = Encoding.UTF8.GetBytes(sourceStream.ReadToEnd());
             sourceStream.Close();
             request.ContentLength = fileContents.Length;
