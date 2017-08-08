@@ -15,7 +15,9 @@ using DCartRestAPIClient;
 using MySql;
 using MySql.Data.MySqlClient;
 using System.Text;
-using Order = AutoCarConsole.ACG_CK.Order;
+/* using Mandrill;
+ using Mandrill.Model;*/
+ using Order = AutoCarConsole.ACG_CK.Order;
 
 namespace AutoCarConsole
 {
@@ -36,10 +38,12 @@ namespace AutoCarConsole
             OrderDAL.AddOrders(config, false);
 
             List<orders> ordersDB = OrderDAL.FetchOrders(config.ConnectionString, false);
-
+            string fileName = string.Format("ACG-{0}.csv", DateTime.Now.ToString("yyyyMMMdd-HHmm"));
+            string filePath =
+                System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             // Create ACG-yyyyMMDDHHMM.csv for uploading
-            string strFileName = string.Format("{0}\\ACG-{1}.csv",System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                DateTime.Now.ToString("yyyyMMMdd-HHmm"));
+            string strFileName = string.Format("{0}\\{1}", filePath,
+                fileName);
             
             string strCsvHeader = "PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
             File.WriteAllText(strFileName, strCsvHeader + "\r\n");
@@ -63,13 +67,13 @@ namespace AutoCarConsole
             if (nOrderLineCount>0)
             {
                 // Ftp upload code here
-                UploadFile(config, strFileName);
+                UploadFile(config, filePath, fileName);
             }
         }
 
-        public static void UploadFile(ConfigurationData config, string fileName)
+        public static void UploadFile(ConfigurationData config, string filePath, string fileName)
         {
-            var ftAddress = "ftp://coverkingprod.cloudapp.net/";
+            var ftAddress = config.FTPAddress+ fileName;
             //FtpWebRequest request = (FtpWebRequest)WebRequest.Create(config.FTPAddress);
             FtpWebRequest request = (FtpWebRequest)WebRequest.Create(ftAddress);
             request.Method = WebRequestMethods.Ftp.UploadFile;
@@ -80,7 +84,7 @@ namespace AutoCarConsole
             // Copy the contents of the file to the request stream.  
             request.UsePassive = true;
 
-            StreamReader sourceStream = new StreamReader(fileName);
+            StreamReader sourceStream = new StreamReader(filePath);
             byte[] fileContents = Encoding.UTF8.GetBytes(sourceStream.ReadToEnd());
             sourceStream.Close();
             request.ContentLength = fileContents.Length;
@@ -94,6 +98,23 @@ namespace AutoCarConsole
             Console.WriteLine("Upload File Complete, status {0}", response.StatusDescription);
 
             response.Close();
+        }
+        /// <summary>
+        /// todo: not used anywhere
+        /// </summary>
+        /// <param name="configData"></param>
+        public static void SendEmail(ConfigurationData configData)
+        {
+            /*
+             * Uncomment namespace from top
+             * <add key="MandrilAPIKey" value="fake"/>
+             */
+            /*var api = new MandrillApi(configData.MandrilAPIKey);
+            var message = new MandrillMessage("billing@autocareguys.com", "sample@gmail.com",
+                "hello mandrill!", "...how are you?");
+            var result = api.Messages.SendAsync(message);
+            result.Wait();
+            var checkResult = result.Result;*/
         }
         static ConfigurationData GetConfigurationDetails()
         {
@@ -112,7 +133,8 @@ namespace AutoCarConsole
                 AuthPassowrd = ConfigurationManager.AppSettings["AuthPassowrd"],
                 FTPAddress = ConfigurationManager.AppSettings["FTPAddress"],
                 FTPUserName = ConfigurationManager.AppSettings["FTPUserName"],
-                FTPPassword = ConfigurationManager.AppSettings["FTPPassword"]
+                FTPPassword = ConfigurationManager.AppSettings["FTPPassword"],
+                MandrilAPIKey = ConfigurationManager.AppSettings["MandrilAPIKey"]
             };
         } 
     }
