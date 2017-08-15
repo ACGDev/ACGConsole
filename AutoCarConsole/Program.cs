@@ -69,6 +69,7 @@ namespace AutoCarConsole
                 // Ftp upload code here
                 UploadFile(config, filePath, fileName);
             }
+            OrderDAL.UpdateStatus(ordersDB);
         }
 
         public static void UploadFile(ConfigurationData config, string filePath, string fileName)

@@ -109,6 +109,24 @@ namespace AutoCarConsole.DAL
             return orderDB;
         }
         /// <summary>
+        ///     Update Order Status as 'Submitted' in Database
+        /// </summary>
+        /// <param name="db_orders"></param>
+        public static void UpdateStatus(List<orders> db_orders)
+        {
+            using (var context = new AutoCareDataContext())
+            {
+                foreach (var order in db_orders)
+                {
+                    context.Orders.Attach(entity: order);
+                    order.shipstate = "Submitted";
+                    context.Entry(order).State = EntityState.Modified;
+                    context.Entry(order).Property(I => I.shipstate).IsModified = true;
+                }
+                context.SaveChanges();
+            }
+        }
+        /// <summary>
         /// 
         /// </summary>
         /// <param name="orderId"></param>
