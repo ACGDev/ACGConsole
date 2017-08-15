@@ -35,67 +35,67 @@ namespace AutoCarConsole.DAL
             return ordersDB;
         }
         /// <summary>
-        /// 
+        /// Fetches orders from site and syncs with Admin DB
         /// </summary>
         /// <param name="config"></param>
         /// <param name="fetchDate"></param>
         /// <returns></returns>
-        public static List<orders> AddOrders(ConfigurationData config, bool fetchDate)
+        public static List<orders> SyncOrders(ConfigurationData config, bool fetchDate)
         {
             var strOrderStart = FetchLastOrderDate(config.ConnectionString, fetchDate);
-            List<DCartRestAPIClient.Order> orders = new List<DCartRestAPIClient.Order>();
+            List<DCartRestAPIClient.Order> orders_fromsite = new List<DCartRestAPIClient.Order>();
             var skip = 0;
             while (true)
             {
                 var records = RestHelper.GetRestAPIRecords<DCartRestAPIClient.Order>("", "Orders", config.PrivateKey, config.Token, config.Store, "100", skip, strOrderStart);
                 int counter = records.Count;
                 Console.WriteLine("..........Fetches " + counter + " Order Record..........");
-                orders.AddRange(records);
+                orders_fromsite.AddRange(records);
                 if (counter < 100)
                 {
                     break;
                 }
                 skip = 101 + skip;
             }
-            var ordersDb = AddOrders(orders);
-            return ordersDb;
+            var syncedOrders = AddOrders(orders_fromsite);  // Adds and updates orders from external site
+            return syncedOrders;
         }
         /// <summary>
-        /// 
+        /// Adds and updates orders from external site
         /// </summary>
-        /// <param name="orders"></param>
+        /// <param name="orders_fromsite"></param>
         /// <returns></returns>
-        private static List<orders> AddOrders(List<Order> orders)
+        private static List<orders> AddOrders(List<Order> orders_fromsite)
         {
-            var orderDB = GetOrders(orders);
+            var mappedOrders = MapOrders(orders_fromsite);
             using (var context = new AutoCareDataContext())
             {
                 bool flag = false;
-                foreach (var order in orderDB)
+                foreach (var order_external in mappedOrders)
                 {
                     bool bAddthisOrder = false;
                     // -- status: 4 - shipped, 5 - Cancelled, 7 - incomplete, 1 - new
-                    if (order.order_status == 7)
+                    if (order_external.order_status == 7)
                     {
                         continue;
                     }
-                    var record = context.Orders.FirstOrDefault(I => I.order_id == order.order_id);
+                    var record_from_adminDB = context.Orders.FirstOrDefault(I => I.order_id == order_external.order_id);
                     // Handle if new order or not shipped or cancelled 
-                    if (record == null)
+                    if (record_from_adminDB == null)
                         bAddthisOrder = true;
-                    else if (order.order_status == 5 && record.order_status != 5)  // if previously shipped, it can be cancelled now
+                    else if (order_external.order_status == 5 && record_from_adminDB.order_status != 5)  // if previously shipped, it can be cancelled now
                         bAddthisOrder = true;
-                    else  if ( record.order_status != 5) // skip if previously cancelled
+                    else  if (record_from_adminDB.order_status != 5) // skip if previously cancelled
                         bAddthisOrder = true;
 
                     if (bAddthisOrder)
                     {
-                        if (order.referer.Length > 98)
+                        if (order_external.referer.Length > 98)
                         {
-                            order.referer = order.referer.Substring(0, 98);
-                            Console.WriteLine("referer "+order.referer+" length "+order.referer.Length.ToString());
+                            order_external.referer = order_external.referer.Substring(0, 98);
+                            Console.WriteLine("referer "+order_external.referer+" length "+order_external.referer.Length.ToString());
                         }
-                        context.Orders.AddOrUpdate(order);
+                        context.Orders.AddOrUpdate(order_external);
                         flag = true;
 
                     }
@@ -106,7 +106,7 @@ namespace AutoCarConsole.DAL
                     context.SaveChanges();
                 }
             }
-            return orderDB;
+            return mappedOrders;
         }
         /// <summary>
         /// 
@@ -179,11 +179,11 @@ namespace AutoCarConsole.DAL
             return order_items;
         }
         /// <summary>
-        /// Convert REST Order List to DB orders
+        /// Convert (maps) REST Order List from Order site to DB orders
         /// </summary>
         /// <param name="orders"></param>
         /// <returns></returns>
-        private static List<orders> GetOrders(List<Order> orders)
+        private static List<orders> MapOrders(List<Order> orders)
         {
             List<orders> dbOrders = new List<orders>();
             foreach (var order in orders)
@@ -275,16 +275,19 @@ namespace AutoCarConsole.DAL
                     thisOrder.shipcomplete = "Cancelled";
                 else
                 {
-                    int nItemsShipped = 0;
-                    foreach (var shiprow in thisOrder.order_shipments)
-                    {
-                        if (shiprow.oshippeddate != "")
-                            nItemsShipped++;
-                    }
-                    if (nItemsShipped == thisOrder.order_shipments.Count)
+                    if (order.OrderStatusID == 4)  // cancelled
                         thisOrder.shipcomplete = "Shipped";
-                    else if (nItemsShipped > 0)
-                        thisOrder.shipcomplete = string.Format("Partial {0}/{1}", nItemsShipped, thisOrder.order_items.Count);
+
+                    //int nItemsShipped = 0;
+                    //foreach (var shiprow in thisOrder.order_shipments)
+                    //{
+                    //    if (shiprow.oshippeddate != "")
+                    //        nItemsShipped++;
+                    //}
+                    //if (nItemsShipped == thisOrder.order_shipments.Count)
+                    //    thisOrder.shipcomplete = "Shipped";
+                    //else if (nItemsShipped > 0)
+                    //    thisOrder.shipcomplete = string.Format("Partial {0}/{1}", nItemsShipped, thisOrder.order_items.Count);
                 }
 
 
@@ -300,7 +303,7 @@ namespace AutoCarConsole.DAL
         /// <returns></returns>
         private static string FetchLastOrderDate(string myConnectionString, bool fetchDate)
         {
-            string strOrderStart = DateTime.Today.AddDays(-3).ToString("MM/dd/yyyy");
+            string strOrderStart = DateTime.Today.AddDays(-1).ToString("MM/dd/yyyy");
             if (!fetchDate)
             {
                 return strOrderStart;

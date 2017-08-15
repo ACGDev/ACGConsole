@@ -17,5 +17,6 @@ namespace AutoCarConsole.Model
         public string FTPAddress { get; set; }
         public string FTPUserName { get; set; }
         public string FTPPassword { get; set; }
+        public string MandrilAPIKey { get; set; }
     }
 }
