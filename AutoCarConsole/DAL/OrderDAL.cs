@@ -199,12 +199,12 @@ namespace AutoCarConsole.DAL
         /// <summary>
         /// Convert (maps) REST Order List from Order site to DB orders
         /// </summary>
-        /// <param name="orders"></param>
+        /// <param name="ordersToMap"></param>
         /// <returns></returns>
-        private static List<orders> MapOrders(List<Order> orders)
+        private static List<orders> MapOrders(List<Order> ordersToMap)
         {
-            List<orders> dbOrders = new List<orders>();
-            foreach (var order in orders)
+            List<orders> mappedOrders = new List<orders>();
+            foreach (var order in ordersToMap)
             {
                 var orderKeyDict = order.ContinueURL.Split('&').Select(q => q.Split('='))
                     .ToDictionary(k => k[0], v => v[1]);
@@ -309,9 +309,9 @@ namespace AutoCarConsole.DAL
                 }
 
 
-                dbOrders.Add(thisOrder);
+                mappedOrders.Add(thisOrder);
             }
-            return dbOrders;
+            return mappedOrders;
         }
         /// <summary>
         ///     To fetch ALL orders comment pass <para>fetchLastOrderDate</para> false
