@@ -35,10 +35,11 @@ namespace AutoCarConsole
 
             // SM: Why do we need two calls ? AddOrders and FetchOrders seem to be returning the exact same set of orders ??
             // why not List<orders> ordersDB = OrderDAL.AddOrders(config, false);   ??
-            // SM: OrderDAL.AddOrders(config, false);
-            // SM: List<orders> ordersDB = OrderDAL.FetchOrders(config.ConnectionString, false);
 
-            List<orders> ordersDB = OrderDAL.SyncOrders(config, true);
+            //SM OrderDAL.SyncOrders(config, false);
+            // List<orders> ordersDB = OrderDAL.FetchOrders(config.ConnectionString, false);
+
+            List<orders> ordersDB = OrderDAL.SyncOrders(config, false);
 
             // Create ACG-yyyyMMDDHHMM.csv for uploading
             string fileName = string.Format("ACG-{0}.csv", DateTime.Now.ToString("yyyyMMMdd-HHmm"));

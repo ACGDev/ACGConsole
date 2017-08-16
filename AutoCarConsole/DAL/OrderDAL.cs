@@ -57,7 +57,7 @@ namespace AutoCarConsole.DAL
                 }
                 skip = 101 + skip;
             }
-            var syncedOrders = AddOrders(orders_fromsite);  // Adds and updates orders from external site
+            var syncedOrders = Map_n_Add_ExtOrders(orders_fromsite);  // Adds and updates orders from external site
             return syncedOrders;
         }
         /// <summary>
@@ -65,7 +65,7 @@ namespace AutoCarConsole.DAL
         /// </summary>
         /// <param name="orders_fromsite"></param>
         /// <returns></returns>
-        private static List<orders> AddOrders(List<Order> orders_fromsite)
+        private static List<orders> Map_n_Add_ExtOrders(List<Order> orders_fromsite)
         {
             var mappedOrders = MapOrders(orders_fromsite);
             using (var context = new AutoCareDataContext())
