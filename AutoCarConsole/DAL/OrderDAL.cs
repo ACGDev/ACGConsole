@@ -95,6 +95,9 @@ namespace AutoCarConsole.DAL
                             order_external.referer = order_external.referer.Substring(0, 98);
                             Console.WriteLine("referer "+order_external.referer+" length "+order_external.referer.Length.ToString());
                         }
+                        if (record_from_adminDB.shipcomplete.ToLower() == "submitted")
+                            order_external.shipcomplete = record_from_adminDB.shipcomplete;
+
                         context.Orders.AddOrUpdate(order_external);
                         flag = true;
 
@@ -118,12 +121,19 @@ namespace AutoCarConsole.DAL
             {
                 foreach (var order in db_orders)
                 {
-                    context.Orders.Attach(entity: order);
-                    order.shipstate = "Submitted";
-                    context.Entry(order).State = EntityState.Modified;
-                    context.Entry(order).Property(I => I.shipstate).IsModified = true;
+                    if (order.shipcomplete != "Submitted")
+                    {
+                        bool isDetached = context.Entry(order).State == EntityState.Detached;                        if (isDetached)
+                            context.Orders.Attach(entity: order);
+
+                        order.shipcomplete = "Submitted";
+                        // context.Entry(order).State = EntityState.Modified;
+                        context.Entry(order).Property(I => I.shipcomplete).IsModified = true;
+                    }
                 }
                 context.SaveChanges();
+               // context.ChangeTracker.DetectChanges();
+
             }
         }
         /// <summary>
@@ -321,7 +331,7 @@ namespace AutoCarConsole.DAL
         /// <returns></returns>
         private static string FetchLastOrderDate(string myConnectionString, bool fetchDate)
         {
-            string strOrderStart = DateTime.Today.AddDays(-1).ToString("MM/dd/yyyy");
+            string strOrderStart = DateTime.Today.AddDays(AutoCarConsole.Program.numDays).ToString("MM/dd/yyyy");
             if (!fetchDate)
             {
                 return strOrderStart;

@@ -21,8 +21,10 @@ using System.Text;
 
 namespace AutoCarConsole
 {
+    
     class Program
     {
+        public static int numDays = -2;
         static void Main(string[] args)
         {
             Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
@@ -59,18 +61,22 @@ namespace AutoCarConsole
                 //if (order.orderno.Contains("161968"))
                 //    order.orderno += "-6";
                 // RestHelper.Execute(@"http://api.coverking.com/orders/Order_Placement.asmx?op=Place_Orders", config.AuthUserName, config.AuthPassowrd, order);
-                string strOrderLines = RestHelper.GenerateOrderLines(order, config.AuthUserName, config.AuthPassowrd);
-                if (strOrderLines != string.Empty)
+                if (order.shipcomplete.ToLower() != "submitted")
                 {
-                    File.AppendAllText(strFileNameWithPath, strOrderLines);
-                    nOrderLineCount++;
+                    string strOrderLines = RestHelper.GenerateOrderLines(order, config.AuthUserName, config.AuthPassowrd);
+                    if (strOrderLines != string.Empty)
+                    {
+                        File.AppendAllText(strFileNameWithPath, strOrderLines);
+                        nOrderLineCount++;
+                    }
                 }
+
             }
-            // SM: Need to upload file to ftp. Try with any ftp first.
+            // Upload file to ftp. 
             if (nOrderLineCount>0)
             {
                 // Ftp upload code here
-                UploadFile(config, filePath, fileName);
+               // UploadFile(config, filePath, fileName);
             }
             OrderDAL.UpdateStatus(ordersDB);
         }

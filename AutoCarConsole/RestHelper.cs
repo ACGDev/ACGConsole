@@ -89,7 +89,7 @@ namespace AutoCarConsole
             return restAPIClientWM;
         }
 
-        /** Execute() is not used. Delete later**/
+        /** Execute() is not used. Delete later
         public static void Execute(string url, string userName, string password, orders order)
         {
             HttpWebRequest request = CreateWebRequest(url);
@@ -131,7 +131,8 @@ namespace AutoCarConsole
                 }
             }
         }
-        /** GenerateOrder() is not used. Delete later**/
+            **/
+        /** GenerateOrder() is not used. Delete later
         public static string GenerateOrder(orders order)
         {
             string orderFinal = string.Empty;
@@ -222,7 +223,7 @@ namespace AutoCarConsole
                     order.shipphone, order.shipemail, "R02", "",
                     o.Product.mfgid, variant, strMasterPakCode, strMasterPakCodeMsg, " ", " ", o.numitems,
                     order.cus_comment);
-                */
+                *
                 string oText = string.Format("<Order><PO>{0}</PO><PO_Date>{1}</PO_Date>",
                     order.orderno, DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"));
                 // if (order.shipcompany.Trim() != string.Empty)
@@ -269,7 +270,7 @@ namespace AutoCarConsole
             }
             return orderFinal;
         }
-
+**/
         /// <summary>
         /// Create a soap webrequest to [Url]
         /// Not used for file upload
@@ -376,6 +377,7 @@ namespace AutoCarConsole
                     o.numitems, order.cus_comment.Trim().Replace("\"", "&quot;"));
 
                 orderFinal.AppendLine(oText);
+                o.Product = null;
             }
             return orderFinal.ToString();
         }
