@@ -181,6 +181,7 @@ namespace AutoCarConsole
                     o.numitems, order.cus_comment.Trim().Replace("\"", "&quot;"));
 
                 orderFinal.AppendLine(oText);
+                o.Product = null;
             }
             return orderFinal.ToString();
         }
