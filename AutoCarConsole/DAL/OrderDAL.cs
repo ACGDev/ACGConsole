@@ -123,7 +123,8 @@ namespace AutoCarConsole.DAL
                 {
                     if (order.shipcomplete != "Submitted")
                     {
-                        bool isDetached = context.Entry(order).State == EntityState.Detached;                        if (isDetached)
+                        bool isDetached = context.Entry(order).State == EntityState.Detached;
+                        if (isDetached)
                             context.Orders.Attach(entity: order);
 
                         order.shipcomplete = "Submitted";
@@ -197,7 +198,7 @@ namespace AutoCarConsole.DAL
                         unitstock = item.ItemUnitStock,
                         weight = item.ItemWeight,
                         depends_on_item = 0,
-                        itemname = "Fake",
+                        itemname = "",
                         recurrent = 0,
                         recurring_order_frequency = 0,
                         supplierid = 0
