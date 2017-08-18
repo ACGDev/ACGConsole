@@ -9,6 +9,7 @@ using AutoCarConsole.Model;
 using DCartRestAPIClient;
 using MySql.Data.MySqlClient;
 using System.Data.Entity;
+using System.Globalization;
 
 namespace AutoCarConsole.DAL
 {
@@ -57,15 +58,17 @@ namespace AutoCarConsole.DAL
                 }
                 skip = 101 + skip;
             }
-            var syncedOrders = Map_n_Add_ExtOrders(orders_fromsite);  // Adds and updates orders from external site
+            var syncedOrders = Map_n_Add_ExtOrders(strOrderStart, orders_fromsite);  // Adds and updates orders from external site
             return syncedOrders;
         }
+
         /// <summary>
         /// Adds and updates orders from external site
         /// </summary>
+        /// <param name="strOrderStart"></param>
         /// <param name="orders_fromsite"></param>
         /// <returns></returns>
-        private static List<orders> Map_n_Add_ExtOrders(List<Order> orders_fromsite)
+        private static List<orders> Map_n_Add_ExtOrders(string strOrderStart, List<Order> orders_fromsite)
         {
             var mappedOrders = MapOrders(orders_fromsite);
             using (var context = new AutoCareDataContext())
@@ -95,21 +98,21 @@ namespace AutoCarConsole.DAL
                             order_external.referer = order_external.referer.Substring(0, 98);
                             Console.WriteLine("referer "+order_external.referer+" length "+order_external.referer.Length.ToString());
                         }
-                        if (record_from_adminDB.shipcomplete.ToLower() == "submitted")
+                        if (record_from_adminDB != null && record_from_adminDB.shipcomplete.ToLower() == "submitted")
                             order_external.shipcomplete = record_from_adminDB.shipcomplete;
 
                         context.Orders.AddOrUpdate(order_external);
                         flag = true;
-
                     }
-
                 }
                 if (flag)
                 {
                     context.SaveChanges();
                 }
+                
+                DateTime strOrderDate = Convert.ToDateTime(strOrderStart).AddDays(-5);
+                return context.Orders.Include(I => I.order_items).Include("order_items.Product").Where(I => I.orderdate >= strOrderDate).ToList();
             }
-            return mappedOrders;
         }
         /// <summary>
         ///     Update Order Status as 'Submitted' in Database
@@ -123,18 +126,13 @@ namespace AutoCarConsole.DAL
                 {
                     if (order.shipcomplete != "Submitted")
                     {
-                        bool isDetached = context.Entry(order).State == EntityState.Detached;
-                        if (isDetached)
-                            context.Orders.Attach(entity: order);
-
+                        context.Entry(order).State = EntityState.Modified;
+                        context.Orders.Attach(entity: order);
                         order.shipcomplete = "Submitted";
-                        // context.Entry(order).State = EntityState.Modified;
                         context.Entry(order).Property(I => I.shipcomplete).IsModified = true;
                     }
                 }
                 context.SaveChanges();
-               // context.ChangeTracker.DetectChanges();
-
             }
         }
         /// <summary>

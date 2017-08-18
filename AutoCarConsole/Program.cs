@@ -15,6 +15,8 @@ using DCartRestAPIClient;
 using MySql;
 using MySql.Data.MySqlClient;
 using System.Text;
+ using Mandrill;
+ using Mandrill.Model;
 /* using Mandrill;
  using Mandrill.Model;*/
  using Order = AutoCarConsole.ACG_CK.Order;
@@ -42,7 +44,6 @@ namespace AutoCarConsole
             // List<orders> ordersDB = OrderDAL.FetchOrders(config.ConnectionString, false);
 
             List<orders> ordersDB = OrderDAL.SyncOrders(config, false);
-
             // Create ACG-yyyyMMDDHHMM.csv for uploading
             string fileName = string.Format("ACG-{0}.csv", DateTime.Now.ToString("yyyyMMMdd-HHmm"));
             string filePath =
@@ -63,7 +64,7 @@ namespace AutoCarConsole
                 // RestHelper.Execute(@"http://api.coverking.com/orders/Order_Placement.asmx?op=Place_Orders", config.AuthUserName, config.AuthPassowrd, order);
                 if (order.shipcomplete.ToLower() != "submitted")
                 {
-                    string strOrderLines = RestHelper.GenerateOrderLines(order, config.AuthUserName, config.AuthPassowrd);
+                    string strOrderLines = RestHelper.GenerateOrderLines(order, config, SendEmail);
                     if (strOrderLines != string.Empty)
                     {
                         File.AppendAllText(strFileNameWithPath, strOrderLines);
@@ -109,22 +110,25 @@ namespace AutoCarConsole
 
             response.Close();
         }
+
         /// <summary>
         /// todo: not used anywhere
         /// </summary>
         /// <param name="configData"></param>
-        public static void SendEmail(ConfigurationData configData)
+        /// <param name="header"></param>
+        /// <param name="body"></param>
+        public static void SendEmail(ConfigurationData configData, string header, string body)
         {
             /*
              * Uncomment namespace from top
              * <add key="MandrilAPIKey" value="fake"/>
              */
-            /*var api = new MandrillApi(configData.MandrilAPIKey);
-            var message = new MandrillMessage("billing@autocareguys.com", "sample@gmail.com",
-                "hello mandrill!", "...how are you?");
+            var api = new MandrillApi(configData.MandrilAPIKey);
+            var message = new MandrillMessage("cs@autocareguys.com", "sample@gmail.com",
+                header, body);
             var result = api.Messages.SendAsync(message);
             result.Wait();
-            var checkResult = result.Result;*/
+            var checkResult = result.Result;
         }
         static ConfigurationData GetConfigurationDetails()
         {
