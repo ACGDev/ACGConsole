@@ -64,7 +64,7 @@ namespace AutoCarConsole
                 // RestHelper.Execute(@"http://api.coverking.com/orders/Order_Placement.asmx?op=Place_Orders", config.AuthUserName, config.AuthPassowrd, order);
                 if (order.shipcomplete.ToLower() != "submitted")
                 {
-                    string strOrderLines = RestHelper.GenerateOrderLines(order, config.AuthUserName, config.AuthPassowrd);
+                    string strOrderLines = RestHelper.GenerateOrderLines(order, config, SendEmail);
                     if (strOrderLines != string.Empty)
                     {
                         File.AppendAllText(strFileNameWithPath, strOrderLines);
@@ -124,7 +124,7 @@ namespace AutoCarConsole
              * <add key="MandrilAPIKey" value="fake"/>
              */
             var api = new MandrillApi(configData.MandrilAPIKey);
-            var message = new MandrillMessage("billing@autocareguys.com", "sample@gmail.com",
+            var message = new MandrillMessage("cs@autocareguys.com", "sample@gmail.com",
                 header, body);
             var result = api.Messages.SendAsync(message);
             result.Wait();

@@ -98,7 +98,7 @@ namespace AutoCarConsole.DAL
                             order_external.referer = order_external.referer.Substring(0, 98);
                             Console.WriteLine("referer "+order_external.referer+" length "+order_external.referer.Length.ToString());
                         }
-                        if (record_from_adminDB.shipcomplete.ToLower() == "submitted")
+                        if (record_from_adminDB != null && record_from_adminDB.shipcomplete.ToLower() == "submitted")
                             order_external.shipcomplete = record_from_adminDB.shipcomplete;
 
                         context.Orders.AddOrUpdate(order_external);
@@ -126,17 +126,13 @@ namespace AutoCarConsole.DAL
                 {
                     if (order.shipcomplete != "Submitted")
                     {
-                        bool isDetached = context.Entry(order).State == EntityState.Detached;                        if (isDetached)
-                            context.Orders.Attach(entity: order);
-
+                        context.Entry(order).State = EntityState.Modified;
+                        context.Orders.Attach(entity: order);
                         order.shipcomplete = "Submitted";
-                        // context.Entry(order).State = EntityState.Modified;
                         context.Entry(order).Property(I => I.shipcomplete).IsModified = true;
                     }
                 }
                 context.SaveChanges();
-               // context.ChangeTracker.DetectChanges();
-
             }
         }
         /// <summary>

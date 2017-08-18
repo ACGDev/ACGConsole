@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using AutoCarConsole.Model;
 using DCartRestAPIClient;
+using Newtonsoft.Json;
 
 namespace AutoCarConsole
 {
@@ -114,7 +115,8 @@ namespace AutoCarConsole
                     o.Product.mfgid = o.itemid;
                     if (o.itemid.StartsWith("CK_"))
                         o.Product.mfgid = o.itemid.Replace("CK_", "");
-
+                    //send email
+                    sendEmail(configData, "Missing Products", JsonConvert.SerializeObject(o));
                     //continue;
                 }
 
