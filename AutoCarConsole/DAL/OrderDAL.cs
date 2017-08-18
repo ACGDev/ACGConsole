@@ -9,6 +9,7 @@ using AutoCarConsole.Model;
 using DCartRestAPIClient;
 using MySql.Data.MySqlClient;
 using System.Data.Entity;
+using System.Globalization;
 
 namespace AutoCarConsole.DAL
 {
@@ -57,15 +58,17 @@ namespace AutoCarConsole.DAL
                 }
                 skip = 101 + skip;
             }
-            var syncedOrders = Map_n_Add_ExtOrders(orders_fromsite);  // Adds and updates orders from external site
+            var syncedOrders = Map_n_Add_ExtOrders(strOrderStart, orders_fromsite);  // Adds and updates orders from external site
             return syncedOrders;
         }
+
         /// <summary>
         /// Adds and updates orders from external site
         /// </summary>
+        /// <param name="strOrderStart"></param>
         /// <param name="orders_fromsite"></param>
         /// <returns></returns>
-        private static List<orders> Map_n_Add_ExtOrders(List<Order> orders_fromsite)
+        private static List<orders> Map_n_Add_ExtOrders(string strOrderStart, List<Order> orders_fromsite)
         {
             var mappedOrders = MapOrders(orders_fromsite);
             using (var context = new AutoCareDataContext())
@@ -97,16 +100,16 @@ namespace AutoCarConsole.DAL
                         }
                         context.Orders.AddOrUpdate(order_external);
                         flag = true;
-
                     }
-
                 }
                 if (flag)
                 {
                     context.SaveChanges();
                 }
+                
+                DateTime strOrderDate = Convert.ToDateTime(strOrderStart).AddDays(-5);
+                return context.Orders.Include(I => I.order_items).Include("order_items.Product").Where(I => I.orderdate >= strOrderDate).ToList();
             }
-            return mappedOrders;
         }
         /// <summary>
         ///     Update Order Status as 'Submitted' in Database
@@ -321,7 +324,7 @@ namespace AutoCarConsole.DAL
         /// <returns></returns>
         private static string FetchLastOrderDate(string myConnectionString, bool fetchDate)
         {
-            string strOrderStart = DateTime.Today.AddDays(-1).ToString("MM/dd/yyyy");
+            string strOrderStart = DateTime.Today.AddDays(-5).ToString("MM/dd/yyyy");
             if (!fetchDate)
             {
                 return strOrderStart;
