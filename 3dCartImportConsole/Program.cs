@@ -251,6 +251,9 @@ namespace _3dCartImportConsole
                 }
                 if (i == (length - 1))
                 {
+                    orderItem.ItemDescription = orderItem.ItemDescription +
+                                                "<br><b>Vehicle Configuration</b>&nbsp;Ref:Coverking Part No: " +
+                                                order.SKU;
                     order.OrderItemList.Add(orderItem);
                     order.ShipmentList.Add(ship);
                     if (noOfItems > 1)

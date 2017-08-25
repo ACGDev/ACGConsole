@@ -11,6 +11,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Threading;
+using AutoCarConsole.ACG_CK;
 
 namespace AutoCarConsole
 {
@@ -26,6 +27,7 @@ namespace AutoCarConsole
             //CustomerDAL.AddCustomer(config);
             ProductDAL.AddProduct(config);
             OrderDAL.PlaceOrder(config, true, true, false);
+            
         }
         static ConfigurationData GetConfigurationDetails()
         {
