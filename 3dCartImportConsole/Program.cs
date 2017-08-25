@@ -19,6 +19,7 @@ namespace _3dCartImportConsole
 {
     class Program
     {
+        private static int val = 170825;
         static void Main(string[] args)
         {
             var configData = GetConfigurationDetails();
@@ -29,6 +30,7 @@ namespace _3dCartImportConsole
                 CKVariantDAL.SaveCKVariant(configData.ConnectionString, variant);
             }*/
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
+            
             //remove the following line when we'll get actual FTP details
             string filePath =
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
@@ -43,10 +45,13 @@ namespace _3dCartImportConsole
                     //FTPHandler.DownloadOrUploadFile(configData, filePath, "", ref content, WebRequestMethods.Ftp.ListDirectory);
                     string text = File.ReadAllText(file.FullName);
                     string[] lines = text.Split(new string[] { Environment.NewLine }, StringSplitOptions.None);
-                    Order order = Get3dCarOrder(configData.ConnectionString, lines, customer);
-                    var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
-                        configData.Token, configData.Store);
-                    order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
+                    List<Order> orders = Get3dCarOrder(configData.ConnectionString, lines, customer);
+                    foreach (var order in orders)
+                    {
+                        var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
+                            configData.Token, configData.Store);
+                        order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
+                    }
                     File.Move(file.FullName, processedFilePath + file.Name);
                 }
                 catch (Exception e)
@@ -54,7 +59,7 @@ namespace _3dCartImportConsole
                     MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "cs@autocareguys.com");
                 }
             }
-            OrderDAL.PlaceOrder(configData, false, true, false);
+            OrderDAL.PlaceOrder(configData, false);
            // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
             
             //acga > prefix
@@ -129,13 +134,11 @@ namespace _3dCartImportConsole
                 }
             }
         }
-        public static Order Get3dCarOrder(string connectionString, string[] lines, customers customer)
+        public static List<Order> Get3dCarOrder(string connectionString, string[] lines, customers customer)
         {
+            List<Order> orderList = new List<Order>();
             Order order = new Order();
             order.InvoiceNumberPrefix = "ACGA-";
-            order.InvoiceNumber = Convert.ToInt32(DateTime.Now.ToString("ddMM") + "04");
-            order.OrderItemList = new List<OrderItem>();
-            order.ShipmentList = new List<Shipment>();
             order.OrderStatusID = 11;//Unpaid
             order.Referer = "PHONE ORDER";
             order.SalesPerson = "RB";
@@ -149,10 +152,16 @@ namespace _3dCartImportConsole
                 if (i > 0 && !String.IsNullOrWhiteSpace(lines[i]))
                 {
                     int noOfItems = 0;
-                    order = GenerateOrder(connectionString, order, lines[0], lines[i], ref noOfItems);
+                    order.OrderItemList = new List<OrderItem>();
+                    order.ShipmentList = new List<Shipment>();
+                    val = val + 1;
+                    order.InvoiceNumber = val;//Convert.ToInt32(DateTime.Now.ToString("ddMM") + val);
+                    var orderSer = JsonConvert.DeserializeObject<Order>(JsonConvert.SerializeObject(order));
+                    orderSer = GenerateOrder(connectionString, orderSer, lines[0], lines[i], ref noOfItems);
+                    orderList.Add(orderSer);
                 }
             }
-            return order;
+            return orderList;
         }
         public static void MapCustomerDetailOrders(customers customer, ref Order order)
         {
@@ -202,7 +211,7 @@ namespace _3dCartImportConsole
                         if (ckVariant != null)
                         {
                             orderItem.ItemID = ckVariant.SKU;
-                            order.SKU = ckVariant.SKU;
+                            //order.SKU = ckVariant.SKU;
                             orderItem.ItemOptionPrice = ckVariant.price * 70 / 100;
                             orderItem.CatalogID = ckVariant.catalogid;
                             orderItem.ItemDescription = ckVariant.description;

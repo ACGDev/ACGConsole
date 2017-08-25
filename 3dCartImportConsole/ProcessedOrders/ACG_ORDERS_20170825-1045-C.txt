@@ -1,0 +1,6 @@
+"po_number","date","sku","qty","unit_cost","core_price","total","ship_name","ship_address_1","ship_address_2","ship_city","ship_state","ship_country","ship_postal_code","ship_phone","buyer","brand"
+"145103","08/12/2017","CDCC1DG118","1","32.49","0.00","32.49","BARBARA SMEAD","1010 UNIVERSITY AVE","","SAN JOSE","CA","US","95126-1842","408-293-8660","500","COVERKING"
+"145110","08/12/2017","MDCD3CH8104","1","38.99","0.00","38.99","LP3","10901 ELLSWORTH AVE","","BATON ROUGE","LA","US","70816-2136","5049752333","500","COVERKING"
+"145113","08/13/2017","CDCW55JP7155","1","32.49","0.00","32.49","JUSTIN PERRY","1104 OAKVIEW DR","","DELTA","OH","US","43515-1076","419-304-2023","500","COVERKING"
+"145114","08/13/2017","CDCVRT01DG100","1","32.49","0.00","32.49","MISTY ESKRIDGE","724 CHIHUAHUA RD NE","","RIO RANCHO","NM","US","87144-7751","(505)9343505","500","COVERKING"
+"145115","08/13/2017","MDCD11CH8106","1","38.99","0.00","38.99","TONY DEMAS","150 LOBLOLLY CT","","NEWINGTON","GA","US","30446","","500","COVERKING"
