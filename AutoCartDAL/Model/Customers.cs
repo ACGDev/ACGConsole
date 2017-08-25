@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AutoCarConsole.Model
+namespace AutoCarOperations.Model
 {
     public class customers
     {

@@ -7,7 +7,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DCartRestAPIClient
 {
-
+    /*
     public class ProductSKU
     {
         public long? CatalogID { get; set; }
@@ -389,9 +389,227 @@ namespace DCartRestAPIClient
 
 
     #endregion
+    */
+    public class RelatedProduct
+    {
 
+        public int? RelatedIndexID { get; set; }
+        public int RelatedProductID { get; set; }
+        public int RelatedProductSorting { get; set; }
+    }
 
+    public class ProductDistributor
+    {
 
+        public int DistributorID { get; set; }
 
+        public string DistributorName { get; set; }
 
+        public double DistributorItemCost { get; set; }
+
+        public string DistributorItemID { get; set; }
+
+        public string DistributorStockID { get; set; }
+    }
+
+    public class Serial
+    {
+        public int? SerialID { get; set; }
+        public int SerialUses { get; set; }
+        public string SerialCode { get; set; }
+    }
+
+    public class SKUInfo
+    {
+        public int CatalogID { get; set; }
+        public string SKU { get; set; }
+        public string Name { get; set; }
+        public double Cost { get; set; }
+        public double Price { get; set; }
+        public string Currency { get; set; }
+        public double RetailPrice { get; set; }
+        public double SalePrice { get; set; }
+        public bool OnSale { get; set; }
+        public double Stock { get; set; }
+    }
+
+    public class CategoryList
+    {
+        public int CategoryID { get; set; }
+        public string CategoryName { get; set; }
+    }
+
+    public class FeatureList
+    {
+        public int FeatureID { get; set; }
+        public string FeatureTitle { get; set; }
+        public string FeatureDescription { get; set; }
+    }
+
+    public class PluginList
+    {
+    }
+
+    public class OptionList
+    {
+        public int OptionID { get; set; }
+        public string OptionName { get; set; }
+        public bool OptionSelected { get; set; }
+        public bool OptionHide { get; set; }
+        public double OptionValue { get; set; }
+        public string OptionPartNumber { get; set; }
+        public double OptionSorting { get; set; }
+        public string OptionImagePath { get; set; }
+        public int OptionBundleCatalogId { get; set; }
+        public int OptionBundleQuantity { get; set; }
+    }
+
+    public class OptionSetList
+    {
+        public int OptionSetID { get; set; }
+        public string OptionSetName { get; set; }
+        public double OptionSorting { get; set; }
+        public bool OptionRequired { get; set; }
+        public string OptionType { get; set; }
+        public string OptionURL { get; set; }
+        public string OptionAdditionalInformation { get; set; }
+        public int OptionSizeLimit { get; set; }
+        public List<OptionList> OptionList { get; set; }
+    }
+    public class Product
+    {
+        public SKUInfo SKUInfo { get; set; }
+        public string MFGID { get; set; }
+        public string ShortDescription { get; set; }
+        public int ManufacturerID { get; set; }
+        public string ManufacturerName { get; set; }
+        public List<ProductDistributor> DistributorList { get; set; }
+        public string LastUpdate { get; set; }
+        public string UserID { get; set; }
+        public string GTIN { get; set; }
+        public List<CategoryList> CategoryList { get; set; }
+        public List<object> ExternalIdsList { get; set; }
+        public List<object> CategoryExternalIdsList { get; set; }
+        public bool NonTaxable { get; set; }
+        public bool NotForSale { get; set; }
+        public bool Hide { get; set; }
+        public bool GiftCertificate { get; set; }
+        public bool HomeSpecial { get; set; }
+        public bool CategorySpecial { get; set; }
+        public bool NonSearchable { get; set; }
+        public bool GiftWrapItem { get; set; }
+        public double ShipCost { get; set; }
+        public double Weight { get; set; }
+        public double Height { get; set; }
+        public double Width { get; set; }
+        public double Depth { get; set; }
+        public bool? SelfShip { get; set; }
+        public bool FreeShipping { get; set; }
+        public int RewardPoints { get; set; }
+        public int RedeemPoints { get; set; }
+        public bool? DisableRewards { get; set; }
+        public int StockAlert { get; set; }
+        public int ReorderQuantity { get; set; }
+        public string InStockMessage { get; set; }
+        public string OutOfStockMessage { get; set; }
+        public string BackOrderMessage { get; set; }
+        public int InventoryControl { get; set; }
+        public string WarehouseLocation { get; set; }
+        public string WarehouseBin { get; set; }
+        public string WarehouseAisle { get; set; }
+        public string WarehouseCustom { get; set; }
+        public string Description { get; set; }
+        public string Keywords { get; set; }
+        public string ExtraField1 { get; set; }
+        public string ExtraField2 { get; set; }
+        public string ExtraField3 { get; set; }
+        public string ExtraField4 { get; set; }
+        public string ExtraField5 { get; set; }
+        public string ExtraField6 { get; set; }
+        public string ExtraField7 { get; set; }
+        public string ExtraField8 { get; set; }
+        public string ExtraField9 { get; set; }
+        public string ExtraField10 { get; set; }
+        public string ExtraField11 { get; set; }
+        public string ExtraField12 { get; set; }
+        public string ExtraField13 { get; set; }
+        public List<FeatureList> FeatureList { get; set; }
+        public PluginList PluginList { get; set; }
+        public bool SampleEnable { get; set; }
+        public string SampleName { get; set; }
+        public string SampleSKUPrefix { get; set; }
+        public double SamplePrice { get; set; }
+        public double SampleWeight { get; set; }
+        public double ReviewAverage { get; set; }
+        public int ReviewCount { get; set; }
+        public string MainImageFile { get; set; }
+        public string MainImageCaption { get; set; }
+        public string ThumbnailFile { get; set; }
+        public string MediaFile { get; set; }
+        public string AdditionalImageFile2 { get; set; }
+        public string AdditionalImageCaption2 { get; set; }
+        public string AdditionalImageFile3 { get; set; }
+        public string AdditionalImageCaption3 { get; set; }
+        public string AdditionalImageFile4 { get; set; }
+        public string AdditionalImageCaption4 { get; set; }
+        public List<object> ImageGalleryList { get; set; }
+        public List<OptionSetList> OptionSetList { get; set; }
+        public List<object> AdvancedOptionList { get; set; }
+        public List<RelatedProduct> RelatedProductList { get; set; }
+        public List<object> UpSellingItemList { get; set; }
+        public List<object> DiscountList { get; set; }
+        public bool DoNotUseCategoryOptions { get; set; }
+        public string DateCreated { get; set; }
+        public int ListingTemplateID { get; set; }
+        public string ListingTemplateName { get; set; }
+        public int LoginRequiredOptionID { get; set; }
+        public string LoginRequiredOptionName { get; set; }
+        public string LoginRequiredOptionRedirectTo { get; set; }
+        public object AllowAccessCustomerGroupID { get; set; }
+        public string AllowAccessCustomerGroupName { get; set; }
+        public string RMAMaxPeriod { get; set; }
+        public string CanonicalUrl { get; set; }
+        public string TaxCode { get; set; }
+        public string DisplayText { get; set; }
+        public double MinimumQuantity { get; set; }
+        public double MaximumQuantity { get; set; }
+        public bool AllowOnlyMultiples { get; set; }
+        public bool AllowFractionalQuantity { get; set; }
+        public string QuantityOptions { get; set; }
+        public bool GroupOptionsForQuantityPricing { get; set; }
+        public bool ApplyQuantityDiscountToOptions { get; set; }
+        public bool EnableMakeAnOfferFeature { get; set; }
+        public string MinimumAcceptableOffer { get; set; }
+        public double PriceLevel1 { get; set; }
+        public bool PriceLevel1Hide { get; set; }
+        public double PriceLevel2 { get; set; }
+        public bool PriceLevel2Hide { get; set; }
+        public double PriceLevel3 { get; set; }
+        public bool PriceLevel3Hide { get; set; }
+        public double PriceLevel4 { get; set; }
+        public bool PriceLevel4Hide { get; set; }
+        public double PriceLevel5 { get; set; }
+        public bool PriceLevel5Hide { get; set; }
+        public double PriceLevel6 { get; set; }
+        public bool PriceLevel6Hide { get; set; }
+        public double PriceLevel7 { get; set; }
+        public bool PriceLevel7Hide { get; set; }
+        public double PriceLevel8 { get; set; }
+        public bool PriceLevel8Hide { get; set; }
+        public double PriceLevel9 { get; set; }
+        public bool PriceLevel9Hide { get; set; }
+        public double PriceLevel10 { get; set; }
+        public bool PriceLevel10Hide { get; set; }
+        public string BuyButtonLink { get; set; }
+        public string ProductLink { get; set; }
+        public string Title { get; set; }
+        public string CustomFileName { get; set; }
+        public string RedirectLink { get; set; }
+        public string MetaTags { get; set; }
+        public string SpecialInstructions { get; set; }
+        public bool AssignKey { get; set; }
+        public bool ReUseKeys { get; set; }
+        public List<Serial> SerialList { get; set; }
+        public List<object> EProductList { get; set; }
+    }
 }
