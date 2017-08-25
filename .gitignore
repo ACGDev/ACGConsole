@@ -6,8 +6,6 @@ packages
 *.sln.docstates
 .vs/
 
-# ignore a file type
-*.config
 
 # Build results
 [Dd]ebug/
