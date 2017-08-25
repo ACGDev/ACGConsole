@@ -62,11 +62,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="JFWOrders\BDL_ORDERS_20170818-1915-A.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\3dCartRestAPIClient\3dCartRestAPIClient.csproj">
       <Project>{c2c92607-5ca5-42f1-a6f0-1caa315d3d2c}</Project>
       <Name>3dCartRestAPIClient</Name>
@@ -75,6 +70,10 @@
       <Project>{bfbc0546-38ec-40fb-a395-e31f87bb3ebe}</Project>
       <Name>AutoCarOperations</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="JFWOrders\" />
+    <Folder Include="ProcessedOrders\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

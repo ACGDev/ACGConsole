@@ -31,27 +31,30 @@ namespace _3dCartImportConsole
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
             //remove the following line when we'll get actual FTP details
             string filePath =
-                Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), "../../JFWOrders");
-            DirectoryInfo dir = new DirectoryInfo(filePath);
-            foreach (var filePathWithName in dir.GetFiles("*.txt"))
+                Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string incomingOrdersFilePath = Path.Combine(filePath, "../../JFWOrders");
+            string processedFilePath = Path.Combine(filePath, "../../ProcessedOrders/");
+            DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
+            foreach (var file in dir.GetFiles("*.txt"))
             {
                 try
                 {
                     //List<string> content = new List<string>();
                     //FTPHandler.DownloadOrUploadFile(configData, filePath, "", ref content, WebRequestMethods.Ftp.ListDirectory);
-                    string text = File.ReadAllText(filePathWithName.FullName);
+                    string text = File.ReadAllText(file.FullName);
                     string[] lines = text.Split(new string[] { Environment.NewLine }, StringSplitOptions.None);
                     Order order = Get3dCarOrder(configData.ConnectionString, lines, customer);
                     var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
                         configData.Token, configData.Store);
                     order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
+                    File.Move(file.FullName, processedFilePath + file.Name);
                 }
                 catch (Exception e)
                 {
                     MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "cs@autocareguys.com");
                 }
             }
-            OrderDAL.PlaceOrder(configData, false, true);
+            OrderDAL.PlaceOrder(configData, false, true, false);
            // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
             
             //acga > prefix
