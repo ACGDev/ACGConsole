@@ -544,5 +544,13 @@ namespace AutoCarOperations.DAL
                     .FirstOrDefault(condFunc);
             }
         }
+
+        public static int? GetMaxInvoiceNum(string connectionString, string invoicePrefix)
+        {
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                return context.Orders.Where(I => I.invoicenum_prefix == invoicePrefix).Max(I => I.invoicenum);
+            }
+        }
     }
 }

@@ -19,7 +19,7 @@ namespace _3dCartImportConsole
 {
     class Program
     {
-        private static int val = 170825;
+        private static int? val;
         static void Main(string[] args)
         {
             var configData = GetConfigurationDetails();
@@ -30,7 +30,7 @@ namespace _3dCartImportConsole
                 CKVariantDAL.SaveCKVariant(configData.ConnectionString, variant);
             }*/
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
-            
+            val = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
             //remove the following line when we'll get actual FTP details
             string filePath =
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
@@ -136,6 +136,10 @@ namespace _3dCartImportConsole
         }
         public static List<Order> Get3dCarOrder(string connectionString, string[] lines, customers customer)
         {
+            if (val == null)
+            {
+                val = 170825;
+            }
             List<Order> orderList = new List<Order>();
             Order order = new Order();
             order.InvoiceNumberPrefix = "ACGA-";
@@ -152,11 +156,12 @@ namespace _3dCartImportConsole
                 if (i > 0 && !String.IsNullOrWhiteSpace(lines[i]))
                 {
                     int noOfItems = 0;
-                    order.OrderItemList = new List<OrderItem>();
-                    order.ShipmentList = new List<Shipment>();
+                    
                     val = val + 1;
                     order.InvoiceNumber = val;//Convert.ToInt32(DateTime.Now.ToString("ddMM") + val);
                     var orderSer = JsonConvert.DeserializeObject<Order>(JsonConvert.SerializeObject(order));
+                    orderSer.OrderItemList = new List<OrderItem>();
+                    orderSer.ShipmentList = new List<Shipment>();
                     orderSer = GenerateOrder(connectionString, orderSer, lines[0], lines[i], ref noOfItems);
                     orderList.Add(orderSer);
                 }
@@ -213,6 +218,10 @@ namespace _3dCartImportConsole
                             orderItem.ItemID = ckVariant.SKU;
                             //order.SKU = ckVariant.SKU;
                             orderItem.ItemOptionPrice = ckVariant.price * 70 / 100;
+                            if (orderItem.ItemOptionPrice < 60)
+                            {
+                                ship.ShipmentCost = 5;
+                            }
                             orderItem.CatalogID = ckVariant.catalogid;
                             orderItem.ItemDescription = ckVariant.description;
                         }
