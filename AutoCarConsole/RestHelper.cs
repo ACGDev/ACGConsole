@@ -119,7 +119,12 @@ namespace AutoCarConsole
                     sendEmail(configData, "Missing Products", JsonConvert.SerializeObject(o));
                     //continue;
                 }
-
+                // forcibly add parenthesis around SKUs
+                if (o.itemdescription.Contains("Coverking Part No: "))
+                {
+                    o.itemdescription = o.itemdescription.Replace("Coverking Part No: ", "Coverking Part No: (");
+                    o.itemdescription = o.itemdescription.Trim() + ")";
+                }
                 var orderDescs = o.itemdescription.Split(new[] { ' ', '\r', '\n', ':', ';', '\t' }, StringSplitOptions.RemoveEmptyEntries).Select(I => I.Trim());
                 var variant = string.Empty;
                 foreach (var desc in orderDescs)
@@ -179,7 +184,7 @@ namespace AutoCarConsole
                 oText += string.Format(",{0},{1},{2},{3}", order.shipphone.Trim(), order.shipemail.Trim(), "R02", "");
 
                 // CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
-                oText += string.Format(",{0},{1},{2},{3},{4},{5},{6},{7}", o.Product.mfgid, variant, strMasterPakCode, strMasterPakCodeMsg, "", "",
+                oText += string.Format(",{0},{1},{2},{3},{4},{5},{6},\"{7}\"", o.Product.mfgid, variant, strMasterPakCode, strMasterPakCodeMsg, "", "",
                     o.numitems, order.cus_comment.Trim().Replace("\"", "&quot;"));
 
                 orderFinal.AppendLine(oText);

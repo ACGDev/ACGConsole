@@ -15,25 +15,26 @@ using DCartRestAPIClient;
 using MySql;
 using MySql.Data.MySqlClient;
 using System.Text;
- using Mandrill;
- using Mandrill.Model;
+// SM commented Aug 18 - to uncomment later
+using Mandrill;
+using Mandrill.Model;
 /* using Mandrill;
  using Mandrill.Model;*/
- using Order = AutoCarConsole.ACG_CK.Order;
+using Order = AutoCarConsole.ACG_CK.Order;
 
 namespace AutoCarConsole
 {
     
     class Program
     {
-        public static int numDays = -2;
+        public static int numDays = -1;
         static void Main(string[] args)
         {
             Thread.CurrentThread.CurrentCulture = new CultureInfo("en-US");
 
             ConfigurationData config = GetConfigurationDetails();
             // Uncomment following to get Customer records
-            //CustomerDAL.AddCustomer(config);
+            CustomerDAL.AddCustomer(config);
 
             // Get first record that is not shipped or cancelled in the last 6 months. FetchDate=false will limit it to 3 days
 
@@ -123,12 +124,13 @@ namespace AutoCarConsole
              * Uncomment namespace from top
              * <add key="MandrilAPIKey" value="fake"/>
              */
-            var api = new MandrillApi(configData.MandrilAPIKey);
-            var message = new MandrillMessage("cs@autocareguys.com", "sample@gmail.com",
-                header, body);
-            var result = api.Messages.SendAsync(message);
-            result.Wait();
-            var checkResult = result.Result;
+             // SM commented Aug18 - to uncomment later
+            //var api = new MandrillApi(configData.MandrilAPIKey);
+            //var message = new MandrillMessage("cs@autocareguys.com", "sample@gmail.com",
+            //    header, body);
+            //var result = api.Messages.SendAsync(message);
+            //result.Wait();
+            //var checkResult = result.Result;
         }
         static ConfigurationData GetConfigurationDetails()
         {
