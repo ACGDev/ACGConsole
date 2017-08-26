@@ -36,6 +36,8 @@ namespace _3dCartImportConsole
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             string incomingOrdersFilePath = Path.Combine(filePath, "../../JFWOrders");
             string processedFilePath = Path.Combine(filePath, "../../ProcessedOrders/");
+            //DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
+            FTPHandler.DownloadOrUploadFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
             DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
             foreach (var file in dir.GetFiles("*.txt"))
             {
@@ -44,7 +46,7 @@ namespace _3dCartImportConsole
                     //List<string> content = new List<string>();
                     //FTPHandler.DownloadOrUploadFile(configData, filePath, "", ref content, WebRequestMethods.Ftp.ListDirectory);
                     string text = File.ReadAllText(file.FullName);
-                    string[] lines = text.Split(new string[] { Environment.NewLine }, StringSplitOptions.None);
+                    string[] lines = text.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
                     List<Order> orders = Get3dCarOrder(configData.ConnectionString, lines, customer);
                     foreach (var order in orders)
                     {
@@ -52,6 +54,7 @@ namespace _3dCartImportConsole
                             configData.Token, configData.Store);
                         order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
                     }
+                    FTPHandler.DownloadOrUploadFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, processedFilePath, file.Name, WebRequestMethods.Ftp.DeleteFile);
                     File.Move(file.FullName, processedFilePath + file.Name);
                 }
                 catch (Exception e)
@@ -59,7 +62,7 @@ namespace _3dCartImportConsole
                     MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "cs@autocareguys.com");
                 }
             }
-            OrderDAL.PlaceOrder(configData, false);
+            OrderDAL.PlaceOrder(configData, false, true, false);
            // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
             
             //acga > prefix
@@ -138,7 +141,7 @@ namespace _3dCartImportConsole
         {
             if (val == null)
             {
-                val = 170825;
+                val = 200825;
             }
             List<Order> orderList = new List<Order>();
             Order order = new Order();
@@ -265,7 +268,8 @@ namespace _3dCartImportConsole
                     case "ship_phone":
                         ship.ShipmentPhone = splitText[i]; break;
                     case "buyer":
-                        order.SalesPerson = "RB"; break;//splitText[i];
+                        order.CustomerComments = string.Format("PO NO:{0}; Buyer: {1}", order.PONo, order.SalesPerson);
+                        break;
                 }
                 if (i == (length - 1))
                 {
@@ -296,7 +300,10 @@ namespace _3dCartImportConsole
                 FTPAddress = ConfigurationManager.AppSettings["FTPAddress"],
                 FTPUserName = ConfigurationManager.AppSettings["FTPUserName"],
                 FTPPassword = ConfigurationManager.AppSettings["FTPPassword"],
-                MandrilAPIKey = ConfigurationManager.AppSettings["MandrilAPIKey"]
+                MandrilAPIKey = ConfigurationManager.AppSettings["MandrilAPIKey"],
+                JFWFTPAddress = ConfigurationManager.AppSettings["JFWFTPAddress"],
+                JFWFTPUserName = ConfigurationManager.AppSettings["JFWFTPUserName"],
+                JFWFTPPassword = ConfigurationManager.AppSettings["JFWFTPPassword"],
             };
         }
     }
