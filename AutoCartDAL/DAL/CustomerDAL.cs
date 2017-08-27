@@ -4,13 +4,20 @@ using System.Data.Entity.Migrations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using AutoCarConsole.Model;
+using AutoCarOperations.Model;
 using DCartRestAPIClient;
 
-namespace AutoCarConsole.DAL
+namespace AutoCarOperations.DAL
 {
     public static class CustomerDAL
     {
+        public static customers FindCustomer(ConfigurationData config, Func<customers,bool> condFunc)
+        {
+            using (var context = new AutoCareDataContext(config.ConnectionString))
+            {
+                return context.Customers.FirstOrDefault(condFunc);
+            }
+        } 
         public static void AddCustomer(ConfigurationData config)
         {
             Console.WriteLine("..........Fetch Customer Record..........");
@@ -25,7 +32,7 @@ namespace AutoCarConsole.DAL
                 int counter = records.Count;
                 Console.WriteLine("..........Fetches " + counter + " Customer Record..........");
                 customers.AddRange(records);
-                AddCustomers(customers, customerGroups);
+                AddCustomers(config.ConnectionString, customers, customerGroups);
                 if (counter < 200)
                 {
                     break;
@@ -34,12 +41,12 @@ namespace AutoCarConsole.DAL
             }
             Console.WriteLine("..........Finished..........");
         }
-        private static void AddCustomers(List<Customer> customers, List<CustomerGroup> customerGroups)
+        private static void AddCustomers(string connectionString, List<Customer> customers, List<CustomerGroup> customerGroups)
         {
             var customerAndGroup = GetCustomers(customers, customerGroups);
             var customerDB = customerAndGroup.Item1;
             var customerGroupDB = customerAndGroup.Item2;            
-            using (var context = new AutoCareDataContext())
+            using (var context = new AutoCareDataContext(connectionString))
             {
                 foreach (var cust in customerDB)
                 {

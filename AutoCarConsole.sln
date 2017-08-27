@@ -19,6 +19,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		CHANGELOG.md = CHANGELOG.md
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "3dCartImportConsole", "3dCartImportConsole\3dCartImportConsole.csproj", "{FAEFDAA5-18B9-4D04-9806-1FBE72FB6F27}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AutoCarOperations", "AutoCartDAL\AutoCarOperations.csproj", "{BFBC0546-38EC-40FB-A395-E31F87BB3EBE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +37,14 @@ Global
 		{C2C92607-5CA5-42F1-A6F0-1CAA315D3D2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C2C92607-5CA5-42F1-A6F0-1CAA315D3D2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C2C92607-5CA5-42F1-A6F0-1CAA315D3D2C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FAEFDAA5-18B9-4D04-9806-1FBE72FB6F27}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FAEFDAA5-18B9-4D04-9806-1FBE72FB6F27}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FAEFDAA5-18B9-4D04-9806-1FBE72FB6F27}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FAEFDAA5-18B9-4D04-9806-1FBE72FB6F27}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BFBC0546-38EC-40FB-A395-E31F87BB3EBE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BFBC0546-38EC-40FB-A395-E31F87BB3EBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BFBC0546-38EC-40FB-A395-E31F87BB3EBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BFBC0546-38EC-40FB-A395-E31F87BB3EBE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

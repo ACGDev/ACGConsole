@@ -1,14 +1,14 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity;
-using AutoCarConsole.Model;
+using AutoCarOperations.Model;
 
-namespace AutoCarConsole
+namespace AutoCarOperations.DAL
 {
     [DbConfigurationType(typeof(MySql.Data.Entity.MySqlEFConfiguration))]
-    public class AutoCareDataContext : DbContext
+    internal class AutoCareDataContext : DbContext
     {
-        public AutoCareDataContext()
-            : base("mysqlconnection")
+        public AutoCareDataContext(string connectionString)
+            : base(connectionString)
         {
         }
 
@@ -18,6 +18,7 @@ namespace AutoCarConsole
         public DbSet<order_items> OrderItems { get; set; }
         public DbSet<order_shipments> OrderShipments { get; set; }
         public DbSet<products> Products { get; set; }
+        public DbSet<CKVariant> CKVaraints { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
@@ -48,6 +49,13 @@ namespace AutoCarConsole
             modelBuilder.Entity<order_items>().ToTable("order_items");
             modelBuilder.Entity<order_shipments>().ToTable("order_shipments");
             modelBuilder.Entity<products>().ToTable("3dc_products");
+            modelBuilder.Entity<CKVariant>().ToTable("ck_itemvariant");
         }
+    }
+
+    public class CommonConstant
+    {
+        public const int NumOfDays = -1;
+        public const string EmailFrom = "billing@autocareguys.com";
     }
 }

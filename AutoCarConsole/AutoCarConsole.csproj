@@ -52,25 +52,15 @@
   <ItemGroup>
     <Reference Include="EntityFramework, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
       <HintPath>..\packages\EntityFramework.6.1.3\lib\net45\EntityFramework.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="EntityFramework.SqlServer, Version=6.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
       <HintPath>..\packages\EntityFramework.6.1.3\lib\net45\EntityFramework.SqlServer.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="Mandrill.API, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Mandrill.API.0.0.2\lib\net40\Mandrill.API.dll</HintPath>
     </Reference>
     <Reference Include="Mandrill.net, Version=4.1.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\Mandrill.net.4.1.0\lib\net45\Mandrill.net.dll</HintPath>
-    </Reference>
-    <Reference Include="MySql.Data, Version=6.9.9.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
-      <HintPath>..\packages\MySql.Data.6.9.9\lib\net45\MySql.Data.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="MySql.Data.Entity.EF6, Version=6.9.9.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL">
-      <HintPath>..\packages\MySql.Data.Entity.6.9.9\lib\net45\MySql.Data.Entity.EF6.dll</HintPath>
-      <Private>True</Private>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -97,22 +87,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AutoCareDataContext.cs" />
     <Compile Include="Connected Services\ACG_CK\Reference.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>Reference.svcmap</DependentUpon>
     </Compile>
-    <Compile Include="DAL\CustomerDAL.cs" />
-    <Compile Include="DAL\OrderDAL.cs" />
-    <Compile Include="Model\ConfigurationData.cs" />
-    <Compile Include="Model\Customers.cs" />
-    <Compile Include="Model\orders.cs" />
-    <Compile Include="Model\order_items.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="RestHelper.cs" />
-    <Compile Include="RestServiceCall.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config">
@@ -137,6 +118,10 @@
     <ProjectReference Include="..\3dCartRestAPIClient\3dCartRestAPIClient.csproj">
       <Project>{c2c92607-5ca5-42f1-a6f0-1caa315d3d2c}</Project>
       <Name>3dCartRestAPIClient</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\AutoCartDAL\AutoCarOperations.csproj">
+      <Project>{bfbc0546-38ec-40fb-a395-e31f87bb3ebe}</Project>
+      <Name>AutoCarOperations</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

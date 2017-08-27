@@ -10,6 +10,9 @@ namespace DCartRestAPIClient
 
     public class Order : IRestAPIType
     {
+        //not present in actual Order API
+        public string SKU { get; set; }
+        public string PONo { get; set; }
         #region General Info
         public string InvoiceNumberPrefix { get; set; }
         public int? InvoiceNumber { get; set; }
