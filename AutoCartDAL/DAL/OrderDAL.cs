@@ -41,7 +41,7 @@ namespace AutoCarOperations.DAL
                 {
                     //need to create donload stream as ref doesnt allow optional parameter
                     //todo: create overloaded method
-                    FTPHandler.DownloadOrUploadFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, fileDetail.Item1, fileDetail.Item2, WebRequestMethods.Ftp.UploadFile);
+                    FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, fileDetail.Item1, fileDetail.Item2, WebRequestMethods.Ftp.UploadFile);
                     //Update Order status as Submitted
                     UpdateStatus(configData.ConnectionString, orderList);
                 }

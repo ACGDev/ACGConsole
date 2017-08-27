@@ -37,7 +37,7 @@ namespace _3dCartImportConsole
             string incomingOrdersFilePath = Path.Combine(filePath, "../../JFWOrders");
             string processedFilePath = Path.Combine(filePath, "../../ProcessedOrders/");
             //DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
-            FTPHandler.DownloadOrUploadFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
+            FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
             DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
             foreach (var file in dir.GetFiles("*.txt"))
             {
@@ -54,7 +54,7 @@ namespace _3dCartImportConsole
                             configData.Token, configData.Store);
                         order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
                     }
-                    FTPHandler.DownloadOrUploadFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, processedFilePath, file.Name, WebRequestMethods.Ftp.DeleteFile);
+                    FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, processedFilePath, file.Name, WebRequestMethods.Ftp.DeleteFile);
                     File.Move(file.FullName, processedFilePath + file.Name);
                 }
                 catch (Exception e)
