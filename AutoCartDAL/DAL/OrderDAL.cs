@@ -41,8 +41,7 @@ namespace AutoCarOperations.DAL
                 {
                     //need to create donload stream as ref doesnt allow optional parameter
                     //todo: create overloaded method
-                    List<string> downloadString = new List<string>();
-                    FTPHandler.DownloadOrUploadFile(configData, fileDetail.Item1, fileDetail.Item2, ref downloadString, WebRequestMethods.Ftp.UploadFile);
+                    FTPHandler.DownloadOrUploadFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, fileDetail.Item1, fileDetail.Item2, WebRequestMethods.Ftp.UploadFile);
                     //Update Order status as Submitted
                     UpdateStatus(configData.ConnectionString, orderList);
                 }
@@ -542,6 +541,14 @@ namespace AutoCarOperations.DAL
             {
                 return context.Orders.Include(I => I.order_items).Include(I => I.order_shipments)
                     .FirstOrDefault(condFunc);
+            }
+        }
+
+        public static int? GetMaxInvoiceNum(string connectionString, string invoicePrefix)
+        {
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                return context.Orders.Where(I => I.invoicenum_prefix == invoicePrefix).Max(I => I.invoicenum);
             }
         }
     }

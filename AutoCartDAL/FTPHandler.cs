@@ -11,14 +11,14 @@ namespace AutoCarOperations
 {
     public class FTPHandler
     {
-        public static void DownloadOrUploadFile(ConfigurationData config, string filePath, string fileName,
-            ref List<string> downloadedFileContents, string method = WebRequestMethods.Ftp.DownloadFile)
+        public static void DownloadOrUploadFile(string ftpAddress, string ftpUserName, string ftpPassword, string filePath, string fileName,
+             string method = WebRequestMethods.Ftp.DownloadFile)
         {
-            var ftAddress = config.FTPAddress + fileName;
+            var ftAddress = ftpAddress + fileName;
             //FtpWebRequest request = (FtpWebRequest)WebRequest.Create(config.FTPAddress);
             FtpWebRequest request = (FtpWebRequest)WebRequest.Create(ftAddress);
             // This example assumes the FTP site uses anonymous logon.  
-            request.Credentials = new NetworkCredential(config.FTPUserName, config.FTPPassword);
+            request.Credentials = new NetworkCredential(ftpUserName, ftpPassword);
             // Copy the contents of the file to the request stream.  
             request.UsePassive = true;
             FtpWebResponse response;
@@ -43,7 +43,7 @@ namespace AutoCarOperations
                     }
                     foreach (var file in files)
                     {
-                        DownloadOrUploadFile(config, filePath, file, ref downloadedFileContents);
+                        DownloadOrUploadFile(ftpAddress, ftpUserName, ftpPassword, filePath, file);
                     }
                     break;
                 case WebRequestMethods.Ftp.UploadFile:
@@ -58,14 +58,26 @@ namespace AutoCarOperations
                     using (response = (FtpWebResponse)request.GetResponse())
                         Console.WriteLine("Upload File Complete, status {0}", response.StatusDescription);
                     break;
-                default:
-                    request.Method = WebRequestMethods.Ftp.DownloadFile;
+                case WebRequestMethods.Ftp.DeleteFile:
+                    request.Method = WebRequestMethods.Ftp.DeleteFile;
                     using (response = (FtpWebResponse)request.GetResponse())
                     using (Stream responseStream = response.GetResponseStream())
                     using (StreamReader reader = new StreamReader(responseStream))
                     {
-                        downloadedFileContents.Add(reader.ReadToEnd());
                     }
+                    break;
+                default:
+                    request.Method = WebRequestMethods.Ftp.DownloadFile;
+                    using (response = (FtpWebResponse)request.GetResponse())
+                    using (Stream responseStream = response.GetResponseStream())
+                    using (Stream fileStream = File.Create(filePath + "/"+  fileName))
+                    {
+                        responseStream.CopyTo(fileStream);
+                    }
+                    //using (StreamReader reader = new StreamReader(responseStream))
+                    //{
+                    //    downloadedFileContents.Add(reader.ReadToEnd());
+                    //}
                     break;
             }
         }

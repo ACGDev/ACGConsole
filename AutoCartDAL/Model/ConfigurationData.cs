@@ -18,5 +18,8 @@ namespace AutoCarOperations.Model
         public string FTPUserName { get; set; }
         public string FTPPassword { get; set; }
         public string MandrilAPIKey { get; set; }
+        public string JFWFTPAddress { get; set; }
+        public string JFWFTPUserName { get; set; }
+        public string JFWFTPPassword { get; set; }
     }
 }

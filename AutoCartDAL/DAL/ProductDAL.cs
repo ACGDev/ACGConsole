@@ -190,7 +190,7 @@ namespace AutoCarOperations.DAL
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
-                return context.Products.Join(context.CKVaraints, i => i.mfgid, j => j.ItemID, (i,j) => i).FirstOrDefault();
+                return context.Products.Join(context.CKVaraints.Where(I => (I.ItemID.Trim() + I.VariantID.Trim() == sku)), i => i.mfgid, j => j.ItemID, (i,j) => i).FirstOrDefault();
             }
         } 
     }
