@@ -19,7 +19,7 @@ namespace _3dCartImportConsole
 {
     class Program
     {
-        private static int? val;
+        private static int? acg_invoicenum;
         static void Main(string[] args)
         {
             var configData = GetConfigurationDetails();
@@ -28,9 +28,10 @@ namespace _3dCartImportConsole
             foreach (var variant in variantList)
             {
                 CKVariantDAL.SaveCKVariant(configData.ConnectionString, variant);
-            }*/
+            }
+            */
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
-            val = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
+            acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
             //remove the following line when we'll get actual FTP details
             string filePath =
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
@@ -47,7 +48,7 @@ namespace _3dCartImportConsole
                     //FTPHandler.DownloadOrUploadFile(configData, filePath, "", ref content, WebRequestMethods.Ftp.ListDirectory);
                     string text = File.ReadAllText(file.FullName);
                     string[] lines = text.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
-                    List<Order> orders = Get3dCarOrder(configData.ConnectionString, lines, customer);
+                    List<Order> orders = Get3dCartOrder(configData.ConnectionString, lines, customer);
                     foreach (var order in orders)
                     {
                         var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
@@ -62,7 +63,8 @@ namespace _3dCartImportConsole
                     MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "cs@autocareguys.com");
                 }
             }
-            OrderDAL.PlaceOrder(configData, false, true, false);
+            
+            OrderDAL.PlaceOrder(configData, false, true, true);
            // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
             
             //acga > prefix
@@ -137,11 +139,11 @@ namespace _3dCartImportConsole
                 }
             }
         }
-        public static List<Order> Get3dCarOrder(string connectionString, string[] lines, customers customer)
+        public static List<Order> Get3dCartOrder(string connectionString, string[] lines, customers customer)
         {
-            if (val == null)
+            if (acg_invoicenum == null)
             {
-                val = 200825;
+                acg_invoicenum = 200825;
             }
             List<Order> orderList = new List<Order>();
             Order order = new Order();
@@ -150,7 +152,7 @@ namespace _3dCartImportConsole
             order.Referer = "PHONE ORDER";
             order.SalesPerson = "RB";
             order.OrderDate = DateTime.Now;
-            order.OrderID = 8476;
+            order.OrderID = 0;
             order.CardNumber = "-1";
             order.CardName = "JFW Items";
             MapCustomerDetailOrders(order: ref order, customer: customer);
@@ -160,8 +162,8 @@ namespace _3dCartImportConsole
                 {
                     int noOfItems = 0;
                     
-                    val = val + 1;
-                    order.InvoiceNumber = val;//Convert.ToInt32(DateTime.Now.ToString("ddMM") + val);
+                    acg_invoicenum = acg_invoicenum + 1;
+                    order.InvoiceNumber = acg_invoicenum;//Convert.ToInt32(DateTime.Now.ToString("ddMM") + val);
                     var orderSer = JsonConvert.DeserializeObject<Order>(JsonConvert.SerializeObject(order));
                     orderSer.OrderItemList = new List<OrderItem>();
                     orderSer.ShipmentList = new List<Shipment>();
@@ -252,6 +254,11 @@ namespace _3dCartImportConsole
                         ship.ShipmentMethodName = "Custom Shipping";
                         ship.ShipmentNumber = 1;
                         ship.ShipmentLastName = splitText[i].Replace(ship.ShipmentFirstName, "").TrimStart();
+                        if (ship.ShipmentLastName == "")
+                        {
+                            ship.ShipmentLastName = ship.ShipmentFirstName;
+                            ship.ShipmentFirstName = "Mr./Ms.";
+                        }
                         break;
                     case "ship_address_1":
                         ship.ShipmentAddress = splitText[i]; break;
@@ -266,9 +273,12 @@ namespace _3dCartImportConsole
                     case "ship_postal_code":
                         ship.ShipmentZipCode = splitText[i]; break;
                     case "ship_phone":
-                        ship.ShipmentPhone = splitText[i]; break;
+                        ship.ShipmentPhone = splitText[i].Trim();
+                        if (string.IsNullOrEmpty(ship.ShipmentPhone))
+                            ship.ShipmentPhone = "111-111-1111";
+                        break;
                     case "buyer":
-                        order.CustomerComments = string.Format("PO NO:{0}; Buyer: {1}", order.PONo, order.SalesPerson);
+                        order.CustomerComments = string.Format("PO NO:{0}; Buyer: {1}", order.PONo, splitText[i].Trim());
                         break;
                 }
                 if (i == (length - 1))
