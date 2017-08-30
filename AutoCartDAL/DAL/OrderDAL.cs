@@ -519,6 +519,11 @@ namespace AutoCarOperations.DAL
 
             foreach (var order in orders)
             {
+                if (order.cus_comment !=null && order.cus_comment.ToLower().Contains("(special order)"))
+                {
+                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Has to be processed manually", "Order Has to be processed manually. The order no is:" + order.orderno, "sales@autocareguys.com");
+                    continue;
+                }
                 // manually modify order if needed
                 //if (order.orderno.Contains("161968"))
                 //    order.orderno += "-6";
