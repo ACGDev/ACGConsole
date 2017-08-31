@@ -12,7 +12,7 @@ namespace AutoCarOperations
     public class FTPHandler
     {
         public static void DownloadOrUploadOrDeleteFile(string ftpAddress, string ftpUserName, string ftpPassword, string filePath, string fileName,
-             string method = WebRequestMethods.Ftp.DownloadFile)
+              string method = WebRequestMethods.Ftp.DownloadFile, int? noOfDays = null)
         {
             var ftAddress = ftpAddress + fileName;
             //FtpWebRequest request = (FtpWebRequest)WebRequest.Create(config.FTPAddress);
@@ -21,6 +21,19 @@ namespace AutoCarOperations
             request.Credentials = new NetworkCredential(ftpUserName, ftpPassword);
             // Copy the contents of the file to the request stream.  
             request.UsePassive = true;
+            List<string> dateFormatList = null;
+            if (noOfDays.HasValue)
+            {
+                dateFormatList = new List<string>();
+                for (int i = 0; i <= noOfDays; i++)
+                {
+                    var fetchDate = DateTime.Now.AddDays(-i);
+                    var dateFormat1 = fetchDate.ToString("M-dd-yyyy");
+                    var dateFormat2 = fetchDate.ToString("yyyy-MM-dd");
+                    dateFormatList.Add(dateFormat1);
+                    dateFormatList.Add(dateFormat2);
+                }
+            }
             FtpWebResponse response;
             switch (method)
             {
@@ -37,6 +50,10 @@ namespace AutoCarOperations
                             if (name.Contains(".txt"))
                             {
                                 string lastWord = name.Split(' ').Last();
+                                if (dateFormatList !=null && !dateFormatList.Any(I => lastWord.Contains(I)))
+                                {
+                                     continue;
+                                }
                                 files.Add(lastWord);
                             }
                         }
@@ -81,5 +98,42 @@ namespace AutoCarOperations
                     break;
             }
         }
+
+
+        public static void DownloadLastTwoDaysFiles(string ftpAddress, string user, string password, string filePath, string folder)
+        {
+            FtpWebRequest request = (FtpWebRequest)WebRequest.Create(ftpAddress +"/"+ folder);
+            request.Method = WebRequestMethods.Ftp.ListDirectory;
+
+            request.Credentials = new NetworkCredential(user, password);
+
+            List<string> tmpFileList = new List<string>();
+            using (FtpWebResponse response = (FtpWebResponse)request.GetResponse())
+            using (Stream responseStream = response.GetResponseStream())
+            using (StreamReader reader = new StreamReader(responseStream))
+            {
+                while (!reader.EndOfStream)
+                {
+                    tmpFileList.Add(reader.ReadLine());
+                }
+            }
+
+            Uri ftp = new Uri(ftpAddress);
+            foreach (var f in tmpFileList)
+            {
+                FtpWebRequest req = (FtpWebRequest)WebRequest.Create(new Uri(ftp, f));
+                req.Method = WebRequestMethods.Ftp.GetDateTimestamp;
+                req.Credentials = new NetworkCredential(user, password);
+
+                using (FtpWebResponse resp = (FtpWebResponse)req.GetResponse())
+                {
+                    if (resp.LastModified.Date == DateTime.Today.Date || resp.LastModified.Date == DateTime.Today.AddDays(1).Date)
+                    {
+                        DownloadOrUploadOrDeleteFile(ftpAddress, user, password, filePath, f, WebRequestMethods.Ftp.DownloadFile);
+                    }
+                }
+            }
+        }
+
     }
 }

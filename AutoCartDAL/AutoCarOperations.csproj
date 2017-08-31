@@ -64,6 +64,7 @@
     <Compile Include="DAL\CKVariantDAL.cs" />
     <Compile Include="DAL\CustomerDAL.cs" />
     <Compile Include="DAL\OrderDAL.cs" />
+    <Compile Include="DAL\OrderTrackingDAL.cs" />
     <Compile Include="DAL\ProductDAL.cs" />
     <Compile Include="FTPHandler.cs" />
     <Compile Include="MandrillMail.cs" />

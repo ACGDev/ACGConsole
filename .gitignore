@@ -9,6 +9,9 @@ packages
 # ignore a file type
 *.config
 
+# ignore a file type
+*.txt
+
 # Build results
 [Dd]ebug/
 [Rr]elease/

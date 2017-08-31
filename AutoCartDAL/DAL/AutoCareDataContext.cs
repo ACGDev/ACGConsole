@@ -19,6 +19,7 @@ namespace AutoCarOperations.DAL
         public DbSet<order_shipments> OrderShipments { get; set; }
         public DbSet<products> Products { get; set; }
         public DbSet<CKVariant> CKVaraints { get; set; }
+        public DbSet<order_tracking> OrderTracking { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {

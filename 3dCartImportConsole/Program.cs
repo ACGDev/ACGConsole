@@ -23,12 +23,17 @@ namespace _3dCartImportConsole
         static void Main(string[] args)
         {
             var configData = GetConfigurationDetails();
+            string filePath =
+                Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+
+            string coverKingTrackingPath = Path.Combine(filePath, "../../CoverKingTrackingFiles/");
+
             /*string path = @"D:\RND\WizardTest\MyCar\Doc\ACG92_08222017-17-29-48_CDC\ACG92_08222017-17-29-48_CDC.csv";
             var variantList = GetDataTableFromCsv(path, true);
             foreach (var variant in variantList)
             {
                 CKVariantDAL.SaveCKVariant(configData.ConnectionString, variant);
-            }*/
+            }
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
             val = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
             //remove the following line when we'll get actual FTP details
@@ -36,6 +41,7 @@ namespace _3dCartImportConsole
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             string incomingOrdersFilePath = Path.Combine(filePath, "../../JFWOrders");
             string processedFilePath = Path.Combine(filePath, "../../ProcessedOrders/");
+            string coverKingTrackingPath = Path.Combine(filePath, "../../CoverKingTrackingFiles/");
             //DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
             FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
             DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
@@ -62,9 +68,29 @@ namespace _3dCartImportConsole
                     MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "cs@autocareguys.com");
                 }
             }
-            OrderDAL.PlaceOrder(configData, false, true, false);
-           // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
-            
+            OrderDAL.PlaceOrder(configData, false, true, false);*/
+            //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 2);
+            // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
+            var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
+            //OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
+            var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
+            string strFileNameWithPath = string.Format("{0}\\JFWTracking\\{1}", coverKingTrackingPath,
+                jfwFilename);
+
+            string strTextHeader = "JFW PO_No,Tracking_No";
+            File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
+            var jfwFilteredList = trackingList.Where(I => I.po_no.Contains("ACGA")).GroupBy(I => I.po_no)
+                .Select(I => I.FirstOrDefault());
+            var lastPo = jfwFilteredList.LastOrDefault().po_no;
+            foreach (var jfwOrder in jfwFilteredList)
+            {
+                string text = string.Format("{0},{1}", jfwOrder.po_no, jfwOrder.tracking_no);
+                if (jfwOrder.po_no != lastPo)
+                {
+                    text = text + Environment.NewLine;
+                }
+                File.AppendAllText(strFileNameWithPath, text);
+            }
             //acga > prefix
             //170801 > invoice
         }
@@ -287,7 +313,7 @@ namespace _3dCartImportConsole
             }
             return order;
         }
-        static ConfigurationData GetConfigurationDetails()
+        public static ConfigurationData GetConfigurationDetails()
         {
             return new ConfigurationData
             {
@@ -305,6 +331,68 @@ namespace _3dCartImportConsole
                 JFWFTPUserName = ConfigurationManager.AppSettings["JFWFTPUserName"],
                 JFWFTPPassword = ConfigurationManager.AppSettings["JFWFTPPassword"],
             };
+        }
+
+        public static List<order_tracking> ReadTrackingFile(string filePath)
+        {
+            DirectoryInfo dir = new DirectoryInfo(filePath);
+            List<order_tracking> orderTrackingList = new List<order_tracking>();
+            var files = dir.GetFiles();
+            foreach (var file in files)
+            {
+                string[] lines = System.IO.File.ReadAllLines(file.FullName);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    order_tracking tracking = new order_tracking();
+                    if (i >= 1)
+                    {
+                        string[] splitHeader = lines[0].Split(new []{'\t'}).Select(I => I.Trim()).ToArray();
+                        if (splitHeader.Length <= 1)
+                        {
+                            splitHeader = lines[0].Split(',').Select(I => I.Replace("\"", "").Trim()).ToArray();
+                        }
+                        string[] splitText = lines[i].Split(new[] { '\t' }).Select(I => I.Trim()).ToArray();
+                        if (splitText.Length <= 1)
+                        {
+                            splitText = lines[i].Split(new string[]{"\",\""}, StringSplitOptions.RemoveEmptyEntries).Select(I => I.Replace("\"", "").Trim()).ToArray();
+                        }
+                        for (int j =0; j<splitHeader.Length;j++)
+                        {
+                            switch (splitHeader[j])
+                            {
+                                case "PO No":
+                                    tracking.po_no = splitText[j];
+                                    break;
+                                case "Order No":
+                                    tracking.order_no = Convert.ToInt64(splitText[j]);
+                                    break;
+                                case "Order Date":
+                                    tracking.order_date = Convert.ToDateTime(splitText[j]);
+                                    break;
+                                case "SKU":
+                                    tracking.SKU = splitText[j];
+                                    break;
+                                case "Ship Address":
+                                    tracking.ship_address= splitText[j];
+                                    break;
+                                case "ShipDate":
+                                    tracking.ship_date = Convert.ToDateTime(splitText[j]);
+                                    break;
+                                case "Tracking No":
+                                    tracking.tracking_no = splitText[j];
+                                    break;
+                                case "Ship Agent":
+                                    tracking.ship_agent = splitText[j];
+                                    break;
+                                case "Ship Service":
+                                    tracking.ship_service = splitText[j]; break;
+                            }
+                        }
+                        orderTrackingList.Add(tracking);
+                    }
+                }
+            }
+            return orderTrackingList;
         }
     }
 }

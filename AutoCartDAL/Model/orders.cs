@@ -257,4 +257,19 @@ namespace AutoCarOperations.Model
         public string trackingcode {get;set;}
         public int? shipping_id { get; set; }
     }
+
+    public class order_tracking
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
+        public string po_no { get; set; }
+        public long order_no { get; set; }
+        public DateTime order_date { get; set; }
+        public string SKU { get; set; }
+        public string ship_address { get; set; }
+        public DateTime ship_date { get; set; }
+        public string tracking_no { get; set; }
+        public string ship_agent { get; set; }
+        public string ship_service { get; set; }
+    }
 }

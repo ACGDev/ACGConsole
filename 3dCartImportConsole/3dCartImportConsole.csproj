@@ -72,6 +72,8 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="CoverKingTrackingFiles\JFWTracking\" />
+    <Folder Include="CoverKingTrackingFiles\Tracking\" />
     <Folder Include="JFWOrders\" />
     <Folder Include="ProcessedOrders\" />
   </ItemGroup>
