@@ -79,8 +79,7 @@ namespace _3dCartImportConsole
 
             string strTextHeader = "JFW PO_No,Tracking_No";
             File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
-            var jfwFilteredList = trackingList.Where(I => I.po_no.Contains("ACGA")).GroupBy(I => I.po_no)
-                .Select(I => I.FirstOrDefault());
+            var jfwFilteredList = OrderTrackingDAL.GetOrderTracking(configData.ConnectionString);
             var lastPo = jfwFilteredList.LastOrDefault().po_no;
             foreach (var jfwOrder in jfwFilteredList)
             {

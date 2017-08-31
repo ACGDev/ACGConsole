@@ -288,7 +288,7 @@ namespace AutoCarOperations.DAL
                     orderno = order.InvoiceNumberPrefix.Trim() + order.InvoiceNumber.ToString(),    //SM: inv prefix + inv num - previously "Fake"
                     orderweight = 0,//todo:calculate order from orderitem
                     ostep = "",
-                    po_no = order.PONo,
+                    po_no = order.CustomerComments.Replace("PO NO:", "").Replace("; Buyer: 500",""),
                     paymethodinfo = "",   // SM
                     recurrent_frequency = 0,
                     shipaddress = orderShipMents.ShipmentAddress,

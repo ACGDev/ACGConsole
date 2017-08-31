@@ -271,5 +271,7 @@ namespace AutoCarOperations.Model
         public string tracking_no { get; set; }
         public string ship_agent { get; set; }
         public string ship_service { get; set; }
+
+        public int processed { get; set; }
     }
 }

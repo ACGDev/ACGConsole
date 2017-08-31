@@ -27,5 +27,15 @@ namespace AutoCarOperations.DAL
                 context.Configuration.ValidateOnSaveEnabled = true;
             }
         }
+
+        public static List<order_tracking> GetOrderTracking(string connectionString)
+        {
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                return context.OrderTracking.Where(I => I.processed == 0).Join(
+                    context.Orders.Where(I => I.billemail == "support@justfeedwebsites.com"),
+                    tracking => tracking.po_no, order => order.orderno, (tracking, orders) => tracking).ToList();
+            }
+        }
     }
 }
