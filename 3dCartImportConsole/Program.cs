@@ -148,7 +148,7 @@ namespace _3dCartImportConsole
             List<Order> orderList = new List<Order>();
             Order order = new Order();
             order.InvoiceNumberPrefix = "ACGA-";
-            order.OrderStatusID = 11;//Unpaid
+            order.OrderStatusID = 1;//Was 11 - Unpaid, now New - 1
             order.Referer = "PHONE ORDER";
             order.SalesPerson = "RB";
             order.OrderDate = DateTime.Now;
