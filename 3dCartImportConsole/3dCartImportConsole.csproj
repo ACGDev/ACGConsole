@@ -72,9 +72,10 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="CoverKingTrackingFiles\JFWTracking\" />
     <Folder Include="CoverKingTrackingFiles\Tracking\" />
-    <Folder Include="JFWOrders\" />
+    <Folder Include="JFWTracking\" />
+    <Folder Include="JFW\Orders\" />
+    <Folder Include="JFW\Tracking\" />
     <Folder Include="ProcessedOrders\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -27,6 +27,8 @@ namespace _3dCartImportConsole
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
 
             string coverKingTrackingPath = Path.Combine(filePath, "../../CoverKingTrackingFiles/");
+            string incomingOrdersFilePath = Path.Combine(filePath, "../../JFW/Orders");
+            string processedFilePath = Path.Combine(filePath, "../../ProcessedOrders/");
 
             /*string path = @"D:\RND\WizardTest\MyCar\Doc\ACG92_08222017-17-29-48_CDC\ACG92_08222017-17-29-48_CDC.csv";
             var variantList = GetDataTableFromCsv(path, true);
@@ -37,12 +39,6 @@ namespace _3dCartImportConsole
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
             acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
             //remove the following line when we'll get actual FTP details
-            string filePath =
-                Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-            string incomingOrdersFilePath = Path.Combine(filePath, "../../JFWOrders");
-            string processedFilePath = Path.Combine(filePath, "../../ProcessedOrders/");
-            string coverKingTrackingPath = Path.Combine(filePath, "../../CoverKingTrackingFiles/");
-            //DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
             FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
             DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
             foreach (var file in dir.GetFiles("*.txt"))
@@ -69,27 +65,31 @@ namespace _3dCartImportConsole
                 }
             }
             OrderDAL.PlaceOrder(configData, false, true, false);*/
-            //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 2);
+            FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 2);
             // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
             var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
-            //OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
-            var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt";
-            string strFileNameWithPath = string.Format("{0}\\JFWTracking\\{1}", coverKingTrackingPath,
-                jfwFilename);
-
-            string strTextHeader = "JFW PO_No,Tracking_No";
-            File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
+            OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
+            var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm") + ".txt";
+            string strFilePath = string.Format("{0}..\\..\\..\\JFW\\", filePath);
+            string strFileNameWithPath = string.Format("{0}\\Tracking\\{1}", strFilePath, jfwFilename);
+            //string strTextHeader = "JFW PO_No,Tracking_No";
+            //File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
             var jfwFilteredList = OrderTrackingDAL.GetOrderTracking(configData.ConnectionString);
-            var lastPo = jfwFilteredList.LastOrDefault().po_no;
-            foreach (var jfwOrder in jfwFilteredList)
+            if (jfwFilteredList != null)
             {
-                string text = string.Format("{0},{1}", jfwOrder.po_no, jfwOrder.tracking_no);
-                if (jfwOrder.po_no != lastPo)
+                var lastPo = jfwFilteredList.LastOrDefault().po_no;
+                foreach (var jfwOrder in jfwFilteredList)
                 {
-                    text = text + Environment.NewLine;
+                    string text = string.Format("{0},{1}", jfwOrder.po_no, jfwOrder.tracking_no);
+                    if (jfwOrder.po_no != lastPo)
+                    {
+                        text = text + Environment.NewLine;
+                    }
+                    File.AppendAllText(strFileNameWithPath, text);
                 }
-                File.AppendAllText(strFileNameWithPath, text);
             }
+            FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, strFilePath, "\\Tracking\\"+ jfwFilename, WebRequestMethods.Ftp.UploadFile);
+            File.Move(strFileNameWithPath, processedFilePath);
             //acga > prefix
             //170801 > invoice
         }
