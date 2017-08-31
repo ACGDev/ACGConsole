@@ -11,7 +11,7 @@ namespace AutoCarOperations
 {
     public class FTPHandler
     {
-        public static void DownloadOrUploadFile(string ftpAddress, string ftpUserName, string ftpPassword, string filePath, string fileName,
+        public static void DownloadOrUploadOrDeleteFile(string ftpAddress, string ftpUserName, string ftpPassword, string filePath, string fileName,
              string method = WebRequestMethods.Ftp.DownloadFile)
         {
             var ftAddress = ftpAddress + fileName;
@@ -43,7 +43,7 @@ namespace AutoCarOperations
                     }
                     foreach (var file in files)
                     {
-                        DownloadOrUploadFile(ftpAddress, ftpUserName, ftpPassword, filePath, file);
+                        DownloadOrUploadOrDeleteFile(ftpAddress, ftpUserName, ftpPassword, filePath, file);
                     }
                     break;
                 case WebRequestMethods.Ftp.UploadFile:

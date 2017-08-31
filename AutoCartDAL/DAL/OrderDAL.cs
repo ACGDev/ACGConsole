@@ -41,7 +41,7 @@ namespace AutoCarOperations.DAL
                 {
                     //need to create donload stream as ref doesnt allow optional parameter
                     //todo: create overloaded method
-                    FTPHandler.DownloadOrUploadFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, fileDetail.Item1, fileDetail.Item2, WebRequestMethods.Ftp.UploadFile);
+                    FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, fileDetail.Item1, fileDetail.Item2, WebRequestMethods.Ftp.UploadFile);
                     //Update Order status as Submitted
                     UpdateStatus(configData.ConnectionString, orderList);
                 }
@@ -519,6 +519,11 @@ namespace AutoCarOperations.DAL
 
             foreach (var order in orders)
             {
+                if (order.cus_comment !=null && order.cus_comment.ToLower().Contains("(special order)"))
+                {
+                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Has to be processed manually", "Order Has to be processed manually. The order no is:" + order.orderno, "sales@autocareguys.com");
+                    continue;
+                }
                 // manually modify order if needed
                 //if (order.orderno.Contains("161968"))
                 //    order.orderno += "-6";
