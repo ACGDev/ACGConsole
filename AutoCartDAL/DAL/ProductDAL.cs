@@ -32,6 +32,7 @@ namespace AutoCarOperations.DAL
                     break;
                 }
                 skip = 101 + skip;
+                products = new List<Product>();
             }
             Console.WriteLine("..........Finished..........");
         }
@@ -58,6 +59,10 @@ namespace AutoCarOperations.DAL
 
             foreach (var product in products)
             {
+                DateTime upd_dt;
+                if (!DateTime.TryParse(product.LastUpdate.ToString(), out upd_dt))
+                    upd_dt = DateTime.Now;
+
                 dbProducts.Add(new products
                 {
                     SKU = product.SKUInfo.SKU,
@@ -126,7 +131,7 @@ namespace AutoCarOperations.DAL
                     imagecaption4 = product.AdditionalImageCaption4,
                     instock_message = product.InStockMessage,
                     keywords = product.Keywords,
-                    last_update = product.LastUpdate.ToString(),
+                    last_update = upd_dt.ToString("yyyy-MM-ddTHH:mm:ss"),  // product.LastUpdate.ToString(),
                     loginlevel = product.LoginRequiredOptionID,
                     manufacturer = product.ManufacturerID.ToString(),
                     maximumorder = product.MaximumQuantity.ToString(),
