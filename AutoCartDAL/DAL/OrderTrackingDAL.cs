@@ -28,13 +28,17 @@ namespace AutoCarOperations.DAL
             }
         }
 
-        public static List<order_tracking> GetOrderTracking(string connectionString)
+        public static Dictionary<string,order_tracking> GetOrderTracking(string connectionString)
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
                 return context.OrderTracking.Where(I => I.processed == 0).Join(
                     context.Orders.Where(I => I.billemail == "support@justfeedwebsites.com"),
-                    tracking => tracking.po_no, order => order.orderno, (tracking, orders) => tracking).ToList();
+                    tracking => tracking.po_no, order => order.orderno, (tracking, orders) => new 
+                    {
+                        Key = orders.po_no,
+                        Value = tracking
+                    }).ToDictionary(a=>a.Key,a => a.Value);
             }
         }
     }

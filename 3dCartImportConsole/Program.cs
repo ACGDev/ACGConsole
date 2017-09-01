@@ -65,7 +65,7 @@ namespace _3dCartImportConsole
                 }
             }
             OrderDAL.PlaceOrder(configData, false, true, false);*/
-            FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 2);
+            //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 2);
             // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
             var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
             OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
@@ -75,13 +75,13 @@ namespace _3dCartImportConsole
             //string strTextHeader = "JFW PO_No,Tracking_No";
             //File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
             var jfwFilteredList = OrderTrackingDAL.GetOrderTracking(configData.ConnectionString);
-            if (jfwFilteredList != null)
+            if (jfwFilteredList != null && jfwFilteredList.Count > 0)
             {
-                var lastPo = jfwFilteredList.LastOrDefault().po_no;
+                var lastPo = jfwFilteredList.LastOrDefault().Value.po_no;
                 foreach (var jfwOrder in jfwFilteredList)
                 {
-                    string text = string.Format("{0},{1}", jfwOrder.po_no, jfwOrder.tracking_no);
-                    if (jfwOrder.po_no != lastPo)
+                    string text = string.Format("{0},{1}", jfwOrder.Key, jfwOrder.Value.tracking_no);
+                    if (jfwOrder.Value.po_no != lastPo)
                     {
                         text = text + Environment.NewLine;
                     }
