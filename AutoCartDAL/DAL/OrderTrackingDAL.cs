@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.Data.Entity.Migrations;
 using System.Linq;
 using System.Text;
@@ -39,6 +40,21 @@ namespace AutoCarOperations.DAL
                         Key = orders.po_no,
                         Value = tracking
                     }).ToDictionary(a=>a.Key,a => a.Value);
+            }
+        }
+
+        public static void UpdateOrderStatus(string connectionString, List<order_tracking> trackingList)
+        {
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                foreach (var tracking in trackingList)
+                {
+                    context.Entry(tracking).State = EntityState.Modified;
+                    context.OrderTracking.Attach(entity: tracking);
+                    tracking.processed = 1;
+                    context.Entry(tracking).Property(I => I.processed).IsModified = true;
+                }
+                context.SaveChanges();
             }
         }
     }
