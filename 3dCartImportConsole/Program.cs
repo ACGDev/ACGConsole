@@ -31,11 +31,13 @@ namespace _3dCartImportConsole
             string processedFilePath = Path.Combine(filePath, "../../ProcessedOrders/");
 
             /*string path = @"D:\RND\WizardTest\MyCar\Doc\ACG92_08222017-17-29-48_CDC\ACG92_08222017-17-29-48_CDC.csv";
+    
             var variantList = GetDataTableFromCsv(path, true);
             foreach (var variant in variantList)
             {
                 CKVariantDAL.SaveCKVariant(configData.ConnectionString, variant);
             }
+            */
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
             acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
             //remove the following line when we'll get actual FTP details
@@ -64,8 +66,10 @@ namespace _3dCartImportConsole
                     MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "cs@autocareguys.com");
                 }
             }
-            OrderDAL.PlaceOrder(configData, false, true, false);*/
-            //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 2);
+            OrderDAL.PlaceOrder(configData, false, true, false);
+
+            // Process Tracking information
+            FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 1);
             // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
             var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
             OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
@@ -80,7 +84,7 @@ namespace _3dCartImportConsole
                 var lastPo = jfwFilteredList.LastOrDefault().Value.po_no;
                 foreach (var jfwOrder in jfwFilteredList)
                 {
-                    string text = string.Format("{0},{1}", jfwOrder.Key, jfwOrder.Value.tracking_no);
+                    string text = string.Format("{0}, {1}", jfwOrder.Key.Trim(), jfwOrder.Value.tracking_no.Trim());
                     if (jfwOrder.Value.po_no != lastPo)
                     {
                         text = text + Environment.NewLine;
@@ -236,7 +240,7 @@ namespace _3dCartImportConsole
                         order.PONo = splitText[i]; break;
                     case "sku":
                         order.SKU = splitText[i];
-                        if ((order.SKU.IndexOf("cdc", StringComparison.OrdinalIgnoreCase) >= 0) || (order.SKU.IndexOf("crc", StringComparison.OrdinalIgnoreCase) >= 0))
+                        if ((order.SKU.IndexOf("cdc", StringComparison.OrdinalIgnoreCase) >= 0) || (order.SKU.IndexOf("crd", StringComparison.OrdinalIgnoreCase) >= 0))
                         {
                             ship.ShipmentCost = 5;
                         }
@@ -246,7 +250,7 @@ namespace _3dCartImportConsole
                             orderItem.ItemID = ckVariant.SKU;
                             //order.SKU = ckVariant.SKU;
                             orderItem.ItemOptionPrice = ckVariant.price * 70 / 100;
-                            if (orderItem.ItemOptionPrice < 60)
+                            if (orderItem.ItemOptionPrice < 150)
                             {
                                 ship.ShipmentCost = 5;
                             }
