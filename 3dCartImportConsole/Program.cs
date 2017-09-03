@@ -41,7 +41,7 @@ namespace _3dCartImportConsole
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
             acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
             //remove the following line when we'll get actual FTP details
-            FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
+            //FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
             DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
             foreach (var file in dir.GetFiles("*.txt"))
             {
