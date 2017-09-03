@@ -41,7 +41,7 @@ namespace _3dCartImportConsole
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
             acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
             //remove the following line when we'll get actual FTP details
-            //FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
+           // FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
             DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
             foreach (var file in dir.GetFiles("*.txt"))
             {
@@ -54,6 +54,7 @@ namespace _3dCartImportConsole
                     List<Order> orders = Get3dCartOrder(configData.ConnectionString, lines, customer);
                     foreach (var order in orders)
                     {
+                        // Push order to 3DCart
                         var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
                             configData.Token, configData.Store);
                         order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
@@ -66,7 +67,7 @@ namespace _3dCartImportConsole
                     MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "cs@autocareguys.com");
                 }
             }
-            OrderDAL.PlaceOrder(configData, false, true, false);
+            OrderDAL.PlaceOrder(configData, false, true, true);
 
             // Process Tracking information
             FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 1);
@@ -94,8 +95,8 @@ namespace _3dCartImportConsole
             }
             FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, strFilePath, "\\Tracking\\"+ jfwFilename, WebRequestMethods.Ftp.UploadFile);
             OrderTrackingDAL.UpdateOrderStatus(configData.ConnectionString, trackingList);
-            File.Delete(strFilePath+ "\\Tracking\\" + jfwFilename);
-            DeleteAllFile(coverKingTrackingPath + "/Tracking");
+            //File.Delete(strFilePath+ "\\Tracking\\" + jfwFilename);
+            //DeleteAllFile(coverKingTrackingPath + "/Tracking");
             //acga > prefix
             //170801 > invoice
         }
@@ -187,7 +188,8 @@ namespace _3dCartImportConsole
             MapCustomerDetailOrders(order: ref order, customer: customer);
             for (int i = 0; i < lines.Length; i++)
             {
-                if (i > 0 && !String.IsNullOrWhiteSpace(lines[i]))
+                // Ignore header line, blank lines, and lines starting with "End"
+                if (i > 0 && !String.IsNullOrWhiteSpace(lines[i]) && !(lines[i].ToLower().StartsWith("end")) )
                 {
                     int noOfItems = 0;
                     
