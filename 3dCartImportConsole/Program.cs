@@ -93,7 +93,9 @@ namespace _3dCartImportConsole
                 }
             }
             FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, strFilePath, "\\Tracking\\"+ jfwFilename, WebRequestMethods.Ftp.UploadFile);
-            File.Move(strFileNameWithPath, processedFilePath);
+            OrderTrackingDAL.UpdateOrderStatus(configData.ConnectionString, trackingList);
+            File.Delete(strFilePath+ "\\Tracking\\" + jfwFilename);
+            DeleteAllFile(coverKingTrackingPath + "/Tracking");
             //acga > prefix
             //170801 > invoice
         }
@@ -404,6 +406,16 @@ namespace _3dCartImportConsole
                 }
             }
             return orderTrackingList;
+        }
+
+        public static void DeleteAllFile(string filePath)
+        {
+            DirectoryInfo dir = new DirectoryInfo(filePath);
+            var files = dir.GetFiles();
+            foreach (var file in files)
+            {
+                File.Delete(file.FullName);
+            }
         }
     }
 }
