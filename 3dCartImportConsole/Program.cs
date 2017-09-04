@@ -187,7 +187,7 @@ namespace _3dCartImportConsole
             MapCustomerDetailOrders(order: ref order, customer: customer);
             for (int i = 0; i < lines.Length; i++)
             {
-                if (i > 0 && !String.IsNullOrWhiteSpace(lines[i]))
+                if (i > 0 && !String.IsNullOrWhiteSpace(lines[i]) && lines[i].Trim() != "END")
                 {
                     int noOfItems = 0;
                     
@@ -238,9 +238,9 @@ namespace _3dCartImportConsole
             {
                 switch (splitHeader[i])
                 {
-                    case "po_number":
+                    case "PO":
                         order.PONo = splitText[i]; break;
-                    case "sku":
+                    case "CK_SKU":
                         order.SKU = splitText[i];
                         if ((order.SKU.IndexOf("cdc", StringComparison.OrdinalIgnoreCase) >= 0) || (order.SKU.IndexOf("crd", StringComparison.OrdinalIgnoreCase) >= 0))
                         {
@@ -264,7 +264,7 @@ namespace _3dCartImportConsole
                             throw new Exception("Product doesn't exists! " + JsonConvert.SerializeObject(order));
                         }
                         break;
-                    case "qty":
+                    case "Qty":
                         if(noOfItems == 0)
                         {
                             noOfItems = Convert.ToInt32(splitText[i]);
@@ -276,7 +276,7 @@ namespace _3dCartImportConsole
                         break;
                     //case "core_price": break;
                     //case "total": break;
-                    case "ship_name":
+                    case "Ship_Name":
                         string[] splitName = splitText[i].Split(' ');
                         ship.ShipmentFirstName = splitName[0];
                         ship.ShipmentOrderStatus = 11;
@@ -289,23 +289,27 @@ namespace _3dCartImportConsole
                             ship.ShipmentFirstName = "Mr./Ms.";
                         }
                         break;
-                    case "ship_address_1":
+                    case "Ship_Addr":
                         ship.ShipmentAddress = splitText[i]; break;
-                    case "ship_address_2":
+                    case "Ship_Addr_2":
                         ship.ShipmentAddress2 = splitText[i]; break;
-                    case "ship_city":
+                    case "Ship_City":
                         ship.ShipmentCity = splitText[i]; break;
-                    case "ship_state":
+                    case "Ship_State":
                         ship.ShipmentState = splitText[i]; break;
-                    case "ship_country":
+                    case "Ship_Country":
                         ship.ShipmentCountry = splitText[i]; break;
-                    case "ship_postal_code":
+                    case "Ship_Zip":
                         ship.ShipmentZipCode = splitText[i]; break;
-                    case "ship_phone":
+                    case "Ship_Phone":
                         ship.ShipmentPhone = splitText[i].Trim();
                         if (string.IsNullOrEmpty(ship.ShipmentPhone))
                             ship.ShipmentPhone = "111-111-1111";
                         break;
+                    case "Ship_Email": ship.ShipmentEmail = splitText[i]; break;
+                    case "Ship_Company":
+                        ship.ShipmentCompany = splitText[i]; break;
+                    case "Ship_Service":  break;
                     case "buyer":
                         order.CustomerComments = string.Format("PO NO:{0}; Buyer: {1}", order.PONo, splitText[i].Trim());
                         break;
