@@ -248,23 +248,6 @@ namespace _3dCartImportConsole
                         {
                             ship.ShipmentCost = 5;
                         }
-                        var ckVariant = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
-                        if (ckVariant != null)
-                        {
-                            orderItem.ItemID = ckVariant.SKU;
-                            //order.SKU = ckVariant.SKU;
-                            orderItem.ItemOptionPrice = ckVariant.price * 70 / 100;
-                            if (orderItem.ItemOptionPrice < 150)
-                            {
-                                ship.ShipmentCost = 5;
-                            }
-                            orderItem.CatalogID = ckVariant.catalogid;
-                            orderItem.ItemDescription = ckVariant.description;
-                        }
-                        else
-                        {
-                            throw new Exception("Product doesn't exists! " + JsonConvert.SerializeObject(order));
-                        }
                         break;
                     case "Qty":
                         if(noOfItems == 0)
@@ -311,16 +294,84 @@ namespace _3dCartImportConsole
                     case "Ship_Email": ship.ShipmentEmail = splitText[i]; break;
                     case "Ship_Company":
                         ship.ShipmentCompany = splitText[i]; break;
-                    case "Ship_Service":  break;
-                    case "buyer":
-                        order.CustomerComments = string.Format("PO NO:{0}; Buyer: {1}", order.PONo, splitText[i].Trim());
+                    case "Ship_Service":
+                        if (!string.IsNullOrEmpty(splitText[i]))
+                        {
+                            order.InternalComments = Environment.NewLine;
+                        }
+                        order.InternalComments = "Ship_Service: " + splitText[i];
+                        break;
+                    case "CK_Item":
+                        orderItem.ItemID = splitText[i];
+                        break;
+                    case "CK_Variant":
+                        orderItem.CatalogID = Convert.ToInt32(splitText[i]);
+                        break;
+                    case "Customized_Code":
+                        if (!string.IsNullOrEmpty(splitText[i]))
+                        {
+                            order.InternalComments = Environment.NewLine;
+                        }
+                        order.InternalComments = "Customized_Code: " + splitText[i];
+                        break;
+                    case "Customized_Msg":
+                        if (!string.IsNullOrEmpty(splitText[i]))
+                        {
+                            order.InternalComments = Environment.NewLine;
+                        }
+                        order.InternalComments = "Customized_Msg: " + splitText[i];
+                        break;
+                    case "Customized_Code2":
+                        if (!string.IsNullOrEmpty(splitText[i]))
+                        {
+                            order.InternalComments = Environment.NewLine;
+                        }
+                        order.InternalComments = "Customized_Code2: " + splitText[i];
+                        break;
+                    case "Customized_Msg2":
+                        if (!string.IsNullOrEmpty(splitText[i]))
+                        {
+                            order.InternalComments = Environment.NewLine;
+                        }
+                        order.InternalComments = "Customized_Msg2: " + splitText[i];
+                        break;
+                    case "Comment":
+                        if (!string.IsNullOrEmpty(splitText[i]))
+                        {
+                            order.InternalComments = Environment.NewLine;
+                        }
+                        order.InternalComments = "Comment: " + splitText[i];
                         break;
                 }
                 if (i == (length - 1))
                 {
+                    if (!string.IsNullOrEmpty(orderItem.ItemID) && orderItem.CatalogID != null)
+                    {
+                        order.SKU = orderItem.ItemID + orderItem.CatalogID;
+                    }
+                    if (string.IsNullOrEmpty(order.SKU))
+                    {
+                        throw new Exception("Product doesn't exists! " + JsonConvert.SerializeObject(order));
+                    }
+                    var ckVariant = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
+                    if (ckVariant != null)
+                    {
+                        orderItem.ItemID = ckVariant.SKU;
+                        //order.SKU = ckVariant.SKU;
+                        orderItem.ItemOptionPrice = ckVariant.price * 70 / 100;
+                        if (orderItem.ItemOptionPrice < 150)
+                        {
+                            ship.ShipmentCost = 5;
+                        }
+                        orderItem.CatalogID = ckVariant.catalogid;
+                        orderItem.ItemDescription = ckVariant.description;
+                    }
+
                     orderItem.ItemDescription = orderItem.ItemDescription +
                                                 "<br><b>Vehicle Configuration</b>&nbsp;Ref:Coverking Part No: " +
                                                 order.SKU;
+                    order.CustomerComments = string.Format("PO NO:{0}; Buyer: {1}", order.PONo, 500);
+
                     order.OrderItemList.Add(orderItem);
                     order.ShipmentList.Add(ship);
                     if (noOfItems > 1)

@@ -474,7 +474,16 @@ namespace AutoCarOperations.DAL
                 // CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
                 oText += string.Format(",{0},{1},{2},{3},{4},{5},{6},{7}", o.Product.mfgid, variant, strMasterPakCode, strMasterPakCodeMsg, "", "",
                     o.numitems, order.cus_comment.Trim().Replace("\"", "&quot;"));
-
+                if (!string.IsNullOrEmpty(order.internalcomment))
+                {
+                    string[] splitComment = order.internalcomment.Split(new string[] {Environment.NewLine},
+                        StringSplitOptions.RemoveEmptyEntries);
+                    foreach (var field in splitComment)
+                    {
+                        string[] splitData = field.Split(':').Select(I => I.Trim()).ToArray();
+                        
+                    }
+                }
                 orderFinal.AppendLine(oText);
                 o.Product = null;
             }
@@ -514,7 +523,7 @@ namespace AutoCarOperations.DAL
             string strFileNameWithPath = string.Format("{0}\\{1}", filePath,
                 fileName);
 
-            string strCsvHeader = "PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
+            string strCsvHeader = "PO, PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
             File.WriteAllText(strFileNameWithPath, strCsvHeader + "\r\n");
 
             foreach (var order in orders)
