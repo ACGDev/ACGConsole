@@ -36,7 +36,7 @@ namespace AutoCarOperations.DAL
                 //returns Filepath, FileName
                 var fileDetail = PrepareOrderFile(configData, orderList);
                 //upload files only if counter > 0
-                int counter = orderList.Count(I => I.shipcomplete.ToLower() != "sumbitted");
+                int counter = orderList.Count(I => I.shipcomplete.ToLower() == "pending");
                 if (uploadFile && counter > 0)
                 {
                     //need to create donload stream as ref doesnt allow optional parameter
@@ -110,7 +110,13 @@ namespace AutoCarOperations.DAL
                             order_external.referer = order_external.referer.Substring(0, 98);
                             Console.WriteLine("referer "+order_external.referer+" length "+order_external.referer.Length.ToString());
                         }
-                        if (record_from_adminDB != null && record_from_adminDB.shipcomplete.ToLower() == "submitted")
+                        if (order_external.po_no.Length > 49)
+                        {
+                            Console.WriteLine("po_no " + order_external.po_no + " length " + order_external.po_no.Length.ToString());
+                            order_external.po_no = order_external.po_no.Substring(0, 49);
+                            Console.WriteLine("  po_no truncated to " + order_external.po_no );
+                        }
+                        if (record_from_adminDB != null && record_from_adminDB.shipcomplete.ToLower() == "submitted" && order_external.status==1)
                             order_external.shipcomplete = record_from_adminDB.shipcomplete;
 
                         context.Orders.AddOrUpdate(order_external);
@@ -232,6 +238,14 @@ namespace AutoCarOperations.DAL
                 var orderShipMents = order.ShipmentList[0];
                 if (order.OrderStatusID == 7)
                     continue;
+                var po_number = order.CustomerComments;
+                if (po_number.ToUpper().Contains("PO ") && order.BillingEmail == "support@justfeedwebsites.com")
+                {
+                    po_number = po_number.ToUpper().Replace("PO NO", "").Replace("BUYER: 500","").Trim();
+                    po_number = po_number.Replace("BUYER 500", "").Replace("BUYER:500", "");
+                    po_number = po_number.Replace(":", "").Replace(";", "").Replace(",", "").Trim();
+                }
+            
                 orders thisOrder = new orders
                 {
                     discount = order.OrderDiscount,
@@ -288,7 +302,7 @@ namespace AutoCarOperations.DAL
                     orderno = order.InvoiceNumberPrefix.Trim() + order.InvoiceNumber.ToString(),    //SM: inv prefix + inv num - previously "Fake"
                     orderweight = 0,//todo:calculate order from orderitem
                     ostep = "",
-                    po_no = order.CustomerComments.Replace("PO NO:", "").Replace("; Buyer: 500",""),
+                    po_no = po_number, // order.CustomerComments.Replace("PO NO:", "").Replace("; Buyer: 500",""),
                     paymethodinfo = "",   // SM
                     recurrent_frequency = 0,
                     shipaddress = orderShipMents.ShipmentAddress,
@@ -355,7 +369,7 @@ namespace AutoCarOperations.DAL
 
                     MySqlCommand cmd = conn.CreateCommand();
                     cmd.CommandText =
-                        "select orderdate from orders where Shipcomplete = 'Pending' order by orderdate limit 1";
+                        "select orderdate from orders where Shipcomplete not in ('Pending', 'Cancelled', 'Shipped') order by orderdate limit 1";
                     //Command to get query needed value from DataBase
                     conn.Open();
                     MySqlDataReader reader = cmd.ExecuteReader();
@@ -537,7 +551,7 @@ namespace AutoCarOperations.DAL
                 //if (order.orderno.Contains("161968"))
                 //    order.orderno += "-6";
                 // RestHelper.Execute(@"http://api.coverking.com/orders/Order_Placement.asmx?op=Place_Orders", config.AuthUserName, config.AuthPassowrd, order);
-                if (order.shipcomplete.ToLower() != "submitted")
+                if (order.shipcomplete.ToLower() == "pending")
                 {
                     string strOrderLines = GenerateOrderLines(order, configData, MandrillMail.SendEmail);
                     if (strOrderLines != string.Empty)

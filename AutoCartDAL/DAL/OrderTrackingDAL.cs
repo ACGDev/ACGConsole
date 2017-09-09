@@ -34,7 +34,7 @@ namespace AutoCarOperations.DAL
             using (var context = new AutoCareDataContext(connectionString))
             {
                 return context.OrderTracking.Where(I => I.processed == 0).Join(
-                    context.Orders.Where(I => I.billemail == "support@justfeedwebsites.com"),
+                    context.Orders.Where(J => J.billemail == "support@justfeedwebsites.com"),
                     tracking => tracking.po_no, order => order.orderno, (tracking, orders) => new 
                     {
                         Key = orders.po_no,

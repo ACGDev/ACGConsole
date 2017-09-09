@@ -28,7 +28,7 @@ namespace AutoCarOperations
                 for (int i = 0; i <= noOfDays; i++)
                 {
                     var fetchDate = DateTime.Now.AddDays(-i);
-                    var dateFormat1 = fetchDate.ToString("M-dd-yyyy");
+                    var dateFormat1 = fetchDate.ToString("M-d-yyyy");  // date does not have leading 0
                     var dateFormat2 = fetchDate.ToString("yyyy-MM-dd");
                     dateFormatList.Add(dateFormat1);
                     dateFormatList.Add(dateFormat2);

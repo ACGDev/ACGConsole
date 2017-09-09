@@ -41,7 +41,7 @@ namespace _3dCartImportConsole
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
             acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
             //remove the following line when we'll get actual FTP details
-           // FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
+            FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
             DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
             foreach (var file in dir.GetFiles("*.txt"))
             {
@@ -59,6 +59,7 @@ namespace _3dCartImportConsole
                             configData.Token, configData.Store);
                         order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
                     }
+                    //SM sep 8: First check if the file is present in ftp site before trying to delete.
                     FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, processedFilePath, file.Name, WebRequestMethods.Ftp.DeleteFile);
                     File.Move(file.FullName, processedFilePath + file.Name);
                 }
@@ -235,33 +236,36 @@ namespace _3dCartImportConsole
             var orderItem = new OrderItem();
             //orderItem. = new Product();
             var ship = new Shipment();
-
+            string buyer = "500";
+            // Sep 7, Sam: take both formats - emailed or downloaded
             for (int i = 0; i< length; i++)
             {
-                switch (splitHeader[i])
+                switch (splitHeader[i].ToUpper())
                 {
-                    case "PO":
-                        order.PONo = splitText[i]; break;
-                    case "CK_SKU":
+                    case "PO": case "PO_NUMBER":
+                        order.PONo = splitText[i];
+                        break;
+
+                    case "CK_SKU":  case "SKU":
                         order.SKU = splitText[i];
                         if ((order.SKU.IndexOf("cdc", StringComparison.OrdinalIgnoreCase) >= 0) || (order.SKU.IndexOf("crd", StringComparison.OrdinalIgnoreCase) >= 0))
                         {
                             ship.ShipmentCost = 5;
                         }
                         break;
-                    case "Qty":
+                    case "QTY": 
                         if(noOfItems == 0)
                         {
                             noOfItems = Convert.ToInt32(splitText[i]);
                         }
                         orderItem.ItemQuantity = 1; break;
-                    case "unit_cost":
+                    case "UNIT_COST":
                         orderItem.ItemUnitCost = Convert.ToDouble(splitText[i]);
                         //orderItem.ItemOptionPrice
                         break;
                     //case "core_price": break;
                     //case "total": break;
-                    case "Ship_Name":
+                    case "SHIP_NAME":
                         string[] splitName = splitText[i].Split(' ');
                         ship.ShipmentFirstName = splitName[0];
                         ship.ShipmentOrderStatus = 11;
@@ -274,68 +278,71 @@ namespace _3dCartImportConsole
                             ship.ShipmentFirstName = "Mr./Ms.";
                         }
                         break;
-                    case "Ship_Addr":
+                    case "SHIP_ADDR":
+                    case "SHIP_ADDRESS_1":
                         ship.ShipmentAddress = splitText[i]; break;
-                    case "Ship_Addr_2":
+                    case "SHIP_ADDR_2":
+                    case "SHIP_ADDRESS_2":
                         ship.ShipmentAddress2 = splitText[i]; break;
-                    case "Ship_City":
+                    case "SHIP_CITY":
                         ship.ShipmentCity = splitText[i]; break;
-                    case "Ship_State":
+                    case "SHIP_STATE":
                         ship.ShipmentState = splitText[i]; break;
-                    case "Ship_Country":
+                    case "SHIP_COUNTRY":
                         ship.ShipmentCountry = splitText[i]; break;
-                    case "Ship_Zip":
+                    case "SHIP_ZIP":
+                    case "SHIP_POSTAL_CODE":
                         ship.ShipmentZipCode = splitText[i]; break;
-                    case "Ship_Phone":
+                    case "SHIP_PHONE":
                         ship.ShipmentPhone = splitText[i].Trim();
                         if (string.IsNullOrEmpty(ship.ShipmentPhone))
                             ship.ShipmentPhone = "111-111-1111";
                         break;
-                    case "Ship_Email": ship.ShipmentEmail = splitText[i]; break;
-                    case "Ship_Company":
+                    case "SHIP_EMAIL": ship.ShipmentEmail = splitText[i]; break;
+                    case "SHIP_COMPANY":
                         ship.ShipmentCompany = splitText[i]; break;
-                    case "Ship_Service":
+                    case "SHIP_SERVICE":
                         if (!string.IsNullOrEmpty(splitText[i]))
                         {
                             order.InternalComments = Environment.NewLine;
                         }
                         order.InternalComments = "Ship_Service: " + splitText[i];
                         break;
-                    case "CK_Item":
+                    case "CK_ITEM":
                         orderItem.ItemID = splitText[i];
                         break;
-                    case "CK_Variant":
+                    case "CK_VARIANT":
                         orderItem.CatalogID = Convert.ToInt32(splitText[i]);
                         break;
-                    case "Customized_Code":
+                    case "CUSTOMIZED_CODE":
                         if (!string.IsNullOrEmpty(splitText[i]))
                         {
                             order.InternalComments = Environment.NewLine;
                         }
                         order.InternalComments = "Customized_Code: " + splitText[i];
                         break;
-                    case "Customized_Msg":
+                    case "CUSTOMIZED_MSG":
                         if (!string.IsNullOrEmpty(splitText[i]))
                         {
                             order.InternalComments = Environment.NewLine;
                         }
                         order.InternalComments = "Customized_Msg: " + splitText[i];
                         break;
-                    case "Customized_Code2":
+                    case "CUSTOMIZED_CODE2":
                         if (!string.IsNullOrEmpty(splitText[i]))
                         {
                             order.InternalComments = Environment.NewLine;
                         }
                         order.InternalComments = "Customized_Code2: " + splitText[i];
                         break;
-                    case "Customized_Msg2":
+                    case "CUSTOMIZED_MSG2":
                         if (!string.IsNullOrEmpty(splitText[i]))
                         {
                             order.InternalComments = Environment.NewLine;
                         }
                         order.InternalComments = "Customized_Msg2: " + splitText[i];
                         break;
-                    case "Comment":
+                    case "COMMENT":
                         if (!string.IsNullOrEmpty(splitText[i]))
                         {
                             order.InternalComments = Environment.NewLine;
@@ -370,8 +377,7 @@ namespace _3dCartImportConsole
                     orderItem.ItemDescription = orderItem.ItemDescription +
                                                 "<br><b>Vehicle Configuration</b>&nbsp;Ref:Coverking Part No: " +
                                                 order.SKU;
-                    order.CustomerComments = string.Format("PO NO:{0}; Buyer: {1}", order.PONo, 500);
-
+                    order.CustomerComments = string.Format("PO NO: {0}; Buyer: {1}", order.PONo, buyer);
                     order.OrderItemList.Add(orderItem);
                     order.ShipmentList.Add(ship);
                     if (noOfItems > 1)
@@ -422,9 +428,11 @@ namespace _3dCartImportConsole
                             splitHeader = lines[0].Split(',').Select(I => I.Replace("\"", "").Trim()).ToArray();
                         }
                         string[] splitText = lines[i].Split(new[] { '\t' }).Select(I => I.Trim()).ToArray();
+                        // SM Sep 8: Need to arrest if a line has empty values - such as empty tracking no. In that case, do not take that line
+                        // and send an email. Changed StringSplitOptions.RemoveEmptyEntries to None
                         if (splitText.Length <= 1)
                         {
-                            splitText = lines[i].Split(new string[]{"\",\""}, StringSplitOptions.RemoveEmptyEntries).Select(I => I.Replace("\"", "").Trim()).ToArray();
+                            splitText = lines[i].Split(new string[]{"\",\""}, StringSplitOptions.None).Select(I => I.Replace("\"", "").Trim()).ToArray();
                         }
                         for (int j =0; j<splitHeader.Length;j++)
                         {
