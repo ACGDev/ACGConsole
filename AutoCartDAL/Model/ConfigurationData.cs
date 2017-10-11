@@ -21,5 +21,6 @@ namespace AutoCarOperations.Model
         public string JFWFTPAddress { get; set; }
         public string JFWFTPUserName { get; set; }
         public string JFWFTPPassword { get; set; }
+        public string CoverKingAPIKey { get; set; }
     }
 }

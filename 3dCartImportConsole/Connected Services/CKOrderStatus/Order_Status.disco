@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<discovery xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://schemas.xmlsoap.org/disco/">
+  <contractRef ref="https://orderstatus.coverking.com/Order_Status.asmx?wsdl" docRef="https://orderstatus.coverking.com/Order_Status.asmx" xmlns="http://schemas.xmlsoap.org/disco/scl/" />
+  <soap address="https://orderstatus.coverking.com/Order_Status.asmx" xmlns:q1="http://coverkingprod.cloudapp.net/" binding="q1:Order_StatusSoap" xmlns="http://schemas.xmlsoap.org/disco/soap/" />
+  <soap address="https://orderstatus.coverking.com/Order_Status.asmx" xmlns:q2="http://coverkingprod.cloudapp.net/" binding="q2:Order_StatusSoap12" xmlns="http://schemas.xmlsoap.org/disco/soap/" />
+</discovery>

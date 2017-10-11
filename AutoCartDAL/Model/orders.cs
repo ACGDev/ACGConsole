@@ -274,4 +274,57 @@ namespace AutoCarOperations.Model
 
         public int processed { get; set; }
     }
+
+    public class jfw_orders
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public long jfw_order_id { get; set; }
+        public string PO { get; set; }
+        public DateTime PO_Date { get; set; }
+        public string Ship_Company { get; set; }
+        public string Ship_Name { get; set; }
+        public string Ship_Addr { get; set; }
+        public string Ship_Addr_2 { get; set; }
+        public string Ship_City { get; set; }
+        public string Ship_State { get; set; }
+        public string Ship_Zip { get; set; }
+        public string Ship_Country { get; set; }
+        public string Ship_Phone { get; set; }
+        public string Ship_Email { get; set; }
+        public string Ship_Service { get; set; }
+        public string CK_SKU { get; set; }
+        public string CK_Item { get; set; }
+        public string CK_Variant { get; set; }
+        public string Customized_Code { get; set; }
+        public string Customized_Msg { get; set; }
+        public string Customized_Code2 { get; set; }
+        public int? Qty { get; set; }
+        public string Comment { get; set; }
+        public string Customized_Msg2 { get; set; }
+    }
+
+    public class order_item_details
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public long order_item_details_id { get; set; }
+        public int order_item_id { get; set; }
+        public string order_no { get; set; }
+        public int? sequence_no { get; set; }
+        public string item_id { get; set; }
+        public string sku { get; set; }
+        public string production_slno { get; set; }
+        public string status { get; set; }
+        public DateTime? status_datetime { get; set; }
+        public string ship_agent { get; set; }
+        public string ship_service_code { get; set; }
+        public string tracking_no { get; set; }
+        public DateTime? ship_date { get; set; }
+        public bool? returned { get; set; }
+        public DateTime? Return_date { get; set; }
+        public DateTime? acg_inv_date { get; set; }
+        public DateTime? ACG_inv_pay_date { get; set; }
+        public string tracking_link { get; set; }
+    }
 }

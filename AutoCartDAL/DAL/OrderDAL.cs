@@ -34,6 +34,7 @@ namespace AutoCarOperations.DAL
             if (prepareFile && orderList.Count > 0)
             {
                 //returns Filepath, FileName
+                var orderListCopy = JsonConvert.DeserializeObject<List<orders>>(JsonConvert.SerializeObject(orderList));
                 var fileDetail = PrepareOrderFile(configData, orderList);
                 //upload files only if counter > 0
                 int counter = orderList.Count(I => I.shipcomplete.ToLower() == "pending");
@@ -43,7 +44,7 @@ namespace AutoCarOperations.DAL
                     //todo: create overloaded method
                     FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, fileDetail.Item1, fileDetail.Item2, WebRequestMethods.Ftp.UploadFile);
                     //Update Order status as Submitted
-                    UpdateStatus(configData.ConnectionString, orderList);
+                    UpdateStatus(configData.ConnectionString, orderListCopy);
                 }
             }
         }
@@ -129,7 +130,7 @@ namespace AutoCarOperations.DAL
                 }
                 
                 DateTime strOrderDate = Convert.ToDateTime(strOrderStart).AddDays(-5);
-                return context.Orders.Include(I => I.order_items).Include("order_items.Product").Where(I => I.orderdate >= strOrderDate).ToList();
+                return context.Orders.Include(I => I.order_items).Include(I => I.order_shipments).Include("order_items.Product").Where(I => I.orderdate >= strOrderDate).ToList();
             }
         }
         /// <summary>
@@ -148,6 +149,29 @@ namespace AutoCarOperations.DAL
                         context.Orders.Attach(entity: order);
                         order.shipcomplete = "Submitted";
                         context.Entry(order).Property(I => I.shipcomplete).IsModified = true;
+                    }
+                    var sequenceNo = 1;
+                    //todo: need to confirm when Product is null
+                    foreach (var item in order.order_items)
+                    {
+                        for (int i = 0; i < item.numitems; i++)
+                        {
+                            var orderItemDet = new order_item_details
+                            {
+                                order_item_id = item.order_item_id,
+                                order_no = order.orderno,
+                                sequence_no = sequenceNo,
+                                item_id = item.itemid,
+                                sku = item.Product != null ? item.Product.SKU : null,
+                                //ship_agent =,
+                                //ship_service_code = order.ship
+                                //tracking_no = order.order_shipments != null && order.order_shipments.Count > 0 ? order.order_shipments[0].trackingcode : "",
+                                //ship_date = order.d,
+                            };
+                            //todo: if qty > 1
+                            sequenceNo = sequenceNo + 1;
+                            context.OrderItemDetails.Add(orderItemDet);
+                        }
                     }
                 }
                 context.SaveChanges();
@@ -485,18 +509,43 @@ namespace AutoCarOperations.DAL
                 // Ship_Phone,Ship_Email,Ship_Service,CK_SKU
                 oText += string.Format(",{0},{1},{2},{3}", order.shipphone.Trim(), order.shipemail.Trim(), "R02", "");
 
-                // CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
-                oText += string.Format(",{0},{1},{2},{3},{4},{5},{6},{7}", o.Product.mfgid, variant, strMasterPakCode, strMasterPakCodeMsg, "", "",
-                    o.numitems, order.cus_comment.Trim().Replace("\"", "&quot;"));
                 if (!string.IsNullOrEmpty(order.internalcomment))
                 {
+                    List<string> custom = new List<string>
+                    {
+                        "CK_Item",
+                        "CK_Variant",
+                        "Customized_Code",
+                        "Customized_Msg",
+                        "Customized_Code2",
+                        "Customized_Msg2",
+                        "Qty",
+                        "Comment"
+                    };
+                    string[] values = new string[custom.Count];
                     string[] splitComment = order.internalcomment.Split(new string[] {Environment.NewLine},
                         StringSplitOptions.RemoveEmptyEntries);
+                    //CK_Item
+                    values[0] = o.itemid;
+                    //CK_Variant
+                    values[1] = o.catalogid.ToString();
+                    //Qty
+                    values[6] = o.numitems.ToString();
                     foreach (var field in splitComment)
                     {
                         string[] splitData = field.Split(':').Select(I => I.Trim()).ToArray();
-                        
+                        var index = custom.FindIndex(I => I == splitData[0]);
+                        values[index] = splitData[1];
                     }
+                    //comment
+                    values[7] = order.cus_comment + (string.IsNullOrEmpty(values[5]) ? "" : " " + values[5]);
+                    oText += string.Join(",", values);
+                }
+                else
+                {
+                    // CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
+                    oText += string.Format(",{0},{1},{2},{3},{4},{5},{6},{7}", o.Product.mfgid, variant, strMasterPakCode, strMasterPakCodeMsg, "", "",
+                        o.numitems, order.cus_comment.Trim().Replace("\"", "&quot;"));
                 }
                 orderFinal.AppendLine(oText);
                 o.Product = null;
@@ -577,6 +626,36 @@ namespace AutoCarOperations.DAL
             using (var context = new AutoCareDataContext(connectionString))
             {
                 return context.Orders.Where(I => I.invoicenum_prefix == invoicePrefix).Max(I => I.invoicenum);
+            }
+        }
+
+        public static List<orders> FetchOrders(string connectionString, Func<orders, bool> whereFunc)
+        {
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                return context.Orders.Where(whereFunc).ToList();
+            }
+        }
+
+        public static void UpdateOrderDetail(string connectionString, 
+            string orderNo, string serialNo, string status, string shipAgent,
+            string shipServiceCode, string trackingNo, string trackingLink)
+        {
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                var order_det = context.OrderItemDetails.FirstOrDefault(I => I.order_no == orderNo);
+                if (order_det != null)
+                {
+                    order_det.production_slno = serialNo;
+                    order_det.status = status;
+                    order_det.status_datetime = DateTime.Now;
+                    order_det.ship_agent = shipAgent;
+                    order_det.ship_service_code = shipServiceCode;
+                    order_det.tracking_no = trackingNo;
+                    order_det.tracking_link = trackingLink;
+                    context.OrderItemDetails.AddOrUpdate(order_det);
+                    context.SaveChanges();
+                }
             }
         }
     }

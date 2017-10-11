@@ -74,7 +74,7 @@ namespace AutoCarOperations.DAL
                     backorder_message = product.BackOrderMessage,
                     categoriesaaa = null,
                     categoryspecial = product.CategorySpecial,//changed int to boolean
-                    cost = product.ShipCost,
+                    cost = product.SKUInfo.Cost,
                     date_created = product.DateCreated.ToString(),
                     depth = product.Depth,//changed int to double
                     description = product.ShortDescription,
@@ -144,7 +144,7 @@ namespace AutoCarOperations.DAL
                     notforsale = product.NotForSale,//changed to bit
                     onsale = product.StockAlert,
                     outofstock_message = product.OutOfStockMessage,
-                    price = product.PriceLevel1,
+                    price = product.SKUInfo.Price,
                     price2 = product.PriceLevel2,
                     price3 = product.PriceLevel3,
                     price_1 = product.PriceLevel1,
@@ -195,7 +195,7 @@ namespace AutoCarOperations.DAL
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
-                return context.Products.Join(context.CKVaraints.Where(I => (I.ItemID.Trim() + I.VariantID.Trim() == sku)), i => i.mfgid, j => j.ItemID, (i,j) => i).FirstOrDefault();
+                return context.Products.Join(context.CKVaraints.Where(I => I.SKU == sku), i => i.mfgid, j => j.ItemID, (i,j) => i).FirstOrDefault();
             }
         } 
     }

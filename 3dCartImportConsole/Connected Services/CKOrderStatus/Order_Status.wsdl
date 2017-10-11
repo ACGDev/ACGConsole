@@ -1,0 +1,770 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="http://coverkingprod.cloudapp.net/" xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:s1="usaparts" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" targetNamespace="http://coverkingprod.cloudapp.net/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="http://coverkingprod.cloudapp.net/">
+      <s:import namespace="usaparts" />
+      <s:element name="Get_Orders">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Lastname" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="Zip" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="Key" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Get_OrdersResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Get_OrdersResult" type="tns:Orders_response" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:complexType name="Orders_response">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="Orders_list" type="tns:ArrayOfOrders" />
+          <s:element minOccurs="0" maxOccurs="1" name="Error_Message" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Error_Code" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfOrders">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="Orders" nillable="true" type="tns:Orders" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="Orders">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="Parts_list" type="tns:ArrayOfParts" />
+          <s:element minOccurs="0" maxOccurs="1" name="Order_no" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Zip" type="s:string" />
+          <s:element minOccurs="1" maxOccurs="1" name="Order_date" type="s:dateTime" />
+          <s:element minOccurs="0" maxOccurs="1" name="City" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Name" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfParts">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="Parts" nillable="true" type="tns:Parts" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="Parts">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="Customer_PO" type="s:string" />
+          <s:element minOccurs="1" maxOccurs="1" name="Order_date" type="s:dateTime" />
+          <s:element minOccurs="0" maxOccurs="1" name="Order_No" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Serial_No" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Description" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Year" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Make" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Model" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Option" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Material_Description" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Shipping_agent_used" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Shipping_agent_service_used" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Years_from" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Years_to" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Package_link" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Package_No" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Status" type="s:string" />
+          <s:element minOccurs="1" maxOccurs="1" name="Cancelled" nillable="true" type="s:unsignedByte" />
+          <s:element minOccurs="0" maxOccurs="1" name="ItemNo" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="VariantID" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="Get_Orders_by_OrderNo">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="OrdersNo" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="Key" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Get_Orders_by_OrderNoResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Get_Orders_by_OrderNoResult" type="tns:Orders_response" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Get_Orders_by_PO">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="POs" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="Key" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Get_Orders_by_POResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Get_Orders_by_POResult" type="tns:Orders_response" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Get_OrderStatus_by_PO">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="APIKEY" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="POs" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="DealerID" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Get_OrderStatus_by_POResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Get_OrderStatus_by_POResult" type="tns:Orders_response" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CustomSet1">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="PO" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="Key" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="CustomSet1Response">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" ref="s1:SomeClass" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Save_for_notifications">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="OrderNo" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="Email" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="Phone" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="Key" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Save_for_notificationsResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Save_for_notificationsResult" type="tns:Orders_response" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Notification_Status">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="MessageStatus" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="ApiVersion" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="SmsSid" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="SmsStatus" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="To" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="From" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="MessageSid" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="AccountSid" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Notification_StatusResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Notification_StatusResult" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Orders_response" nillable="true" type="tns:Orders_response" />
+      <s:element name="string" nillable="true" type="s:string" />
+    </s:schema>
+    <s:schema elementFormDefault="qualified" targetNamespace="usaparts">
+      <s:element name="SomeClass" type="s1:OrderStatusResponse" />
+      <s:complexType name="OrderStatusResponse">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="Error_code" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Error_message" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Order" type="s1:ArrayOfOrder" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfOrder">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="Order" nillable="true" type="s1:Order" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="Order">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="PONumber" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="PODate" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Status" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="ShipUnit" type="s1:ArrayOfShipUnit" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfShipUnit">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="ShipUnit" nillable="true" type="s1:ShipUnit" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ShipUnit">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="PONumber" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="ShipUniteSequence" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="ShipUnitTotalId" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="SupplierInvoiceNumber" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="ShippingCompany" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="TrackingNumber" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="EstimatedShipDate" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="ShipDate" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Freight" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Whsid" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Parts" type="s1:ArrayOfCustomSet1_parts" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="ArrayOfCustomSet1_parts">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="unbounded" name="CustomSet1_parts" nillable="true" type="s1:CustomSet1_parts" />
+        </s:sequence>
+      </s:complexType>
+      <s:complexType name="CustomSet1_parts">
+        <s:sequence>
+          <s:element minOccurs="0" maxOccurs="1" name="TrackingNumber" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="SKU" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="MFGPart" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="SupersededSku" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="Brand" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="OrderedQtyl" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="ItemQty" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="BackOrderedQuantity" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="ItemAmount" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="ExtendedPrice" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="HandlingCharges" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="OtherCharges" type="s:string" />
+          <s:element minOccurs="0" maxOccurs="1" name="status" type="s:string" />
+        </s:sequence>
+      </s:complexType>
+      <s:element name="OrderStatusResponse" nillable="true" type="s1:OrderStatusResponse" />
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="Get_OrdersSoapIn">
+    <wsdl:part name="parameters" element="tns:Get_Orders" />
+  </wsdl:message>
+  <wsdl:message name="Get_OrdersSoapOut">
+    <wsdl:part name="parameters" element="tns:Get_OrdersResponse" />
+  </wsdl:message>
+  <wsdl:message name="Get_Orders_by_OrderNoSoapIn">
+    <wsdl:part name="parameters" element="tns:Get_Orders_by_OrderNo" />
+  </wsdl:message>
+  <wsdl:message name="Get_Orders_by_OrderNoSoapOut">
+    <wsdl:part name="parameters" element="tns:Get_Orders_by_OrderNoResponse" />
+  </wsdl:message>
+  <wsdl:message name="Get_Orders_by_POSoapIn">
+    <wsdl:part name="parameters" element="tns:Get_Orders_by_PO" />
+  </wsdl:message>
+  <wsdl:message name="Get_Orders_by_POSoapOut">
+    <wsdl:part name="parameters" element="tns:Get_Orders_by_POResponse" />
+  </wsdl:message>
+  <wsdl:message name="Get_OrderStatus_by_POSoapIn">
+    <wsdl:part name="parameters" element="tns:Get_OrderStatus_by_PO" />
+  </wsdl:message>
+  <wsdl:message name="Get_OrderStatus_by_POSoapOut">
+    <wsdl:part name="parameters" element="tns:Get_OrderStatus_by_POResponse" />
+  </wsdl:message>
+  <wsdl:message name="CustomSet1SoapIn">
+    <wsdl:part name="parameters" element="tns:CustomSet1" />
+  </wsdl:message>
+  <wsdl:message name="CustomSet1SoapOut">
+    <wsdl:part name="parameters" element="tns:CustomSet1Response" />
+  </wsdl:message>
+  <wsdl:message name="Save_for_notificationsSoapIn">
+    <wsdl:part name="parameters" element="tns:Save_for_notifications" />
+  </wsdl:message>
+  <wsdl:message name="Save_for_notificationsSoapOut">
+    <wsdl:part name="parameters" element="tns:Save_for_notificationsResponse" />
+  </wsdl:message>
+  <wsdl:message name="Notification_StatusSoapIn">
+    <wsdl:part name="parameters" element="tns:Notification_Status" />
+  </wsdl:message>
+  <wsdl:message name="Notification_StatusSoapOut">
+    <wsdl:part name="parameters" element="tns:Notification_StatusResponse" />
+  </wsdl:message>
+  <wsdl:message name="Get_OrdersHttpGetIn">
+    <wsdl:part name="Lastname" type="s:string" />
+    <wsdl:part name="Zip" type="s:string" />
+    <wsdl:part name="Key" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Get_OrdersHttpGetOut">
+    <wsdl:part name="Body" element="tns:Orders_response" />
+  </wsdl:message>
+  <wsdl:message name="Get_Orders_by_OrderNoHttpGetIn">
+    <wsdl:part name="OrdersNo" type="s:string" />
+    <wsdl:part name="Key" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Get_Orders_by_OrderNoHttpGetOut">
+    <wsdl:part name="Body" element="tns:Orders_response" />
+  </wsdl:message>
+  <wsdl:message name="Get_Orders_by_POHttpGetIn">
+    <wsdl:part name="POs" type="s:string" />
+    <wsdl:part name="Key" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Get_Orders_by_POHttpGetOut">
+    <wsdl:part name="Body" element="tns:Orders_response" />
+  </wsdl:message>
+  <wsdl:message name="Get_OrderStatus_by_POHttpGetIn">
+    <wsdl:part name="APIKEY" type="s:string" />
+    <wsdl:part name="POs" type="s:string" />
+    <wsdl:part name="DealerID" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Get_OrderStatus_by_POHttpGetOut">
+    <wsdl:part name="Body" element="tns:Orders_response" />
+  </wsdl:message>
+  <wsdl:message name="CustomSet1HttpGetIn">
+    <wsdl:part name="PO" type="s:string" />
+    <wsdl:part name="Key" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="CustomSet1HttpGetOut">
+    <wsdl:part name="Body" element="s1:OrderStatusResponse" />
+  </wsdl:message>
+  <wsdl:message name="Save_for_notificationsHttpGetIn">
+    <wsdl:part name="OrderNo" type="s:string" />
+    <wsdl:part name="Email" type="s:string" />
+    <wsdl:part name="Phone" type="s:string" />
+    <wsdl:part name="Key" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Save_for_notificationsHttpGetOut">
+    <wsdl:part name="Body" element="tns:Orders_response" />
+  </wsdl:message>
+  <wsdl:message name="Notification_StatusHttpGetIn">
+    <wsdl:part name="MessageStatus" type="s:string" />
+    <wsdl:part name="ApiVersion" type="s:string" />
+    <wsdl:part name="SmsSid" type="s:string" />
+    <wsdl:part name="SmsStatus" type="s:string" />
+    <wsdl:part name="To" type="s:string" />
+    <wsdl:part name="From" type="s:string" />
+    <wsdl:part name="MessageSid" type="s:string" />
+    <wsdl:part name="AccountSid" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Notification_StatusHttpGetOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:message name="Get_OrdersHttpPostIn">
+    <wsdl:part name="Lastname" type="s:string" />
+    <wsdl:part name="Zip" type="s:string" />
+    <wsdl:part name="Key" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Get_OrdersHttpPostOut">
+    <wsdl:part name="Body" element="tns:Orders_response" />
+  </wsdl:message>
+  <wsdl:message name="Get_Orders_by_OrderNoHttpPostIn">
+    <wsdl:part name="OrdersNo" type="s:string" />
+    <wsdl:part name="Key" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Get_Orders_by_OrderNoHttpPostOut">
+    <wsdl:part name="Body" element="tns:Orders_response" />
+  </wsdl:message>
+  <wsdl:message name="Get_Orders_by_POHttpPostIn">
+    <wsdl:part name="POs" type="s:string" />
+    <wsdl:part name="Key" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Get_Orders_by_POHttpPostOut">
+    <wsdl:part name="Body" element="tns:Orders_response" />
+  </wsdl:message>
+  <wsdl:message name="Get_OrderStatus_by_POHttpPostIn">
+    <wsdl:part name="APIKEY" type="s:string" />
+    <wsdl:part name="POs" type="s:string" />
+    <wsdl:part name="DealerID" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Get_OrderStatus_by_POHttpPostOut">
+    <wsdl:part name="Body" element="tns:Orders_response" />
+  </wsdl:message>
+  <wsdl:message name="CustomSet1HttpPostIn">
+    <wsdl:part name="PO" type="s:string" />
+    <wsdl:part name="Key" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="CustomSet1HttpPostOut">
+    <wsdl:part name="Body" element="s1:OrderStatusResponse" />
+  </wsdl:message>
+  <wsdl:message name="Save_for_notificationsHttpPostIn">
+    <wsdl:part name="OrderNo" type="s:string" />
+    <wsdl:part name="Email" type="s:string" />
+    <wsdl:part name="Phone" type="s:string" />
+    <wsdl:part name="Key" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Save_for_notificationsHttpPostOut">
+    <wsdl:part name="Body" element="tns:Orders_response" />
+  </wsdl:message>
+  <wsdl:message name="Notification_StatusHttpPostIn">
+    <wsdl:part name="MessageStatus" type="s:string" />
+    <wsdl:part name="ApiVersion" type="s:string" />
+    <wsdl:part name="SmsSid" type="s:string" />
+    <wsdl:part name="SmsStatus" type="s:string" />
+    <wsdl:part name="To" type="s:string" />
+    <wsdl:part name="From" type="s:string" />
+    <wsdl:part name="MessageSid" type="s:string" />
+    <wsdl:part name="AccountSid" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Notification_StatusHttpPostOut">
+    <wsdl:part name="Body" element="tns:string" />
+  </wsdl:message>
+  <wsdl:portType name="Order_StatusSoap">
+    <wsdl:operation name="Get_Orders">
+      <wsdl:input message="tns:Get_OrdersSoapIn" />
+      <wsdl:output message="tns:Get_OrdersSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_OrderNo">
+      <wsdl:input message="tns:Get_Orders_by_OrderNoSoapIn" />
+      <wsdl:output message="tns:Get_Orders_by_OrderNoSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_PO">
+      <wsdl:input message="tns:Get_Orders_by_POSoapIn" />
+      <wsdl:output message="tns:Get_Orders_by_POSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Get_OrderStatus_by_PO">
+      <wsdl:input message="tns:Get_OrderStatus_by_POSoapIn" />
+      <wsdl:output message="tns:Get_OrderStatus_by_POSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="CustomSet1">
+      <wsdl:input message="tns:CustomSet1SoapIn" />
+      <wsdl:output message="tns:CustomSet1SoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Save_for_notifications">
+      <wsdl:input message="tns:Save_for_notificationsSoapIn" />
+      <wsdl:output message="tns:Save_for_notificationsSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Notification_Status">
+      <wsdl:input message="tns:Notification_StatusSoapIn" />
+      <wsdl:output message="tns:Notification_StatusSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:portType name="Order_StatusHttpGet">
+    <wsdl:operation name="Get_Orders">
+      <wsdl:input message="tns:Get_OrdersHttpGetIn" />
+      <wsdl:output message="tns:Get_OrdersHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_OrderNo">
+      <wsdl:input message="tns:Get_Orders_by_OrderNoHttpGetIn" />
+      <wsdl:output message="tns:Get_Orders_by_OrderNoHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_PO">
+      <wsdl:input message="tns:Get_Orders_by_POHttpGetIn" />
+      <wsdl:output message="tns:Get_Orders_by_POHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Get_OrderStatus_by_PO">
+      <wsdl:input message="tns:Get_OrderStatus_by_POHttpGetIn" />
+      <wsdl:output message="tns:Get_OrderStatus_by_POHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="CustomSet1">
+      <wsdl:input message="tns:CustomSet1HttpGetIn" />
+      <wsdl:output message="tns:CustomSet1HttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Save_for_notifications">
+      <wsdl:input message="tns:Save_for_notificationsHttpGetIn" />
+      <wsdl:output message="tns:Save_for_notificationsHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Notification_Status">
+      <wsdl:input message="tns:Notification_StatusHttpGetIn" />
+      <wsdl:output message="tns:Notification_StatusHttpGetOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:portType name="Order_StatusHttpPost">
+    <wsdl:operation name="Get_Orders">
+      <wsdl:input message="tns:Get_OrdersHttpPostIn" />
+      <wsdl:output message="tns:Get_OrdersHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_OrderNo">
+      <wsdl:input message="tns:Get_Orders_by_OrderNoHttpPostIn" />
+      <wsdl:output message="tns:Get_Orders_by_OrderNoHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_PO">
+      <wsdl:input message="tns:Get_Orders_by_POHttpPostIn" />
+      <wsdl:output message="tns:Get_Orders_by_POHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Get_OrderStatus_by_PO">
+      <wsdl:input message="tns:Get_OrderStatus_by_POHttpPostIn" />
+      <wsdl:output message="tns:Get_OrderStatus_by_POHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="CustomSet1">
+      <wsdl:input message="tns:CustomSet1HttpPostIn" />
+      <wsdl:output message="tns:CustomSet1HttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Save_for_notifications">
+      <wsdl:input message="tns:Save_for_notificationsHttpPostIn" />
+      <wsdl:output message="tns:Save_for_notificationsHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Notification_Status">
+      <wsdl:input message="tns:Notification_StatusHttpPostIn" />
+      <wsdl:output message="tns:Notification_StatusHttpPostOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="Order_StatusSoap" type="tns:Order_StatusSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="Get_Orders">
+      <soap:operation soapAction="http://coverkingprod.cloudapp.net/Get_Orders" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_OrderNo">
+      <soap:operation soapAction="http://coverkingprod.cloudapp.net/Get_Orders_by_OrderNo" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_PO">
+      <soap:operation soapAction="http://coverkingprod.cloudapp.net/Get_Orders_by_PO" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Get_OrderStatus_by_PO">
+      <soap:operation soapAction="http://coverkingprod.cloudapp.net/Get_OrderStatus_by_PO" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CustomSet1">
+      <soap:operation soapAction="http://coverkingprod.cloudapp.net/CustomSet1" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Save_for_notifications">
+      <soap:operation soapAction="http://coverkingprod.cloudapp.net/Save_for_notifications" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Notification_Status">
+      <soap:operation soapAction="http://coverkingprod.cloudapp.net/Notification_Status" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="Order_StatusSoap12" type="tns:Order_StatusSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="Get_Orders">
+      <soap12:operation soapAction="http://coverkingprod.cloudapp.net/Get_Orders" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_OrderNo">
+      <soap12:operation soapAction="http://coverkingprod.cloudapp.net/Get_Orders_by_OrderNo" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_PO">
+      <soap12:operation soapAction="http://coverkingprod.cloudapp.net/Get_Orders_by_PO" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Get_OrderStatus_by_PO">
+      <soap12:operation soapAction="http://coverkingprod.cloudapp.net/Get_OrderStatus_by_PO" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CustomSet1">
+      <soap12:operation soapAction="http://coverkingprod.cloudapp.net/CustomSet1" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Save_for_notifications">
+      <soap12:operation soapAction="http://coverkingprod.cloudapp.net/Save_for_notifications" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Notification_Status">
+      <soap12:operation soapAction="http://coverkingprod.cloudapp.net/Notification_Status" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="Order_StatusHttpGet" type="tns:Order_StatusHttpGet">
+    <http:binding verb="GET" />
+    <wsdl:operation name="Get_Orders">
+      <http:operation location="/Get_Orders" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_OrderNo">
+      <http:operation location="/Get_Orders_by_OrderNo" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_PO">
+      <http:operation location="/Get_Orders_by_PO" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Get_OrderStatus_by_PO">
+      <http:operation location="/Get_OrderStatus_by_PO" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CustomSet1">
+      <http:operation location="/CustomSet1" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Save_for_notifications">
+      <http:operation location="/Save_for_notifications" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Notification_Status">
+      <http:operation location="/Notification_Status" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="Order_StatusHttpPost" type="tns:Order_StatusHttpPost">
+    <http:binding verb="POST" />
+    <wsdl:operation name="Get_Orders">
+      <http:operation location="/Get_Orders" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_OrderNo">
+      <http:operation location="/Get_Orders_by_OrderNo" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Get_Orders_by_PO">
+      <http:operation location="/Get_Orders_by_PO" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Get_OrderStatus_by_PO">
+      <http:operation location="/Get_OrderStatus_by_PO" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="CustomSet1">
+      <http:operation location="/CustomSet1" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Save_for_notifications">
+      <http:operation location="/Save_for_notifications" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Notification_Status">
+      <http:operation location="/Notification_Status" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="Order_Status">
+    <wsdl:port name="Order_StatusSoap" binding="tns:Order_StatusSoap">
+      <soap:address location="https://orderstatus.coverking.com/Order_Status.asmx" />
+    </wsdl:port>
+    <wsdl:port name="Order_StatusSoap12" binding="tns:Order_StatusSoap12">
+      <soap12:address location="https://orderstatus.coverking.com/Order_Status.asmx" />
+    </wsdl:port>
+    <wsdl:port name="Order_StatusHttpGet" binding="tns:Order_StatusHttpGet">
+      <http:address location="https://orderstatus.coverking.com/Order_Status.asmx" />
+    </wsdl:port>
+    <wsdl:port name="Order_StatusHttpPost" binding="tns:Order_StatusHttpPost">
+      <http:address location="https://orderstatus.coverking.com/Order_Status.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

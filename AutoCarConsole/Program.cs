@@ -25,9 +25,8 @@ namespace AutoCarConsole
             ConfigurationData config = GetConfigurationDetails();
             // Uncomment following to get Customer records
            //  CustomerDAL.AddCustomer(config);
-            // ProductDAL.AddProduct(config);
+            ProductDAL.AddProduct(config);
             OrderDAL.PlaceOrder(config, false, true, true);
-            
         }
         static ConfigurationData GetConfigurationDetails()
         {

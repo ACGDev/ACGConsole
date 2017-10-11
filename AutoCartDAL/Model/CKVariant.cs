@@ -13,17 +13,13 @@ namespace AutoCarOperations.Model
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public long ID { get; set; }
-        public string VariantID  {get;set;}
-        public string Make_Descr { get;set;}
-        public string Model_Descr { get;set;}
-        public int? From_Year { get;set;}
-        public int? To_Year { get;set;}
-        public string Option { get;set;}
-        public string ItemID { get;set;}
-        public double? Jobber_Price { get;set;}
-        public string Position { get;set;}
-        public string ProductID { get;set;}
-        public string BodyType { get;set;}
-        public string SubModel { get;set;}
+        public string SKU { get; set; }
+        public string ItemID { get; set; }
+        public string VariantId { get; set; }
+        public int? InventoryQty { get;set;}
+        public string OEM { get;set;}
+        public string Blocked { get;set;}
+        public string ProductCode { get;set;}
+        public string ProductFamily { get;set;}
     }
 }

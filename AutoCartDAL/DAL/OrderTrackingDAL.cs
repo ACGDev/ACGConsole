@@ -11,6 +11,15 @@ namespace AutoCarOperations.DAL
 {
     public class OrderTrackingDAL
     {
+        public static void SaveJFWOrders(string connectionString, List<jfw_orders> orders)
+        {
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                context.JFWOrders.AddRange(orders);
+                context.SaveChanges();
+            }
+        }
+
         public static void SaveOrderTracking(string connectionString, List<order_tracking> trackings)
         {
             using (var context = new AutoCareDataContext(connectionString))
@@ -21,6 +30,13 @@ namespace AutoCarOperations.DAL
                     .Select(y => y.FirstOrDefault());
                 foreach (var tracking in query)
                 {
+                    var existingEntry =
+                        context.OrderTracking.FirstOrDefault(I => I.po_no == tracking.po_no &&
+                                                         I.tracking_no == tracking.tracking_no);
+                    if (existingEntry != null)
+                    {
+                        tracking.processed = existingEntry.processed;
+                    }
                     context.OrderTracking.AddOrUpdate(tracking);
                 }
                 context.SaveChanges();

@@ -49,12 +49,12 @@ namespace AutoCarOperations
                             var name = listReader.ReadLine();
                             if (name.Contains(".txt"))
                             {
-                                string lastWord = name.Split(' ').Last();
-                                if (dateFormatList !=null && !dateFormatList.Any(I => lastWord.Contains(I)))
+                                //string lastWord = name.Split(' ').Last();
+                                if (dateFormatList != null && !dateFormatList.Any(I => name.Contains(I)))
                                 {
                                      continue;
                                 }
-                                files.Add(lastWord);
+                                files.Add(name);
                             }
                         }
                     }

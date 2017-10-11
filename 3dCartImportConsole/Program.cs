@@ -14,6 +14,8 @@ using AutoCarOperations.DAL;
 using AutoCarOperations.Model;
 using DCartRestAPIClient;
 using Newtonsoft.Json;
+using _3dCartImportConsole.CKOrderStatus;
+using Order = DCartRestAPIClient.Order;
 
 namespace _3dCartImportConsole
 {
@@ -30,33 +32,44 @@ namespace _3dCartImportConsole
             string incomingOrdersFilePath = Path.Combine(filePath, "../../JFW/Orders");
             string processedFilePath = Path.Combine(filePath, "../../ProcessedOrders/");
 
-            /*string path = @"D:\RND\WizardTest\MyCar\Doc\ACG92_08222017-17-29-48_CDC\ACG92_08222017-17-29-48_CDC.csv";
-    
+            //Prepare Variant List from local path
+            string path = @"D:\RND\WizardTest\MyCar\Doc\ACG92_08222017-17-29-48_CDC\ACG92-20171009.csv";
             var variantList = GetDataTableFromCsv(path, true);
             foreach (var variant in variantList)
             {
                 CKVariantDAL.SaveCKVariant(configData.ConnectionString, variant);
             }
-            */
+            
+            //Download order from JFW FTP and place order
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
-            acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
-            //remove the following line when we'll get actual FTP details
+            acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGTest-");
             FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
             DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
             foreach (var file in dir.GetFiles("*.txt"))
             {
                 try
                 {
-                    //List<string> content = new List<string>();
-                    //FTPHandler.DownloadOrUploadFile(configData, filePath, "", ref content, WebRequestMethods.Ftp.ListDirectory);
                     string text = File.ReadAllText(file.FullName);
                     string[] lines = text.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
-                    List<Order> orders = Get3dCartOrder(configData.ConnectionString, lines, customer);
-                    foreach (var order in orders)
+                    string error = string.Empty;
+                    var jfw_orders = Get3dCartOrder(configData.ConnectionString, lines, customer, ref error);
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", error, "cs@autocareguys.com");
+                    }
+                    OrderTrackingDAL.SaveJFWOrders(configData.ConnectionString, jfw_orders.Item2);
+                    foreach (var order in jfw_orders.Item1)
                     {
                         // Push order to 3DCart
                         var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
                             configData.Token, configData.Store);
+
+                        if (recordInfo.Status == ActionStatus.Failed)
+                        {
+                            MandrillMail.SendEmail(configData.MandrilAPIKey, 
+                                "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "support@autocareguys.com");
+                        }
+                        //send an email to support@autocareguys.com
                         order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
                     }
                     //SM sep 8: First check if the file is present in ftp site before trying to delete.
@@ -65,11 +78,45 @@ namespace _3dCartImportConsole
                 }
                 catch (Exception e)
                 {
-                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "cs@autocareguys.com");
+                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "support@autocareguys.com");
                 }
             }
-            OrderDAL.PlaceOrder(configData, false, true, true);
 
+            OrderDAL.PlaceOrder(configData, false, true, false);
+            var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted");
+            CKOrderStatus.Order_StatusSoapClient client = new Order_StatusSoapClient();
+            Orders_response Response = new Orders_response();
+
+            //group 5 orders
+            foreach (var o in orders)
+            {
+                try
+                {
+                    var s = client.Get_OrderStatus_by_PO(configData.CoverKingAPIKey, o.orderno, configData.AuthUserName);
+                    if (s.Orders_list != null && s.Orders_list.Length > 0)
+                    {
+                        var orderStatus = s.Orders_list[0];
+                        var partStatus = orderStatus.Parts_list != null && orderStatus.Parts_list.Length > 0 ? orderStatus.Parts_list[0] : (Parts)null;
+                        if (partStatus != null)
+                        {
+                            OrderDAL.UpdateOrderDetail(configData.ConnectionString, o.orderno, partStatus.Serial_No,
+                                partStatus.Status, partStatus.Shipping_agent_used, partStatus.Shipping_agent_service_used,
+                                partStatus.Package_No, partStatus.Package_link);
+
+                            if (partStatus.Status.ToLower() == "shipped")
+                            {
+                                //MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", e.Message, "support@autocareguys.com");
+                            }
+                        }
+                    }
+                    //send email only if shipped
+                    //update shipping information on 3dcart
+                }
+                catch (Exception e)
+                {
+                    
+                }
+            }
             // Process Tracking information
             FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 1);
             // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
@@ -93,9 +140,9 @@ namespace _3dCartImportConsole
                     }
                     File.AppendAllText(strFileNameWithPath, text);
                 }
+                FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, strFilePath, "\\Tracking\\" + jfwFilename, WebRequestMethods.Ftp.UploadFile);
+                OrderTrackingDAL.UpdateOrderStatus(configData.ConnectionString, trackingList);
             }
-            FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, strFilePath, "\\Tracking\\"+ jfwFilename, WebRequestMethods.Ftp.UploadFile);
-            OrderTrackingDAL.UpdateOrderStatus(configData.ConnectionString, trackingList);
             //File.Delete(strFilePath+ "\\Tracking\\" + jfwFilename);
             //DeleteAllFile(coverKingTrackingPath + "/Tracking");
             //acga > prefix
@@ -132,17 +179,13 @@ namespace _3dCartImportConsole
                             ckVariants.Add(new CKVariant()
                             {
                                 ItemID = reader["ItemID"]?.ToString(),
-                                BodyType = reader["BodyType"].ToString(),
-                                From_Year = reader["From_Year"] != null ? Convert.ToInt32(reader["From_Year"]) : (int?)null,
-                                To_Year = reader["To_Year"] != null ? Convert.ToInt32(reader["To_Year"]) : (int?)null,
-                                Jobber_Price = reader["Jobber_Price"] != null ? Convert.ToDouble(reader["Jobber_Price"]) : (double?)null,
-                                Make_Descr = reader["Make_Descr"]?.ToString(),
-                                Model_Descr = reader["Model_Descr"]?.ToString(),
-                                Option = reader["Option"]?.ToString(),
-                                Position = reader["Position"]?.ToString(),
-                                ProductID = reader["ProductID"]?.ToString(),
-                                SubModel = reader["SubModel"]?.ToString(),
-                                VariantID = reader["VariantID"]?.ToString()
+                                VariantId = reader["VariantID"]?.ToString(),
+                                ProductFamily = reader["Product Family"]?.ToString(),
+                                InventoryQty = reader["Inventory Qty"] != null ? Convert.ToInt32(reader["Inventory Qty"]) : (int?)null,
+                                SKU = reader["SKU"]?.ToString(),
+                                OEM = reader["OEM"]?.ToString(),
+                                Blocked = reader["Blocked"]?.ToString(),
+                                ProductCode = reader["Product Code"]?.ToString(),
                             });
                             i = i + 1;
                             if (i == 1000)
@@ -170,15 +213,16 @@ namespace _3dCartImportConsole
                 }
             }
         }
-        public static List<Order> Get3dCartOrder(string connectionString, string[] lines, customers customer)
+        public static Tuple<List<Order>, List<jfw_orders>> Get3dCartOrder(string connectionString, string[] lines, customers customer, ref string error)
         {
             if (acg_invoicenum == null)
             {
                 acg_invoicenum = 200825;
             }
             List<Order> orderList = new List<Order>();
+            List<jfw_orders> jfw_order_list = new List<jfw_orders>();
             Order order = new Order();
-            order.InvoiceNumberPrefix = "ACGA-";
+            order.InvoiceNumberPrefix = "ACGTest-";
             order.OrderStatusID = 1;//Was 11 - Unpaid, now New - 1
             order.Referer = "PHONE ORDER";
             order.SalesPerson = "RB";
@@ -199,11 +243,13 @@ namespace _3dCartImportConsole
                     var orderSer = JsonConvert.DeserializeObject<Order>(JsonConvert.SerializeObject(order));
                     orderSer.OrderItemList = new List<OrderItem>();
                     orderSer.ShipmentList = new List<Shipment>();
-                    orderSer = GenerateOrder(connectionString, orderSer, lines[0], lines[i], ref noOfItems);
+                    var jfw_order_map = GenerateOrder(connectionString, orderSer, lines[0], lines[i], ref noOfItems, ref error);
+                    orderSer = jfw_order_map.Item1;
+                    jfw_order_list.Add(jfw_order_map.Item2);
                     orderList.Add(orderSer);
                 }
             }
-            return orderList;
+            return Tuple.Create(orderList, jfw_order_list);
         }
         public static void MapCustomerDetailOrders(customers customer, ref Order order)
         {
@@ -228,7 +274,7 @@ namespace _3dCartImportConsole
                 order.UserID = "storeadmin1";
             }
         }
-        public static Order GenerateOrder(string connectionString, Order order, string header, string text, ref int noOfItems)
+        public static Tuple<Order, jfw_orders> GenerateOrder(string connectionString, Order order, string header, string text, ref int noOfItems, ref string error)
         {
             string[] splitHeader = header.Replace("\"", "").Split(',').Select(I => I.Trim()).ToArray();
             string[] splitText = text.Replace("\"", "").Split(',').Select(I => I.Trim()).ToArray();
@@ -236,42 +282,47 @@ namespace _3dCartImportConsole
             var orderItem = new OrderItem();
             //orderItem. = new Product();
             var ship = new Shipment();
+            var jfwOrder = new jfw_orders();
             string buyer = "500";
             // Sep 7, Sam: take both formats - emailed or downloaded
             for (int i = 0; i< length; i++)
             {
+                string variant = string.Empty;
                 switch (splitHeader[i].ToUpper())
                 {
                     case "PO": case "PO_NUMBER":
-                        order.PONo = splitText[i];
+                        jfwOrder.PO = splitText[i];
+                        order.PONo = jfwOrder.PO;
                         break;
-
+                    case "PO_DATE":
+                        jfwOrder.PO_Date = Convert.ToDateTime(splitText[i]);
+                        break;
                     case "CK_SKU":  case "SKU":
-                        order.SKU = splitText[i];
+                        jfwOrder.CK_SKU = splitText[i];
+                        order.SKU = jfwOrder.CK_SKU;
                         if ((order.SKU.IndexOf("cdc", StringComparison.OrdinalIgnoreCase) >= 0) || (order.SKU.IndexOf("crd", StringComparison.OrdinalIgnoreCase) >= 0))
                         {
                             ship.ShipmentCost = 5;
                         }
                         break;
-                    case "QTY": 
-                        if(noOfItems == 0)
+                    case "QTY":
+                        jfwOrder.Qty = Convert.ToInt32(splitText[i]);
+                        if (noOfItems == 0)
                         {
-                            noOfItems = Convert.ToInt32(splitText[i]);
+                            noOfItems = jfwOrder.Qty.Value;
                         }
                         orderItem.ItemQuantity = 1; break;
                     case "UNIT_COST":
                         orderItem.ItemUnitCost = Convert.ToDouble(splitText[i]);
-                        //orderItem.ItemOptionPrice
                         break;
-                    //case "core_price": break;
-                    //case "total": break;
                     case "SHIP_NAME":
-                        string[] splitName = splitText[i].Split(' ');
+                        jfwOrder.Ship_Name = splitText[i];
+                        string[] splitName = jfwOrder.Ship_Name.Split(' ');
                         ship.ShipmentFirstName = splitName[0];
                         ship.ShipmentOrderStatus = 11;
                         ship.ShipmentMethodName = "Custom Shipping";
                         ship.ShipmentNumber = 1;
-                        ship.ShipmentLastName = splitText[i].Replace(ship.ShipmentFirstName, "").TrimStart();
+                        ship.ShipmentLastName = jfwOrder.Ship_Name.Replace(ship.ShipmentFirstName, "").TrimStart();
                         if (ship.ShipmentLastName == "")
                         {
                             ship.ShipmentLastName = ship.ShipmentFirstName;
@@ -280,74 +331,100 @@ namespace _3dCartImportConsole
                         break;
                     case "SHIP_ADDR":
                     case "SHIP_ADDRESS_1":
-                        ship.ShipmentAddress = splitText[i]; break;
+                        jfwOrder.Ship_Addr = splitText[i];
+                        ship.ShipmentAddress = jfwOrder.Ship_Addr;
+                        break;
                     case "SHIP_ADDR_2":
                     case "SHIP_ADDRESS_2":
-                        ship.ShipmentAddress2 = splitText[i]; break;
+                        jfwOrder.Ship_Addr_2 = splitText[i];
+                        ship.ShipmentAddress2 = jfwOrder.Ship_Addr_2;
+                        break;
                     case "SHIP_CITY":
-                        ship.ShipmentCity = splitText[i]; break;
+                        jfwOrder.Ship_City = splitText[i];
+                        ship.ShipmentCity = jfwOrder.Ship_City;
+                        break;
                     case "SHIP_STATE":
-                        ship.ShipmentState = splitText[i]; break;
+                        jfwOrder.Ship_State = splitText[i];
+                        ship.ShipmentState = jfwOrder.Ship_State;
+                        break;
                     case "SHIP_COUNTRY":
-                        ship.ShipmentCountry = splitText[i]; break;
+                        jfwOrder.Ship_Country = splitText[i];
+                        ship.ShipmentCountry = jfwOrder.Ship_Country;
+                        break;
                     case "SHIP_ZIP":
                     case "SHIP_POSTAL_CODE":
-                        ship.ShipmentZipCode = splitText[i]; break;
+                        jfwOrder.Ship_Zip = splitText[i];
+                        ship.ShipmentZipCode = jfwOrder.Ship_Zip;
+                        break;
                     case "SHIP_PHONE":
-                        ship.ShipmentPhone = splitText[i].Trim();
+                        jfwOrder.Ship_Phone = splitText[i];
+                        ship.ShipmentPhone = jfwOrder.Ship_Phone.Trim();
                         if (string.IsNullOrEmpty(ship.ShipmentPhone))
                             ship.ShipmentPhone = "111-111-1111";
                         break;
-                    case "SHIP_EMAIL": ship.ShipmentEmail = splitText[i]; break;
+                    case "SHIP_EMAIL":
+                        jfwOrder.Ship_Email = splitText[i];
+                        ship.ShipmentEmail = jfwOrder.Ship_Email;
+                        break;
                     case "SHIP_COMPANY":
-                        ship.ShipmentCompany = splitText[i]; break;
+                        jfwOrder.Ship_Company = splitText[i];
+                        ship.ShipmentCompany = jfwOrder.Ship_Company;
+                        break;
                     case "SHIP_SERVICE":
-                        if (!string.IsNullOrEmpty(splitText[i]))
+                        jfwOrder.Ship_Service = splitText[i];
+                        if (!string.IsNullOrEmpty(jfwOrder.Ship_Service))
                         {
                             order.InternalComments = Environment.NewLine;
                         }
-                        order.InternalComments = "Ship_Service: " + splitText[i];
+                        order.InternalComments = "Ship_Service: " + jfwOrder.Ship_Service;
                         break;
                     case "CK_ITEM":
-                        orderItem.ItemID = splitText[i];
+                        jfwOrder.CK_Item = splitText[i];
+                        orderItem.ItemID = jfwOrder.CK_Item;
                         break;
                     case "CK_VARIANT":
-                        orderItem.CatalogID = Convert.ToInt32(splitText[i]);
+                        jfwOrder.CK_Variant = splitText[i];
+                        variant = splitText[i];
                         break;
                     case "CUSTOMIZED_CODE":
-                        if (!string.IsNullOrEmpty(splitText[i]))
+                        jfwOrder.Customized_Code = splitText[i];
+                        if (!string.IsNullOrEmpty(order.InternalComments))
                         {
                             order.InternalComments = Environment.NewLine;
                         }
-                        order.InternalComments = "Customized_Code: " + splitText[i];
+                        order.InternalComments = "Customized_Code: " + jfwOrder.Customized_Code;
                         break;
                     case "CUSTOMIZED_MSG":
-                        if (!string.IsNullOrEmpty(splitText[i]))
+                        jfwOrder.Customized_Msg = splitText[i];
+                        if (!string.IsNullOrEmpty(order.InternalComments))
                         {
                             order.InternalComments = Environment.NewLine;
                         }
-                        order.InternalComments = "Customized_Msg: " + splitText[i];
+                        order.InternalComments = "Customized_Msg: " + jfwOrder.Customized_Msg;
                         break;
                     case "CUSTOMIZED_CODE2":
-                        if (!string.IsNullOrEmpty(splitText[i]))
+                        jfwOrder.Customized_Code2 = splitText[i];
+                        if (!string.IsNullOrEmpty(order.InternalComments))
                         {
                             order.InternalComments = Environment.NewLine;
                         }
-                        order.InternalComments = "Customized_Code2: " + splitText[i];
+                        order.InternalComments = "Customized_Code2: " + jfwOrder.Customized_Code2;
                         break;
                     case "CUSTOMIZED_MSG2":
-                        if (!string.IsNullOrEmpty(splitText[i]))
+                        jfwOrder.Customized_Msg2 = splitText[i];
+                        if (!string.IsNullOrEmpty(order.InternalComments))
                         {
                             order.InternalComments = Environment.NewLine;
                         }
-                        order.InternalComments = "Customized_Msg2: " + splitText[i];
+                        order.InternalComments = "Customized_Msg2: " + jfwOrder.Customized_Msg2;
                         break;
                     case "COMMENT":
-                        if (!string.IsNullOrEmpty(splitText[i]))
+                        jfwOrder.Comment = splitText[i];
+                        if (!string.IsNullOrEmpty(order.InternalComments))
                         {
                             order.InternalComments = Environment.NewLine;
                         }
-                        order.InternalComments = "Comment: " + splitText[i];
+                        order.InternalComments = "Comment: " + jfwOrder.Comment;
                         break;
                 }
                 if (i == (length - 1))
@@ -358,7 +435,11 @@ namespace _3dCartImportConsole
                     }
                     if (string.IsNullOrEmpty(order.SKU))
                     {
-                        throw new Exception("Product doesn't exists! " + JsonConvert.SerializeObject(order));
+                        if (!string.IsNullOrEmpty(error))
+                        {
+                            error = error + Environment.NewLine;
+                        }
+                        error = ("Product doesn't exists! SKU is empty. Please see the Json : " + JsonConvert.SerializeObject(order));
                     }
                     var ckVariant = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
                     if (ckVariant != null)
@@ -373,21 +454,30 @@ namespace _3dCartImportConsole
                         orderItem.CatalogID = ckVariant.catalogid;
                         orderItem.ItemDescription = ckVariant.description;
                     }
-
+                    else
+                    {
+                        if (!string.IsNullOrEmpty(error))
+                        {
+                            error = error + Environment.NewLine;
+                        }
+                        error = ("Product doesn't exists! variant is empty. Please see the Json : " + JsonConvert.SerializeObject(order));
+                        //todo: throw error
+                    }
                     orderItem.ItemDescription = orderItem.ItemDescription +
                                                 "<br><b>Vehicle Configuration</b>&nbsp;Ref:Coverking Part No: " +
                                                 order.SKU;
                     order.CustomerComments = string.Format("PO NO: {0}; Buyer: {1}", order.PONo, buyer);
                     order.OrderItemList.Add(orderItem);
                     order.ShipmentList.Add(ship);
+                    //todo: Keep it commented for now
                     if (noOfItems > 1)
                     {
                         noOfItems = noOfItems - 1;
-                        GenerateOrder(connectionString, order, header, text, ref noOfItems);
+                        GenerateOrder(connectionString, order, header, text, ref noOfItems, ref error);
                     }
                 }
             }
-            return order;
+            return Tuple.Create(order, jfwOrder);
         }
         public static ConfigurationData GetConfigurationDetails()
         {
@@ -406,6 +496,7 @@ namespace _3dCartImportConsole
                 JFWFTPAddress = ConfigurationManager.AppSettings["JFWFTPAddress"],
                 JFWFTPUserName = ConfigurationManager.AppSettings["JFWFTPUserName"],
                 JFWFTPPassword = ConfigurationManager.AppSettings["JFWFTPPassword"],
+                CoverKingAPIKey = ConfigurationManager.AppSettings["CoverKingAPIKey"]
             };
         }
 
