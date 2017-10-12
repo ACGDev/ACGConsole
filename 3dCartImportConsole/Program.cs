@@ -109,7 +109,9 @@ namespace _3dCartImportConsole
                             if (partStatus.Status.ToLower() == "shipped")
                             {
                                 MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.shipemail,
-                                    "support@autocareguys.com");
+                                    "cs@autocareguys.com");
+                                MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.billemail,
+                                    "cs@autocareguys.com");
                             }
                             List<Shipment> li = new List<Shipment>();
                             foreach (var ship in o.order_shipments)
