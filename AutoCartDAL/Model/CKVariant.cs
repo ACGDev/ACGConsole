@@ -22,4 +22,18 @@ namespace AutoCarOperations.Model
         public string ProductCode { get;set;}
         public string ProductFamily { get;set;}
     }
+
+    public class TempCKVariant
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
+        public string SKU { get; set; }
+        public string ItemID { get; set; }
+        public string VariantId { get; set; }
+        public int? InventoryQty { get; set; }
+        public string OEM { get; set; }
+        public string Blocked { get; set; }
+        public string ProductCode { get; set; }
+        public string ProductFamily { get; set; }
+    }
 }

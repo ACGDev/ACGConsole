@@ -31,15 +31,22 @@ namespace _3dCartImportConsole
             string coverKingTrackingPath = Path.Combine(filePath, "../../CoverKingTrackingFiles/");
             string incomingOrdersFilePath = Path.Combine(filePath, "../../JFW/Orders");
             string processedFilePath = Path.Combine(filePath, "../../ProcessedOrders/");
-
+            string variantFilePath = Path.Combine(filePath, "../../VariantFiles/");
             //Prepare Variant List from local path
-            string path = @"D:\RND\WizardTest\MyCar\Doc\ACG92_08222017-17-29-48_CDC\ACG92-20171009.csv";
-            var variantList = GetDataTableFromCsv(path, true);
-            foreach (var variant in variantList)
+            string path = variantFilePath + "Input/";
+            FTPHandler.DownloadOrUploadOrDeleteFile(configData._3dCartFTPAddress, configData._3dCartFTPUserName, configData._3dCartFTPPassword, path, "", WebRequestMethods.Ftp.ListDirectory);
+            DirectoryInfo variantDir = new DirectoryInfo(incomingOrdersFilePath);
+            foreach (var file in variantDir.GetFiles("*.csv"))
             {
-                CKVariantDAL.SaveCKVariant(configData.ConnectionString, variant);
+                var variantList = GetDataTableFromCsv(file.FullName, true);
+                foreach (var variant in variantList)
+                {
+                    CKVariantDAL.SaveCKVariant(configData.ConnectionString, variant);
+                }
+                FTPHandler.DownloadOrUploadOrDeleteFile(configData._3dCartFTPAddress, configData._3dCartFTPUserName, configData._3dCartFTPPassword, path, file.Name, WebRequestMethods.Ftp.DeleteFile);
+                File.Move(file.FullName, variantFilePath + "Release/" + file.Name);
             }
-            
+
             //Download order from JFW FTP and place order
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
             acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGTest-");
@@ -182,13 +189,13 @@ namespace _3dCartImportConsole
             //170801 > invoice
         }
 
-        static List<List<CKVariant>> GetDataTableFromCsv(string path, bool isFirstRowHeader)
+        static List<List<TempCKVariant>> GetDataTableFromCsv(string path, bool isFirstRowHeader)
         {
             string header = isFirstRowHeader ? "Yes" : "No";
 
             string pathOnly = Path.GetDirectoryName(path);
             string fileName = Path.GetFileName(path);
-            List<List<CKVariant>> ckVariantList = new List<List<CKVariant>>();
+            List<List<TempCKVariant>> ckVariantList = new List<List<TempCKVariant>>();
             string sql = @"SELECT * FROM [" + fileName + "]";
             using (OleDbConnection connection = new OleDbConnection(
                 @"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + pathOnly +
@@ -201,7 +208,7 @@ namespace _3dCartImportConsole
                     using (OleDbCommand command = new OleDbCommand(sql, connection))
                     using (OleDbDataReader reader = command.ExecuteReader())
                     {
-                        List<CKVariant> ckVariants = new List<CKVariant>();
+                        List<TempCKVariant> ckVariants = new List<TempCKVariant>();
                         //DataTable dataTable = new DataTable();
                         //dataTable.Locale = CultureInfo.CurrentCulture;
                         //adapter.Fill(dataTable);
@@ -209,7 +216,7 @@ namespace _3dCartImportConsole
                         long i = 0;
                         while (reader.Read())
                         {
-                            ckVariants.Add(new CKVariant()
+                            ckVariants.Add(new TempCKVariant()
                             {
                                 ItemID = reader["ItemID"]?.ToString(),
                                 VariantId = reader["VariantID"]?.ToString(),
@@ -225,7 +232,7 @@ namespace _3dCartImportConsole
                             {
                                 ckVariantList.Add(ckVariants);
                                 i = 0;
-                                ckVariants = new List<CKVariant>();
+                                ckVariants = new List<TempCKVariant>();
                             }
                         }
                         if (ckVariantList.Count > 0)
@@ -529,7 +536,10 @@ namespace _3dCartImportConsole
                 JFWFTPAddress = ConfigurationManager.AppSettings["JFWFTPAddress"],
                 JFWFTPUserName = ConfigurationManager.AppSettings["JFWFTPUserName"],
                 JFWFTPPassword = ConfigurationManager.AppSettings["JFWFTPPassword"],
-                CoverKingAPIKey = ConfigurationManager.AppSettings["CoverKingAPIKey"]
+                CoverKingAPIKey = ConfigurationManager.AppSettings["CoverKingAPIKey"],
+                _3dCartFTPAddress = ConfigurationManager.AppSettings["3dCartFTPAddress"],
+                _3dCartFTPUserName = ConfigurationManager.AppSettings["3dCartFTPUserName"],
+                _3dCartFTPPassword = ConfigurationManager.AppSettings["3dCartFTPPassword"]
             };
         }
 

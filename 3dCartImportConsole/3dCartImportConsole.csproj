@@ -98,6 +98,8 @@
     <Folder Include="JFW\Orders\" />
     <Folder Include="JFW\Tracking\" />
     <Folder Include="ProcessedOrders\" />
+    <Folder Include="VariantFiles\Input\" />
+    <Folder Include="VariantFiles\Release\" />
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Connected Services\" />
