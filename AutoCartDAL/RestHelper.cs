@@ -91,6 +91,15 @@ namespace AutoCarOperations
 
         }
 
+        public static RecordInfo UpdateShipmentRecord(Object RestAPIObject, string RestAPIType, string PrivateKey, string Token, string SecureURL,long Id)
+        {
+            RestAPIActions restAPIClientWM = GetRestAPIClient(PrivateKey, Token, SecureURL);
+
+            restAPIClientWM.Type = RestAPIType;
+            restAPIClientWM.ID = Id;
+            RecordInfo addInfo = restAPIClientWM.UpdateShipMentRecord(RestAPIObject);
+            return addInfo;
+        }
         public static RestAPIActions GetRestAPIClient(string strPrivateKey, string strToken, string strSecureURL)
         {
             RestAPIActions restAPIClientWM = new RestAPIActions();

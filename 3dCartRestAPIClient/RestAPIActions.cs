@@ -185,52 +185,44 @@ namespace DCartRestAPIClient
 
         }
 
-        //public RecordInfo UpdateRecord(Object record)
-        //{
-        //    var recordInfo = new RecordInfo();
+        public RecordInfo UpdateShipMentRecord(Object record)
+        {
+            var recordInfo = new RecordInfo();
 
-        //    try
-        //    {
-        //        string sTypeWithID = string.Empty;
+            try
+            {
+                string sTypeWithID = string.Empty;
 
-        //        //Create an instance of HTTP Client by calling custom GetClient function 
-        //        var client = GetClient();
+                //Create an instance of HTTP Client by calling custom GetClient function 
+                var client = GetClient();
 
-        //        // If ID is set, ID will be appended to URL, else update operation will fail.
-        //        // Type indicates the type of object we are looking to update. For example Customers, CustomerGroup, Products
-        //        if (ID != 0)
-        //        {
-        //            sTypeWithID = Type + "/" + ID;
+                // If ID is set, ID will be appended to URL, else update operation will fail.
+                // Type indicates the type of object we are looking to update. For example Customers, CustomerGroup, Products
+                sTypeWithID = Type + "/" + ID + "/" + "Shipments/";
+                    
+                //Call the PutAsJsonAsync method to update record through HTTP PUT
+                HttpResponseMessage response = client.PutAsJsonAsync(sTypeWithID, record).Result;
 
-        //        }
-        //        else
-        //        {
-        //            sTypeWithID = Type;
-        //        }
+                //Call ReadAsStringAsync to check the result code and if there is any error message. Store the information in ResponeInfo object.
+                string strResponseJson = response.Content.ReadAsStringAsync().Result;
+                ResponseInfo responeInfoObject = JsonConvert.DeserializeObject<ResponseInfo>(strResponseJson.Substring(1, strResponseJson.Length - 2));
 
-        //        //Call the PutAsJsonAsync method to update record through HTTP PUT
-        //        HttpResponseMessage response = client.PutAsJsonAsync(sTypeWithID, record).Result;
+                //If update is successful, store the ID of newly updated record in 'resultset' property and mark the status as successful, 
+                //else set the status to failed and provide the error code and description through CodeNumber and description property
+                recordInfo = GetRecordInfo(responeInfoObject, response.IsSuccessStatusCode);
 
-        //        //Call ReadAsStringAsync to check the result code and if there is any error message. Store the information in ResponeInfo object.
-        //        string strResponseJson = response.Content.ReadAsStringAsync().Result;
-        //        ResponseInfo responeInfoObject = JsonConvert.DeserializeObject<ResponseInfo>(strResponseJson.Substring(1, strResponseJson.Length - 2));
+            }
 
-        //        //If update is successful, store the ID of newly updated record in 'resultset' property and mark the status as successful, 
-        //        //else set the status to failed and provide the error code and description through CodeNumber and description property
-        //        recordInfo = GetRecordInfo(responeInfoObject, response.IsSuccessStatusCode);
+            catch (Exception ex)
+            {
+                recordInfo.Description = ex.Message;
+                recordInfo.Status = ActionStatus.Failed;
 
-        //    }
+            }
 
-        //    catch (Exception ex)
-        //    {
-        //        recordInfo.Description = ex.Message;
-        //        recordInfo.Status = ActionStatus.Failed;
+            return recordInfo;
 
-        //    }
-
-        //    return recordInfo;
-
-        //}
+        }
 
         //public RecordInfo DeleteRecord()
         //{

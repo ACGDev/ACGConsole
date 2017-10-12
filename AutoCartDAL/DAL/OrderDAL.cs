@@ -633,7 +633,7 @@ namespace AutoCarOperations.DAL
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
-                return context.Orders.Where(whereFunc).ToList();
+                return context.Orders.Include(I => I.order_items).Include(I => I.order_shipments).Where(whereFunc).ToList();
             }
         }
 
@@ -654,8 +654,16 @@ namespace AutoCarOperations.DAL
                     order_det.tracking_no = trackingNo;
                     order_det.tracking_link = trackingLink;
                     context.OrderItemDetails.AddOrUpdate(order_det);
-                    context.SaveChanges();
                 }
+                if (status.ToLower() == "shipped")
+                {
+                    var order = context.Orders.FirstOrDefault(I => I.orderno == orderNo);
+                    context.Entry(order).State = EntityState.Modified;
+                    context.Orders.Attach(entity: order);
+                    order.shipcomplete = "Shipped";
+                    context.Entry(order).Property(I => I.shipcomplete).IsModified = true;
+                }
+                context.SaveChanges();
             }
         }
     }

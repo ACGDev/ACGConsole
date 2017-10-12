@@ -96,17 +96,48 @@ namespace _3dCartImportConsole
                     if (s.Orders_list != null && s.Orders_list.Length > 0)
                     {
                         var orderStatus = s.Orders_list[0];
-                        var partStatus = orderStatus.Parts_list != null && orderStatus.Parts_list.Length > 0 ? orderStatus.Parts_list[0] : (Parts)null;
+                        var partStatus = orderStatus.Parts_list != null && orderStatus.Parts_list.Length > 0
+                            ? orderStatus.Parts_list[0]
+                            : (Parts) null;
                         if (partStatus != null)
                         {
                             OrderDAL.UpdateOrderDetail(configData.ConnectionString, o.orderno, partStatus.Serial_No,
-                                partStatus.Status, partStatus.Shipping_agent_used, partStatus.Shipping_agent_service_used,
+                                partStatus.Status, partStatus.Shipping_agent_used,
+                                partStatus.Shipping_agent_service_used,
                                 partStatus.Package_No, partStatus.Package_link);
 
                             if (partStatus.Status.ToLower() == "shipped")
                             {
-                                //MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", e.Message, "support@autocareguys.com");
+                                MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.shipemail,
+                                    "support@autocareguys.com");
                             }
+                            List<Shipment> li = new List<Shipment>();
+                            foreach (var ship in o.order_shipments)
+                            {
+                                li.Add(new Shipment()
+                                {
+                                    ShipmentCity = o.shipcity,
+                                    ShipmentFirstName = o.shipfirstname,
+                                    ShipmentCountry = o.shipcountry,
+                                    ShipmentCost = o.shipcost,
+                                    ShipmentAddress2 = o.shipaddress2,
+                                    ShipmentState = o.shipstate,
+                                    ShipmentPhone = o.shipphone,
+                                    ShipmentAddress = o.shipaddress,
+                                    ShipmentCompany = o.shipcompany,
+                                    ShipmentEmail = o.shipemail,
+                                    ShipmentID = o.order_shipments != null ? o.order_shipments[0].shipping_id : null,
+                                    ShipmentLastName = o.shiplastname,
+                                    ShipmentMethodID = o.shipmethodid,
+                                    ShipmentZipCode = o.shipzip,
+                                    ShipmentTrackingCode = o.order_shipments != null
+                                        ? o.order_shipments[0].trackingcode
+                                        : null
+                                });
+                            }
+                            //Update Shipment Information
+                            RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
+                                configData.Store, o.order_id);
                         }
                     }
                     //send email only if shipped
