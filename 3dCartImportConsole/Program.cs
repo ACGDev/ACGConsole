@@ -126,12 +126,12 @@ namespace _3dCartImportConsole
                                     ShipmentAddress = o.shipaddress,
                                     ShipmentCompany = o.shipcompany,
                                     ShipmentEmail = o.shipemail,
-                                    ShipmentID = o.order_shipments != null ? o.order_shipments[0].shipping_id : null,
+                                    ShipmentID = o.order_shipments != null && o.order_shipments.Count > 0 ? o.order_shipments[0].shipping_id : null,
                                     ShipmentLastName = o.shiplastname,
                                     ShipmentMethodID = o.shipmethodid,
                                     ShipmentZipCode = o.shipzip,
                                     ShipmentTrackingCode = o.order_shipments != null
-                                        ? o.order_shipments[0].trackingcode
+                                        && o.order_shipments.Count> 0? o.order_shipments[0].trackingcode
                                         : null
                                 });
                             }
