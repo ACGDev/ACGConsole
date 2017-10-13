@@ -19,6 +19,8 @@ namespace AutoCarOperations.DAL
         public DbSet<order_shipments> OrderShipments { get; set; }
         public DbSet<products> Products { get; set; }
         public DbSet<CKVariant> CKVaraints { get; set; }
+        public DbSet<TempCKVariant> TempCKVaraints { get; set; }
+
         public DbSet<order_tracking> OrderTracking { get; set; }
         public DbSet<jfw_orders> JFWOrders { get; set; }
         public DbSet<order_item_details> OrderItemDetails { get; set; }

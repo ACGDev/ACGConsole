@@ -19,7 +19,7 @@ namespace AutoCarOperations.DAL
                 return context.CKVaraints.FirstOrDefault(condFunc);
             }
         } 
-        public static void SaveCKVariant(string connectionString, List<CKVariant> variants)
+        public static void SaveCKVariant(string connectionString, List<TempCKVariant> variants)
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
@@ -28,7 +28,7 @@ namespace AutoCarOperations.DAL
 
                 foreach (var ck_var in variants)
                 {
-                    context.CKVaraints.AddOrUpdate(ck_var);
+                    context.TempCKVaraints.AddOrUpdate(ck_var);
                 }
                 context.SaveChanges();
                 context.Configuration.AutoDetectChangesEnabled = true;
