@@ -491,7 +491,7 @@ namespace _3dCartImportConsole
                 {
                     if (!string.IsNullOrEmpty(orderItem.ItemID) && orderItem.CatalogID != null)
                     {
-                        // SM: To check. Should not need catalogid -> it is a string
+                        // SM: To check. Should not need catalogid -> it is a strin
 						order.SKU = orderItem.ItemID + orderItem.CatalogID;
                     }
                     if (string.IsNullOrEmpty(order.SKU))

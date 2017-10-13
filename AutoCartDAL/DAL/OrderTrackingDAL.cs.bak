@@ -46,6 +46,7 @@ namespace AutoCarOperations.DAL
                     {
                         context.OrderTracking.AddOrUpdate(tracking);
                     }
+
                 }
                 context.SaveChanges();
                 context.Configuration.AutoDetectChangesEnabled = true;

@@ -592,19 +592,17 @@ namespace AutoCarOperations.DAL
 
             foreach (var order in orders)
             {
-
+                if (order.cus_comment !=null && order.cus_comment.ToLower().Contains("(special)"))
+                {
+                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Has to be processed manually", "Order Has to be processed manually. The order no is:" + order.orderno, "sales@autocareguys.com");
+                    continue;
+                }
                 // manually modify order if needed
                 //if (order.orderno.Contains("161968"))
                 //    order.orderno += "-6";
                 // RestHelper.Execute(@"http://api.coverking.com/orders/Order_Placement.asmx?op=Place_Orders", config.AuthUserName, config.AuthPassowrd, order);
                 if (order.shipcomplete.ToLower() == "pending" && order.status == 1)
                 {
-	                // SM; moved here to avoid getting the email repeatedly
-					if (order.cus_comment !=null && order.cus_comment.ToLower().Contains("(special)"))
-	                {
-	                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Has to be processed manually", "Order Has to be processed manually. The order no is:" + order.orderno, "sales@autocareguys.com");
-	                    continue;
-	                }
                     string strOrderLines = GenerateOrderLines(order, configData, MandrillMail.SendEmail);
                     if (strOrderLines != string.Empty)
                     {

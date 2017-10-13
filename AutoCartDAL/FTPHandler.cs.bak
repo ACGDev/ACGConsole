@@ -50,7 +50,6 @@ namespace AutoCarOperations
                             if (name.Contains(".txt"))
                             {
                                 //string lastWord = name.Split(' ').Last();
-	
                                 if (dateFormatList != null && !dateFormatList.Any(I => name.Contains(I)))
                                 {
                                      continue;
