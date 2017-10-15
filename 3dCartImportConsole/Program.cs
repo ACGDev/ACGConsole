@@ -28,25 +28,32 @@ namespace _3dCartImportConsole
             string filePath =
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
 
-            string coverKingTrackingPath = Path.Combine(filePath, "../../CoverKingTrackingFiles/");
-            string incomingOrdersFilePath = Path.Combine(filePath, "../../JFW/Orders");
-            string processedFilePath = Path.Combine(filePath, "../../ProcessedOrders/");
-            string variantFilePath = Path.Combine(filePath, "../../VariantFiles/");
+            string coverKingTrackingPath = Path.Combine(filePath, "./CoverKingTrackingFiles/");
+            string incomingOrdersFilePath = Path.Combine(filePath, "./JFW/Orders/");
+            string errorFilePath = Path.Combine(filePath, "./JFW/OrderErrors/");
+            string processedFilePath = Path.Combine(filePath, "./ProcessedOrders/");
+            string variantFilePath = Path.Combine(filePath, "./VariantFiles/");
             //Prepare Variant List from local path
+            
             string path = variantFilePath + "Input/";
             FTPHandler.DownloadOrUploadOrDeleteFile(configData._3dCartFTPAddress, configData._3dCartFTPUserName, configData._3dCartFTPPassword, path, "", WebRequestMethods.Ftp.ListDirectory);
-            DirectoryInfo variantDir = new DirectoryInfo(incomingOrdersFilePath);
+            DirectoryInfo variantDir = new DirectoryInfo(path);
             foreach (var file in variantDir.GetFiles("*.csv"))
             {
-                var variantList = GetDataTableFromCsv(file.FullName, true);
-                foreach (var variant in variantList)
+                var variantListCollection = GetDataTableFromCsv(file.FullName, true);
+                CKVariantDAL.DeleteCKVariant(configData.ConnectionString);
+                foreach (var variantList in variantListCollection)
                 {
-                    CKVariantDAL.SaveCKVariant(configData.ConnectionString, variant);
+                    CKVariantDAL.SaveCKVariant(configData.ConnectionString, variantList);
                 }
                 FTPHandler.DownloadOrUploadOrDeleteFile(configData._3dCartFTPAddress, configData._3dCartFTPUserName, configData._3dCartFTPPassword, path, file.Name, WebRequestMethods.Ftp.DeleteFile);
-                File.Move(file.FullName, variantFilePath + "Release/" + file.Name);
-            }
+                var filetomove = variantFilePath + "Release/" + file.Name;
+                if (! File.Exists(filetomove))
+                    File.Move(file.FullName, variantFilePath + "Release/" + file.Name);
 
+                // SM: TODO: Sync main ck_variant table with temp ck variant table
+            }
+            
             //Download order from JFW FTP and place order
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
             acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
@@ -60,11 +67,10 @@ namespace _3dCartImportConsole
                     string[] lines = text.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
                     string error = string.Empty;
                     var jfw_orders = Get3dCartOrder(configData.ConnectionString, lines, customer, ref error);
-                    if (!string.IsNullOrEmpty(error))
-                    {
-                        MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", error, "cs@autocareguys.com");
-                    }
-                    OrderTrackingDAL.SaveJFWOrders(configData.ConnectionString, jfw_orders.Item2);
+                    
+                    OrderTrackingDAL.SaveJFWOrders(configData.ConnectionString, jfw_orders.Item2, file.Name);
+                    
+                    // SM: Oct 13: Should we proceed even if error occurs in previous step ?
                     foreach (var order in jfw_orders.Item1)
                     {
                         // Push order to 3DCart
@@ -73,23 +79,47 @@ namespace _3dCartImportConsole
 
                         if (recordInfo.Status == ActionStatus.Failed)
                         {
+                            // SM: make it to "support@autocareguys.com"
                             MandrillMail.SendEmail(configData.MandrilAPIKey, 
-                                "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "support@autocareguys.com");
+                                "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "sam@autocareguys.com"
+                                ,file.FullName,file.Name, file.Extension);
                         }
                         //send an email to support@autocareguys.com
                         order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
                     }
+                    
                     //SM sep 8: First check if the file is present in ftp site before trying to delete.
                     FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, processedFilePath, file.Name, WebRequestMethods.Ftp.DeleteFile);
-                    File.Move(file.FullName, processedFilePath + file.Name);
+                    // SM: need to make sure that Move will not fail
+
+                    var destFile = "";
+
+                    if (!string.IsNullOrEmpty(error))
+                    {
+                        // SM: make it to "support@autocareguys.com"
+                        MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed: " + file.Name, error, "sam@autocareguys.com"
+                            , file.FullName, file.Name, file.Extension);
+                        destFile = errorFilePath + file.Name;
+                        if (!File.Exists(destFile))
+                            File.Move(file.FullName, destFile);
+                    }
+                    else
+                    {
+                        destFile = processedFilePath + file.Name;
+                        if (!File.Exists(destFile))
+                            File.Move(file.FullName, destFile);
+                    }
+
                 }
                 catch (Exception e)
                 {
-                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "support@autocareguys.com");
+                    // SM: make it to "support@autocareguys.com"
+                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "sam@autocareguys.com");
                 }
             }
 
-            OrderDAL.PlaceOrder(configData, false, true, false);
+            OrderDAL.PlaceOrder(configData, true, true, false);
+
             var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted");
             CKOrderStatus.Order_StatusSoapClient client = new Order_StatusSoapClient();
             Orders_response Response = new Orders_response();
@@ -115,10 +145,12 @@ namespace _3dCartImportConsole
 
                             if (partStatus.Status.ToLower() == "shipped")
                             {
-                                MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.shipemail,
-                                    "cs@autocareguys.com");
-                                MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.billemail,
-                                    "cs@autocareguys.com");
+                                //TODO: Need to have template for sending ship confirmation to customers
+
+                               // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.shipemail,
+                               //     "cs@autocareguys.com");
+                               // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.billemail,
+                               //     "cs@autocareguys.com");
                             }
                             List<Shipment> li = new List<Shipment>();
                             foreach (var ship in o.order_shipments)
@@ -157,7 +189,7 @@ namespace _3dCartImportConsole
                     
                 }
             }
-            // Process Tracking information
+            // Process Tracking information - Not needed any more
             FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 1);
             // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
             var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
@@ -277,16 +309,22 @@ namespace _3dCartImportConsole
                 if (i > 0 && !String.IsNullOrWhiteSpace(lines[i]) && !(lines[i].ToLower().StartsWith("end")) )
                 {
                     int noOfItems = 0;
-                    
+                    string tempError = "";
                     acg_invoicenum = acg_invoicenum + 1;
                     order.InvoiceNumber = acg_invoicenum;//Convert.ToInt32(DateTime.Now.ToString("ddMM") + val);
                     var orderSer = JsonConvert.DeserializeObject<Order>(JsonConvert.SerializeObject(order));
                     orderSer.OrderItemList = new List<OrderItem>();
                     orderSer.ShipmentList = new List<Shipment>();
-                    var jfw_order_map = GenerateOrder(connectionString, orderSer, lines[0], lines[i], ref noOfItems, ref error);
-                    orderSer = jfw_order_map.Item1;
+                    var jfw_order_map = GenerateOrder(connectionString, orderSer, lines[0], lines[i], ref noOfItems, ref tempError);
+                    if (string.IsNullOrEmpty(tempError))
+                    {
+                        orderSer = jfw_order_map.Item1;
+                        orderList.Add(orderSer);
+                    }
+                    else
+                        error += Environment.NewLine + tempError;
+
                     jfw_order_list.Add(jfw_order_map.Item2);
-                    orderList.Add(orderSer);
                 }
             }
             return Tuple.Create(orderList, jfw_order_list);
@@ -350,24 +388,24 @@ namespace _3dCartImportConsole
                         {
                             ship.ShipmentCost = 5;
                         }
-						/** SM: Check if this is needed any more
-                        var ckVariant = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
-                        if (ckVariant != null)
-                        {
-                            orderItem.ItemID = ckVariant.SKU;
-                            //order.SKU = ckVariant.SKU;
-                            orderItem.ItemOptionPrice = ckVariant.price * 70 / 100;
-                            if (orderItem.ItemOptionPrice < 150)
-                            {
-                                ship.ShipmentCost = 5;
-                            }
-                            orderItem.CatalogID = ckVariant.catalogid;
-                            orderItem.ItemDescription = ckVariant.description;
-                        }
-                        else
-                        {
-                            throw new Exception("Product doesn't exists! " + JsonConvert.SerializeObject(order));
-                        }
+						/** SM: Check if this is needed any more 
+                        //var ckVariant = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
+                        //if (ckVariant != null)
+                        //{
+                        //    orderItem.ItemID = ckVariant.SKU;
+                        //    //order.SKU = ckVariant.SKU;
+                        //    orderItem.ItemOptionPrice = ckVariant.price * 70 / 100;
+                        //    if (orderItem.ItemOptionPrice < 150)
+                        //    {
+                        //        ship.ShipmentCost = 5;
+                        //    }
+                        //    orderItem.CatalogID = ckVariant.catalogid;
+                        //    orderItem.ItemDescription = ckVariant.description;
+                        //}
+                        //else
+                        //{
+                        //    throw new Exception("Product doesn't exists! " + JsonConvert.SerializeObject(order));
+                        //}
 						**/
                         break;
                     case "QTY":
@@ -494,18 +532,20 @@ namespace _3dCartImportConsole
                 }
                 if (i == (length - 1))
                 {
-                    if (!string.IsNullOrEmpty(orderItem.ItemID) && orderItem.CatalogID != null)
-                    {
-                        // SM: To check. Should not need catalogid -> it is a string
-						order.SKU = orderItem.ItemID + orderItem.CatalogID;
-                    }
+      //              if (!string.IsNullOrEmpty(orderItem.ItemID) && orderItem.CatalogID != null)
+      //              {
+      //                  // SM: To check. Should not need catalogid -> it is a string
+						//order.SKU = orderItem.ItemID + orderItem.CatalogID;
+      //              }
                     if (string.IsNullOrEmpty(order.SKU))
                     {
                         if (!string.IsNullOrEmpty(error))
                         {
                             error = error + Environment.NewLine;
                         }
-                        error = ("Product doesn't exists! SKU is empty. Please see the Json : " + JsonConvert.SerializeObject(order));
+                        string thiserror = string.Format("Product does not exist in local db: \r\n  SKU:{0}, JFW PO No {1},  PO date: {2}, Ship to: {3} \r\n" ,
+                            order.SKU, jfwOrder.PO, jfwOrder.PO_Date, jfwOrder.Ship_Name);
+                        error += thiserror;
                     }
                     var ckVariant = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
                     if (ckVariant != null)
@@ -526,8 +566,10 @@ namespace _3dCartImportConsole
                         {
                             error = error + Environment.NewLine;
                         }
-                        error = ("Product doesn't exists! variant is empty. Please see the Json : " + JsonConvert.SerializeObject(order));
-                        //todo: throw error
+                        string thiserror = string.Format("Variant does not exist in local db. \r\n  SKU:{0}, ItemNo: {4}, JFW PO No {1},  PO date: {2}, Ship to: {3} \r\n",
+                            order.SKU, jfwOrder.PO, jfwOrder.PO_Date, jfwOrder.Ship_Name, orderItem.ItemID);
+                        error += thiserror;
+
                     }
                     orderItem.ItemDescription = orderItem.ItemDescription +
                                                 "<br><b>Vehicle Configuration</b>&nbsp;Ref:Coverking Part No: " +

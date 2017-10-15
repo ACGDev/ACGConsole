@@ -11,11 +11,16 @@ namespace AutoCarOperations.DAL
 {
     public class OrderTrackingDAL
     {
-        public static void SaveJFWOrders(string connectionString, List<jfw_orders> orders)
+        public static void SaveJFWOrders(string connectionString, List<jfw_orders> orders, string filename)
         {
+
             using (var context = new AutoCareDataContext(connectionString))
             {
-                context.JFWOrders.AddRange(orders);
+                foreach (var order in orders)
+                {
+                    order.Filename = filename;
+                    context.JFWOrders.Add(order);
+                }
                 context.SaveChanges();
             }
         }

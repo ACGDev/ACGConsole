@@ -47,7 +47,7 @@ namespace AutoCarOperations
                         while (!listReader.EndOfStream)
                         {
                             var name = listReader.ReadLine();
-                            if (name.Contains(".txt"))
+                            if (name.ToLower().Contains(".txt") || name.ToLower().Contains(".csv"))
                             {
                                 //string lastWord = name.Split(' ').Last();
 	
@@ -77,13 +77,22 @@ namespace AutoCarOperations
                         Console.WriteLine("Upload File Complete, status {0}", response.StatusDescription);
                     break;
                 case WebRequestMethods.Ftp.DeleteFile:
-                    request.Method = WebRequestMethods.Ftp.DeleteFile;
-                    using (response = (FtpWebResponse)request.GetResponse())
-                    using (Stream responseStream = response.GetResponseStream())
-                    using (StreamReader reader = new StreamReader(responseStream))
+                    try
                     {
+                        request.Method = WebRequestMethods.Ftp.DeleteFile;
+                        using (response = (FtpWebResponse)request.GetResponse())
+                        using (Stream responseStream = response.GetResponseStream())
+                        using (StreamReader reader = new StreamReader(responseStream))
+                        {
+                        }
+                        break;
                     }
-                    break;
+                    catch (Exception ex)
+                    {
+                        // TODO: need reason for failure
+                        break;
+                    }
+                    
                 default:
                     request.Method = WebRequestMethods.Ftp.DownloadFile;
                     using (response = (FtpWebResponse)request.GetResponse())

@@ -29,16 +29,14 @@ namespace AutoCarOperations.DAL
         {
             if (orderList == null)
             {
-                orderList = SyncOrders(configData, fetchDate);
+                orderList = SyncOrders(configData, fetchDate); // orderlist now contains ONLY new orders
             }
             if (prepareFile && orderList.Count > 0)
             {
                 //returns Filepath, FileName
                 var orderListCopy = JsonConvert.DeserializeObject<List<orders>>(JsonConvert.SerializeObject(orderList));
-                var fileDetail = PrepareOrderFile(configData, orderList);
-                //upload files only if counter > 0
-                int counter = orderList.Count(I => I.shipcomplete.ToLower() == "pending" && I.status==1);
-                if (uploadFile && counter > 0)
+                var fileDetail = PrepareOrderFile(configData, orderList);              
+                if (uploadFile )
                 {
                     //need to create donload stream as ref doesnt allow optional parameter
                     //todo: create overloaded method
@@ -71,8 +69,10 @@ namespace AutoCarOperations.DAL
                 }
                 skip = 101 + skip;
             }
-            var syncedOrders = Map_n_Add_ExtOrders(config.ConnectionString, strOrderStart, orders_fromsite);  // Adds and updates orders from external site
-            return syncedOrders;
+            var syncedOrders = Map_n_Add_ExtOrders(config.ConnectionString, strOrderStart, orders_fromsite.Where(i => i.OrderStatusID != 7).ToList());  // Adds and updates orders from external site
+
+            return syncedOrders.Where(I => I.shipcomplete.ToLower() == "pending" && I.order_status == 1).ToList();
+
         }
 
         /// <summary>
@@ -83,7 +83,7 @@ namespace AutoCarOperations.DAL
         /// <returns></returns>
         private static List<orders> Map_n_Add_ExtOrders(string connectionString, string strOrderStart, List<Order> orders_fromsite)
         {
-            var mappedOrders = MapOrders(orders_fromsite);
+            var mappedOrders = MapOrders(orders_fromsite, connectionString);
             using (var context = new AutoCareDataContext(connectionString))
             {
                 bool flag = false;
@@ -91,11 +91,12 @@ namespace AutoCarOperations.DAL
                 {
                     bool bAddthisOrder = false;
                     // -- status: 4 - shipped, 5 - Cancelled, 7 - incomplete, 1 - new
-                    if (order_external.order_status == 7)
-                    {
-                        continue;
-                    }
-                    var record_from_adminDB = context.Orders.FirstOrDefault(I => I.order_id == order_external.order_id);
+                    //if (order_external.order_status == 7)
+                    //{
+                    //    continue;
+                    //}
+                    
+                    var record_from_adminDB = context.Orders.FirstOrDefault(I => I.orderno == order_external.orderno);
                     // Handle if new order or not shipped or cancelled 
                     if (record_from_adminDB == null)
                         bAddthisOrder = true;
@@ -117,7 +118,7 @@ namespace AutoCarOperations.DAL
                             order_external.po_no = order_external.po_no.Substring(0, 49);
                             Console.WriteLine("  po_no truncated to " + order_external.po_no );
                         }
-                        if (record_from_adminDB != null && record_from_adminDB.shipcomplete.ToLower() == "submitted" && order_external.status==1)
+                        if (record_from_adminDB != null && record_from_adminDB.shipcomplete.ToLower() == "submitted" && order_external.order_status==1)
                             order_external.shipcomplete = record_from_adminDB.shipcomplete;
 
                         context.Orders.AddOrUpdate(order_external);
@@ -128,9 +129,13 @@ namespace AutoCarOperations.DAL
                 {
                     context.SaveChanges();
                 }
-                
-                DateTime strOrderDate = Convert.ToDateTime(strOrderStart).AddDays(-5);
-                return context.Orders.Include(I => I.order_items).Include(I => I.order_shipments).Include("order_items.Product").Where(I => I.orderdate >= strOrderDate).ToList();
+                foreach (var order_external in mappedOrders)
+                {
+                    order_external.order_items = context.OrderItems.Include(i=> i.Product).Where(i => i.order_id == order_external.order_id).ToList();
+                    order_external.order_shipments = context.OrderShipments.Where(i => i.order_id == order_external.order_id).ToList();
+                }
+
+                return mappedOrders;
             }
         }
         /// <summary>
@@ -143,25 +148,37 @@ namespace AutoCarOperations.DAL
             {
                 foreach (var order in db_orders)
                 {
-                    if (order.shipcomplete != "Submitted")
-                    {
-                        context.Entry(order).State = EntityState.Modified;
-                        context.Orders.Attach(entity: order);
-                        order.shipcomplete = "Submitted";
-                        context.Entry(order).Property(I => I.shipcomplete).IsModified = true;
-                    }
+                    if (!(order.shipcomplete != "Submitted" && order.order_status == 1))
+                        continue;
+                    
+                    var currentorder = JsonConvert.DeserializeObject<orders>(JsonConvert.SerializeObject(order));
+                    currentorder.order_items = null;
+                    currentorder.order_shipments = null;
+                    context.Entry(currentorder).State = EntityState.Modified;
+                    context.Orders.Attach(entity: currentorder);
+                    currentorder.shipcomplete = "Submitted";
+                    context.Entry(currentorder).Property(I => I.shipcomplete).IsModified = true;
+                    
                     var sequenceNo = 1;
                     //todo: need to confirm when Product is null
                     foreach (var item in order.order_items)
                     {
                         for (int i = 0; i < item.numitems; i++)
                         {
+                            //var thisItemId = item.itemid;
+                            //if (thisItemId.StartsWith("CK_"))
+                            //    thisItemId.Replace("CK_", "");
+                            //if (thisItemId.StartsWith("SK_"))
+                            //    thisItemId.Replace("SK_", "");
+                            
+                            // SM: Handle if product is null
+
                             var orderItemDet = new order_item_details
                             {
                                 order_item_id = item.order_item_id,
                                 order_no = order.orderno,
                                 sequence_no = sequenceNo,
-                                item_id = item.itemid,
+                                item_id = item.Product != null ? item.Product.mfgid : null ,
                                 sku = item.Product != null ? item.Product.SKU : null,
                                 //ship_agent =,
                                 //ship_service_code = order.ship
@@ -252,16 +269,25 @@ namespace AutoCarOperations.DAL
         /// </summary>
         /// <param name="ordersToMap"></param>
         /// <returns></returns>
-        public static List<orders> MapOrders(List<Order> ordersToMap)
-        {
+        public static List<orders> MapOrders(List<Order> ordersToMap, string connectionString)
+        {          
             List<orders> mappedOrders = new List<orders>();
             foreach (var order in ordersToMap)
             {
+                string thisOrderNoFrom3DCart = order.InvoiceNumberPrefix.Trim() + order.InvoiceNumber.ToString();
+                using (var context = new AutoCareDataContext(connectionString))
+                {
+                    orders thisLocalOrder = context.Orders.FirstOrDefault(i => i.orderno == thisOrderNoFrom3DCart);
+                    if (thisLocalOrder != null && thisLocalOrder.order_status == order.OrderStatusID)
+                            continue;
+                }
+
                 var orderKeyDict = order.ContinueURL?.Split('&').Select(q => q.Split('='))
                                        .ToDictionary(k => k[0], v => v[1]) ?? new Dictionary<string, string>();
                 var orderShipMents = order.ShipmentList[0];
-                if (order.OrderStatusID == 7)
-                    continue;
+                //Not needed any more 
+                //if (order.OrderStatusID == 7)
+                //    continue;
                 var po_number = order.CustomerComments;
                 if (po_number.ToUpper().Contains("PO ") && order.BillingEmail == "support@justfeedwebsites.com")
                 {
@@ -447,8 +473,10 @@ namespace AutoCarOperations.DAL
                     o.Product.mfgid = o.itemid;
                     if (o.itemid.StartsWith("CK_"))
                         o.Product.mfgid = o.itemid.Replace("CK_", "");
+                    if (o.itemid.StartsWith("SK_"))
+                        o.Product.mfgid = o.itemid.Replace("SK_", "");
                     //send email
-                    sendEmail(configData.MandrilAPIKey, "Missing Products", JsonConvert.SerializeObject(o), "cs@autocareguys.com");
+                    sendEmail(configData.MandrilAPIKey, "Product is null in GenerateOrderLines", JsonConvert.SerializeObject(o), "sam@autocareguys.com");
                     //continue;
                 }
 
@@ -527,9 +555,9 @@ namespace AutoCarOperations.DAL
                     string[] splitComment = order.internalcomment.Split(new string[] {Environment.NewLine},
                         StringSplitOptions.RemoveEmptyEntries);
                     //CK_Item
-                    values[0] = o.itemid;
+                    values[0] = o.Product.mfgid;
                     //CK_Variant
-                    values[1] = o.catalogid.ToString();
+                    values[1] = variant;
                     //Qty
                     values[6] = o.numitems.ToString();
                     foreach (var field in splitComment)
@@ -538,9 +566,10 @@ namespace AutoCarOperations.DAL
                         var index = custom.FindIndex(I => I == splitData[0]);
                         values[index] = splitData[1];
                     }
+                    // PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment
                     //comment
                     values[7] = order.cus_comment + (string.IsNullOrEmpty(values[5]) ? "" : " " + values[5]);
-                    oText += string.Join(",", values);
+                    oText += ","+string.Join(",", values);
                 }
                 else
                 {
@@ -567,7 +596,7 @@ namespace AutoCarOperations.DAL
             {
                 if (desc.StartsWith(mfgId))
                 {
-                    variant = desc.Replace(mfgId, "");
+                   variant = desc.Replace(mfgId, "");
                 }
                 if (desc.StartsWith("(" + mfgId))
                 {
@@ -597,7 +626,7 @@ namespace AutoCarOperations.DAL
                 //if (order.orderno.Contains("161968"))
                 //    order.orderno += "-6";
                 // RestHelper.Execute(@"http://api.coverking.com/orders/Order_Placement.asmx?op=Place_Orders", config.AuthUserName, config.AuthPassowrd, order);
-                if (order.shipcomplete.ToLower() == "pending" && order.status == 1)
+                if (order.shipcomplete.ToLower() == "pending" && order.order_status == 1)
                 {
 	                // SM; moved here to avoid getting the email repeatedly
 					if (order.cus_comment !=null && order.cus_comment.ToLower().Contains("(special)"))
@@ -646,6 +675,7 @@ namespace AutoCarOperations.DAL
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
+                // Update order details according to CK status
                 var order_det = context.OrderItemDetails.FirstOrDefault(I => I.order_no == orderNo);
                 if (order_det != null)
                 {
@@ -658,14 +688,17 @@ namespace AutoCarOperations.DAL
                     order_det.tracking_link = trackingLink;
                     context.OrderItemDetails.AddOrUpdate(order_det);
                 }
-                if (status.ToLower() == "shipped")
-                {
-                    var order = context.Orders.FirstOrDefault(I => I.orderno == orderNo);
-                    context.Entry(order).State = EntityState.Modified;
-                    context.Orders.Attach(entity: order);
-                    order.shipcomplete = "Shipped";
-                    context.Entry(order).Property(I => I.shipcomplete).IsModified = true;
-                }
+                //TODO: Rahul - check if all items in this orders has been shipped, then mark it as shipped
+                
+
+                //if (status.ToLower() == "shipped")
+                //{
+                //    var order = context.Orders.FirstOrDefault(I => I.orderno == orderNo);
+                //    context.Entry(order).State = EntityState.Modified;
+                //    context.Orders.Attach(entity: order);
+                //    order.shipcomplete = "Shipped";
+                //    context.Entry(order).Property(I => I.shipcomplete).IsModified = true;
+                //}
                 context.SaveChanges();
             }
         }

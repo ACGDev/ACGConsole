@@ -302,6 +302,7 @@ namespace AutoCarOperations.Model
         public int? Qty { get; set; }
         public string Comment { get; set; }
         public string Customized_Msg2 { get; set; }
+        public string Filename { get; set; }
     }
 
     public class order_item_details
