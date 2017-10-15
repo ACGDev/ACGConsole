@@ -178,7 +178,7 @@ namespace AutoCarOperations.DAL
                                 order_item_id = item.order_item_id,
                                 order_no = order.orderno,
                                 sequence_no = sequenceNo,
-                                item_id = item.Product != null ? item.Product.mfgid : null ,
+                                mfg_item_id = item.Product != null ? item.Product.mfgid : null ,
                                 sku = item.Product != null ? item.Product.SKU : null,
                                 //ship_agent =,
                                 //ship_service_code = order.ship
@@ -671,12 +671,12 @@ namespace AutoCarOperations.DAL
 
         public static void UpdateOrderDetail(string connectionString, 
             string orderNo, string serialNo, string status, string shipAgent,
-            string shipServiceCode, string trackingNo, string trackingLink)
+            string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID)
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
                 // Update order details according to CK status
-                var order_det = context.OrderItemDetails.FirstOrDefault(I => I.order_no == orderNo);
+                order_item_details order_det = context.OrderItemDetails.FirstOrDefault(I => I.order_no == orderNo);
                 if (order_det != null)
                 {
                     order_det.production_slno = serialNo;
@@ -686,6 +686,8 @@ namespace AutoCarOperations.DAL
                     order_det.ship_service_code = shipServiceCode;
                     order_det.tracking_no = trackingNo;
                     order_det.tracking_link = trackingLink;
+                    order_det.mfg_item_id = mfgItemID;
+                    order_det.sku = mfgItemID.TrimEnd() + variantID.TrimEnd();
                     context.OrderItemDetails.AddOrUpdate(order_det);
                 }
                 //TODO: Rahul - check if all items in this orders has been shipped, then mark it as shipped

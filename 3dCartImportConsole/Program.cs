@@ -120,7 +120,7 @@ namespace _3dCartImportConsole
 
             OrderDAL.PlaceOrder(configData, true, true, false);
 
-            var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted");
+            var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted" && ord.order_status ==1);
             CKOrderStatus.Order_StatusSoapClient client = new Order_StatusSoapClient();
             Orders_response Response = new Orders_response();
 
@@ -133,53 +133,54 @@ namespace _3dCartImportConsole
                     if (s.Orders_list != null && s.Orders_list.Length > 0)
                     {
                         var orderStatus = s.Orders_list[0];
-                        var partStatus = orderStatus.Parts_list != null && orderStatus.Parts_list.Length > 0
-                            ? orderStatus.Parts_list[0]
-                            : (Parts) null;
-                        if (partStatus != null)
+                        foreach (var partStatus in orderStatus.Parts_list)
                         {
-                            OrderDAL.UpdateOrderDetail(configData.ConnectionString, o.orderno, partStatus.Serial_No,
-                                partStatus.Status, partStatus.Shipping_agent_used,
-                                partStatus.Shipping_agent_service_used,
-                                partStatus.Package_No, partStatus.Package_link);
-
-                            if (partStatus.Status.ToLower() == "shipped")
+                            if (partStatus != null)
                             {
-                                //TODO: Need to have template for sending ship confirmation to customers
+                                OrderDAL.UpdateOrderDetail(configData.ConnectionString, o.orderno, partStatus.Serial_No,
+                                    partStatus.Status, partStatus.Shipping_agent_used,
+                                    partStatus.Shipping_agent_service_used,
+                                    partStatus.Package_No, partStatus.Package_link, partStatus.ItemNo, partStatus.VariantID);
 
-                               // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.shipemail,
-                               //     "cs@autocareguys.com");
-                               // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.billemail,
-                               //     "cs@autocareguys.com");
-                            }
-                            List<Shipment> li = new List<Shipment>();
-                            foreach (var ship in o.order_shipments)
-                            {
-                                li.Add(new Shipment()
+                                if (partStatus.Status.ToLower() == "shipped")
                                 {
-                                    ShipmentCity = o.shipcity,
-                                    ShipmentFirstName = o.shipfirstname,
-                                    ShipmentCountry = o.shipcountry,
-                                    ShipmentCost = o.shipcost,
-                                    ShipmentAddress2 = o.shipaddress2,
-                                    ShipmentState = o.shipstate,
-                                    ShipmentPhone = o.shipphone,
-                                    ShipmentAddress = o.shipaddress,
-                                    ShipmentCompany = o.shipcompany,
-                                    ShipmentEmail = o.shipemail,
-                                    ShipmentID = o.order_shipments != null && o.order_shipments.Count > 0 ? o.order_shipments[0].shipping_id : null,
-                                    ShipmentLastName = o.shiplastname,
-                                    ShipmentMethodID = o.shipmethodid,
-                                    ShipmentZipCode = o.shipzip,
-                                    ShipmentTrackingCode = o.order_shipments != null
-                                        && o.order_shipments.Count> 0? o.order_shipments[0].trackingcode
-                                        : null
-                                });
+                                    //TODO: Need to have template for sending ship confirmation to customers
+
+                                    // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.shipemail,
+                                    //     "cs@autocareguys.com");
+                                    // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.billemail,
+                                    //     "cs@autocareguys.com");
+                                }
+                                List<Shipment> li = new List<Shipment>();
+                                foreach (var ship in o.order_shipments)
+                                {
+                                    li.Add(new Shipment()
+                                    {
+                                        ShipmentCity = o.shipcity,
+                                        ShipmentFirstName = o.shipfirstname,
+                                        ShipmentCountry = o.shipcountry,
+                                        ShipmentCost = o.shipcost,
+                                        ShipmentAddress2 = o.shipaddress2,
+                                        ShipmentState = o.shipstate,
+                                        ShipmentPhone = o.shipphone,
+                                        ShipmentAddress = o.shipaddress,
+                                        ShipmentCompany = o.shipcompany,
+                                        ShipmentEmail = o.shipemail,
+                                        ShipmentID = o.order_shipments != null && o.order_shipments.Count > 0 ? o.order_shipments[0].shipping_id : null,
+                                        ShipmentLastName = o.shiplastname,
+                                        ShipmentMethodID = o.shipmethodid,
+                                        ShipmentZipCode = o.shipzip,
+                                        ShipmentTrackingCode = o.order_shipments != null
+                                            && o.order_shipments.Count > 0 ? o.order_shipments[0].trackingcode
+                                            : null
+                                    });
+                                }
+                                //Update Shipment Information
+                                RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
+                                    configData.Store, o.order_id);
                             }
-                            //Update Shipment Information
-                            RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
-                                configData.Store, o.order_id);
                         }
+                        
                     }
                     //send email only if shipped
                     //update shipping information on 3dcart

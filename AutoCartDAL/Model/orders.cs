@@ -313,7 +313,7 @@ namespace AutoCarOperations.Model
         public int order_item_id { get; set; }
         public string order_no { get; set; }
         public int? sequence_no { get; set; }
-        public string item_id { get; set; }
+        public string mfg_item_id { get; set; }
         public string sku { get; set; }
         public string production_slno { get; set; }
         public string status { get; set; }
