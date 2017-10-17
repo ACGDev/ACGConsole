@@ -114,6 +114,7 @@ namespace AutoCarOperations.Model
         public int? recurrent { get; set; }
         public int? depends_on_item { get; set; }
         public int? recurring_order_frequency { get; set; }
+        public string variant_id { get; set; }
     }
 
     public class products

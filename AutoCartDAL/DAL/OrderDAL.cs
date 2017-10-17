@@ -161,6 +161,7 @@ namespace AutoCarOperations.DAL
                     
                     var sequenceNo = 1;
                     //todo: need to confirm when Product is null
+                    /*
                     foreach (var item in order.order_items)
                     {
                         for (int i = 0; i < item.numitems; i++)
@@ -190,6 +191,7 @@ namespace AutoCarOperations.DAL
                             context.OrderItemDetails.Add(orderItemDet);
                         }
                     }
+                    */
                 }
                 context.SaveChanges();
             }
@@ -577,8 +579,17 @@ namespace AutoCarOperations.DAL
                     oText += string.Format(",{0},{1},{2},{3},{4},{5},{6},{7}", o.Product.mfgid, variant, strMasterPakCode, strMasterPakCodeMsg, "", "",
                         o.numitems, order.cus_comment.Trim().Replace("\"", "&quot;"));
                 }
+
                 orderFinal.AppendLine(oText);
                 o.Product = null;
+                using (var context = new AutoCareDataContext(configData.ConnectionString))
+                {
+                    context.Entry(o).State = EntityState.Modified;
+                    context.OrderItems.Attach(entity: o);
+                    o.variant_id = variant;
+                    context.Entry(o).Property(I => I.variant_id).IsModified = true;
+                    context.SaveChanges();
+                }
             }
             return orderFinal.ToString();
         }
@@ -621,7 +632,6 @@ namespace AutoCarOperations.DAL
 
             foreach (var order in orders)
             {
-
                 // manually modify order if needed
                 //if (order.orderno.Contains("161968"))
                 //    order.orderno += "-6";
@@ -669,14 +679,21 @@ namespace AutoCarOperations.DAL
             }
         }
 
-        public static void UpdateOrderDetail(string connectionString, 
+        public static void FixOrderDetails(string connectionString,
             string orderNo, string serialNo, string status, string shipAgent,
-            string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID)
+            string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID, int sequenceNo, int orderItemId)
+        {
+
+        }
+
+        public static void UpdateOrderDetail(string connectionString,
+            string orderNo, string serialNo, string status, string shipAgent,
+            string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID, int sequenceNo)
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
                 // Update order details according to CK status
-                order_item_details order_det = context.OrderItemDetails.FirstOrDefault(I => I.order_no == orderNo);
+                order_item_details order_det = context.OrderItemDetails.FirstOrDefault(I => I.order_no == orderNo && I.production_slno == serialNo);
                 if (order_det != null)
                 {
                     order_det.production_slno = serialNo;
@@ -690,16 +707,113 @@ namespace AutoCarOperations.DAL
                     order_det.sku = mfgItemID.TrimEnd() + variantID.TrimEnd();
                     context.OrderItemDetails.AddOrUpdate(order_det);
                 }
+                else
+                {
+                    // Find ACG item ID from product table and mfgItemID
+                    // Map ACG item ID and Variant ID with order_items table
+                    // get order_item_id
+                    //   insert in order_item_detail table && populate the order_item_detail table
+                    // Update order details according to CK status
+                    order_det = new order_item_details();
+                    order_det.production_slno = serialNo;
+                    order_det.status = status;
+                    order_det.status_datetime = DateTime.Now;
+                    order_det.ship_agent = shipAgent;
+                    order_det.ship_service_code = shipServiceCode;
+                    order_det.tracking_no = trackingNo;
+                    order_det.tracking_link = trackingLink;
+                    order_det.mfg_item_id = mfgItemID;
+                    order_det.sku = mfgItemID.TrimEnd() + variantID.TrimEnd();
+                    order_det.order_no = orderNo;
+                    order_det.sequence_no = sequenceNo;
+                    // find order_item_id
+                    var product_rec = context.Products.FirstOrDefault(I => I.mfgid == mfgItemID );
+                    order_det.order_item_id = 0;
+                    if (product_rec == null)
+                    {
+                        //SM: could not map order item id, needs manual check
+                        // SM: need to handle error here: Order No: <orderno>: Status API does not match Products table. Mfg Item ID: <mfgItemID>. Serial no <serialNo>
+                    }
+                    else
+                    {
+                        var orderItemList = context.OrderItems.Where(I => I.itemid == product_rec.SKU && I.variant_id == variantID).ToList();
+                        if (orderItemList.Count ==0)
+                        {
+                            //SM: could not map order item id, needs manual check
+                            // SM: need to handle error here: Order No: <orderno>: Status API does not match. Order_Items table- ACG ItemID: <product_rec.SKU>, Variant ID: variantID, Serial no <serialNo>     
+                        }
+                        else
+                        {
+                            foreach (var thisOrderItem in orderItemList)
+                            {
+                                // check how many of these order_item_id are present in details table
+                                int nItemsInDet = context.OrderItemDetails.Where(i => i.order_item_id == thisOrderItem.order_item_id).Count();
+                                
+                                // check the next order_items record if all the quantities are in detail table
+                                if (nItemsInDet >= thisOrderItem.numitems)   // should never be > but to be on th safe side ...
+                                    continue;
+                                // we can use this order_item_id
+                                order_det.order_item_id = thisOrderItem.order_item_id;
+                                break;
+                            }
+                        }
+                    }
+                    // SM: if no order_items match, it will be 0
+                    context.OrderItemDetails.Add(order_det);
+                }
                 //TODO: Rahul - check if all items in this orders has been shipped, then mark it as shipped
-                
+                context.SaveChanges();
+            }
+        }
 
-                //if (status.ToLower() == "shipped")
+        public static void UpdateOrderDetail_old(string connectionString,
+                    string orderNo, string serialNo, string status, string shipAgent,
+                    string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID)  // , int sequenceNo, int orderItemId
+        {
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                // Find in order_item_detail table, incoming serial no and order no. If found update
+
+
+                // If not,
+                // Find ACG item ID from product table and mfgItemID
+                // Map ACG item ID and Variant ID with order_items table
+                // get order_item_id
+                //   insert in order_item_detail table && populate the order_item_detail table
+                // Update order details according to CK status
+                var order_det_col = context.OrderItemDetails.Where(I => I.order_no == orderNo);
+                order_item_details order_det = null;
+                if (order_det_col.Count() == 0)
+                {
+                    order_det = new order_item_details();
+                   // order_det.order_item_id = orderItemId;
+                    order_det.order_no = orderNo;
+                  //  order_det.sequence_no = sequenceNo;
+                }
+                foreach (var item in order_det_col)
+                {
+                    order_det = item;
+                    order_det.production_slno = serialNo;
+                    order_det.status = status;
+                    order_det.status_datetime = DateTime.Now;
+                    order_det.ship_agent = shipAgent;
+                    order_det.ship_service_code = shipServiceCode;
+                    order_det.tracking_no = trackingNo;
+                    order_det.tracking_link = trackingLink;
+                    order_det.mfg_item_id = mfgItemID;
+                    order_det.sku = mfgItemID.TrimEnd() + variantID.TrimEnd();
+                    context.OrderItemDetails.AddOrUpdate(order_det);
+                }
+                //TODO: Rahul - check if all items in this orders has been shipped, then mark it as shipped
+
+
+                //if (status.ToLower() == &quot;shipped&quot;)
                 //{
-                //    var order = context.Orders.FirstOrDefault(I => I.orderno == orderNo);
+                //    var order = context.Orders.FirstOrDefault(I =&gt; I.orderno == orderNo);
                 //    context.Entry(order).State = EntityState.Modified;
                 //    context.Orders.Attach(entity: order);
-                //    order.shipcomplete = "Shipped";
-                //    context.Entry(order).Property(I => I.shipcomplete).IsModified = true;
+                //    order.shipcomplete = &quot;Shipped&quot;;
+                //    context.Entry(order).Property(I =&gt; I.shipcomplete).IsModified = true;
                 //}
                 context.SaveChanges();
             }

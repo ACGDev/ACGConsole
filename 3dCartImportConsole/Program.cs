@@ -68,6 +68,7 @@ namespace _3dCartImportConsole
                     string error = string.Empty;
                     var jfw_orders = Get3dCartOrder(configData.ConnectionString, lines, customer, ref error);
                     
+                    // SM: Oct 16 ** Need to make sure this PO is not duplicate in jfw_orders
                     OrderTrackingDAL.SaveJFWOrders(configData.ConnectionString, jfw_orders.Item2, file.Name);
                     
                     // SM: Oct 13: Should we proceed even if error occurs in previous step ?
@@ -81,7 +82,7 @@ namespace _3dCartImportConsole
                         {
                             // SM: make it to "support@autocareguys.com"
                             MandrillMail.SendEmail(configData.MandrilAPIKey, 
-                                "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "sam@autocareguys.com"
+                                "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "support@autocareguys.com"
                                 ,file.FullName,file.Name, file.Extension);
                         }
                         //send an email to support@autocareguys.com
@@ -97,7 +98,7 @@ namespace _3dCartImportConsole
                     if (!string.IsNullOrEmpty(error))
                     {
                         // SM: make it to "support@autocareguys.com"
-                        MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed: " + file.Name, error, "sam@autocareguys.com"
+                        MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed: " + file.Name, error, "support@autocareguys.com"
                             , file.FullName, file.Name, file.Extension);
                         destFile = errorFilePath + file.Name;
                         if (!File.Exists(destFile))
@@ -114,11 +115,11 @@ namespace _3dCartImportConsole
                 catch (Exception e)
                 {
                     // SM: make it to "support@autocareguys.com"
-                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "sam@autocareguys.com");
+                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "support@autocareguys.com");
                 }
             }
 
-            OrderDAL.PlaceOrder(configData, true, true, false);
+            OrderDAL.PlaceOrder(configData, true, true, true);
 
             var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted" && ord.order_status ==1);
             CKOrderStatus.Order_StatusSoapClient client = new Order_StatusSoapClient();
@@ -137,10 +138,17 @@ namespace _3dCartImportConsole
                         {
                             if (partStatus != null)
                             {
+                                //SM: Ignore cancelled status from CK API. This may be because the order was temporarily cancelled.
+                                if (partStatus.Status.ToLower() == "cancelled")
+                                    continue;
+
+                                var sequenceNo = 1;
                                 OrderDAL.UpdateOrderDetail(configData.ConnectionString, o.orderno, partStatus.Serial_No,
                                     partStatus.Status, partStatus.Shipping_agent_used,
                                     partStatus.Shipping_agent_service_used,
-                                    partStatus.Package_No, partStatus.Package_link, partStatus.ItemNo, partStatus.VariantID);
+                                    partStatus.Package_No, partStatus.Package_link, partStatus.ItemNo, partStatus.VariantID, sequenceNo);
+                                sequenceNo += 1;
+                                continue;   //****** Temporary to avoid SHipment problem
 
                                 if (partStatus.Status.ToLower() == "shipped")
                                 {
@@ -150,34 +158,35 @@ namespace _3dCartImportConsole
                                     //     "cs@autocareguys.com");
                                     // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.billemail,
                                     //     "cs@autocareguys.com");
-                                }
-                                List<Shipment> li = new List<Shipment>();
-                                foreach (var ship in o.order_shipments)
-                                {
-                                    li.Add(new Shipment()
+                                
+                                    List<Shipment> li = new List<Shipment>();
+                                    foreach (var ship in o.order_shipments)
                                     {
-                                        ShipmentCity = o.shipcity,
-                                        ShipmentFirstName = o.shipfirstname,
-                                        ShipmentCountry = o.shipcountry,
-                                        ShipmentCost = o.shipcost,
-                                        ShipmentAddress2 = o.shipaddress2,
-                                        ShipmentState = o.shipstate,
-                                        ShipmentPhone = o.shipphone,
-                                        ShipmentAddress = o.shipaddress,
-                                        ShipmentCompany = o.shipcompany,
-                                        ShipmentEmail = o.shipemail,
-                                        ShipmentID = o.order_shipments != null && o.order_shipments.Count > 0 ? o.order_shipments[0].shipping_id : null,
-                                        ShipmentLastName = o.shiplastname,
-                                        ShipmentMethodID = o.shipmethodid,
-                                        ShipmentZipCode = o.shipzip,
-                                        ShipmentTrackingCode = o.order_shipments != null
-                                            && o.order_shipments.Count > 0 ? o.order_shipments[0].trackingcode
-                                            : null
-                                    });
+                                        li.Add(new Shipment()
+                                        {
+                                            ShipmentCity = o.shipcity,
+                                            ShipmentFirstName = o.shipfirstname,
+                                            ShipmentCountry = o.shipcountry,
+                                            ShipmentCost = o.shipcost,
+                                            ShipmentAddress2 = o.shipaddress2,
+                                            ShipmentState = o.shipstate,
+                                            ShipmentPhone = o.shipphone,
+                                            ShipmentAddress = o.shipaddress,
+                                            ShipmentCompany = o.shipcompany,
+                                            ShipmentEmail = o.shipemail,
+                                            ShipmentID = o.order_shipments != null && o.order_shipments.Count > 0 ? o.order_shipments[0].shipping_id : null,
+                                            ShipmentLastName = o.shiplastname,
+                                            ShipmentMethodID = o.shipmethodid,
+                                            ShipmentZipCode = o.shipzip,
+                                            ShipmentTrackingCode = o.order_shipments != null
+                                                && o.order_shipments.Count > 0 ? o.order_shipments[0].trackingcode
+                                                : null
+                                        });
+                                    }
+                                    //Update Shipment Information
+                                    RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
+                                        configData.Store, o.order_id);
                                 }
-                                //Update Shipment Information
-                                RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
-                                    configData.Store, o.order_id);
                             }
                         }
                         
@@ -191,7 +200,7 @@ namespace _3dCartImportConsole
                 }
             }
             // Process Tracking information - Not needed any more
-            FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 1);
+            FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 20);
             // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
             var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
             OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
