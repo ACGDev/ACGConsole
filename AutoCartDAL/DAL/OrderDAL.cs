@@ -686,14 +686,20 @@ namespace AutoCarOperations.DAL
 
         }
 
-        public static void UpdateOrderDetail(string connectionString,
+        public static bool UpdateOrderDetail(string connectionString,
             string orderNo, string serialNo, string status, string shipAgent,
             string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID, int sequenceNo)
         {
+            bool orderStatusChanged = false;
             using (var context = new AutoCareDataContext(connectionString))
             {
                 // Update order details according to CK status
                 order_item_details order_det = context.OrderItemDetails.FirstOrDefault(I => I.order_no == orderNo && I.production_slno == serialNo);
+
+                if (order_det == null || order_det.status != status)
+                {
+                    orderStatusChanged = true;
+                }
                 if (order_det != null)
                 {
                     order_det.production_slno = serialNo;
@@ -763,6 +769,7 @@ namespace AutoCarOperations.DAL
                 }
                 //TODO: Rahul - check if all items in this orders has been shipped, then mark it as shipped
                 context.SaveChanges();
+                return orderStatusChanged;
             }
         }
 
