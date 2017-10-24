@@ -195,7 +195,7 @@ namespace AutoCarOperations.DAL
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
-                return context.Products.Join(context.CKVaraints.Where(I => I.SKU == sku), i => i.mfgid, j => j.ItemID, (i,j) => i).FirstOrDefault();
+                return context.Products.Join(context.CKVaraints.Where(I => I.SKU == sku && I.Blocked.ToLower() == "no"), i => i.mfgid, j => j.ItemID, (i,j) => i).FirstOrDefault();
             }
         } 
     }

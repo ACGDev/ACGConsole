@@ -25,7 +25,7 @@ namespace AutoCarOperations.DAL
         /// <param name="fetchDate"></param>
         /// <param name="prepareFile"></param>
         /// <param name="uploadFile"></param>
-        public static void PlaceOrder(ConfigurationData configData, bool fetchDate = true, bool prepareFile = true, bool uploadFile = true, List<orders> orderList = null)
+        public static void PlaceOrder_NotUsed(ConfigurationData configData, bool fetchDate = true, bool prepareFile = true, bool uploadFile = true, List<orders> orderList = null)
         {
             if (orderList == null)
             {
@@ -35,8 +35,8 @@ namespace AutoCarOperations.DAL
             {
                 //returns Filepath, FileName
                 var orderListCopy = JsonConvert.DeserializeObject<List<orders>>(JsonConvert.SerializeObject(orderList));
-                var fileDetail = PrepareOrderFile(configData, orderList);              
-                if (uploadFile )
+                var fileDetail = PrepareOrderFile(configData, orderList);
+                if (uploadFile)
                 {
                     //need to create donload stream as ref doesnt allow optional parameter
                     //todo: create overloaded method
@@ -46,6 +46,55 @@ namespace AutoCarOperations.DAL
                 }
             }
         }
+
+        //SM: Oct  ReWritten to upload one order at a time - to avoid holding up all orders for problem in a specific one
+        public static void PlaceOrder(ConfigurationData configData, bool fetchDate = true, bool prepareFile = true, bool uploadFile = true, List<orders> orderList = null)
+        {
+            if (orderList == null)
+            {
+                orderList = SyncOrders(configData, fetchDate); // orderlist now contains ONLY new orders
+            }
+            if (prepareFile && orderList.Count > 0)
+            {
+                //SM: Why do we need orderList as well as orderListCopy when we are not really changing the original orderList ?
+                var orderListCopy = JsonConvert.DeserializeObject<List<orders>>(JsonConvert.SerializeObject(orderList));
+
+                // SM: No longer called ** var fileDetail = PrepareOrderFile(configData, orderList);
+                string filePath = string.Format("{0}\\{1}",
+                    System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), configData.CKOrderFolder);
+                string strCsvHeader = "PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
+
+                if (uploadFile)
+                {
+                    foreach (var order in orderList)
+                    {
+                        if (order.shipcomplete.ToLower() == "pending" && order.order_status == 1)
+                        {
+                            // Check for Special Order - Do not upload - send email
+                            if (order.cus_comment != null && order.cus_comment.ToLower().Contains("(special)"))
+                            {
+                                MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Has to be processed manually", "Order Has to be processed manually. The order no is:" + order.orderno, "sales@autocareguys.com");
+                                continue;
+                            }
+                            string strOrderLines = GenerateOrderLines(order, configData, MandrillMail.SendEmail);
+                            if (strOrderLines != string.Empty)
+                            {
+                                string fileName = string.Format("{0}-{1}.csv", order.orderno, DateTime.Now.ToString("yyyyMMMdd-HHmm"));
+                                string strFileNameWithPath = string.Format("{0}\\{1}", filePath, fileName);
+                                File.WriteAllText(strFileNameWithPath, strCsvHeader + "\r\n");
+                                File.AppendAllText(strFileNameWithPath, strOrderLines);
+                                //need to create donload stream as ref doesnt allow optional parameter
+                                //todo: create overloaded method
+                                FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, filePath, fileName, WebRequestMethods.Ftp.UploadFile);
+                            }
+                        }
+                    }
+                    //Update Order status as Submitted
+                    UpdateStatus(configData.ConnectionString, orderListCopy);
+                }
+            }
+        }
+
         /// <summary>
         /// Fetches orders from site and syncs with Admin DB
         /// </summary>
@@ -95,14 +144,14 @@ namespace AutoCarOperations.DAL
                     //{
                     //    continue;
                     //}
-                    
+
                     var record_from_adminDB = context.Orders.FirstOrDefault(I => I.orderno == order_external.orderno);
                     // Handle if new order or not shipped or cancelled 
                     if (record_from_adminDB == null)
                         bAddthisOrder = true;
                     else if (order_external.order_status == 5 && record_from_adminDB.order_status != 5)  // if previously shipped, it can be cancelled now
                         bAddthisOrder = true;
-                    else  if (record_from_adminDB.order_status != 5) // skip if previously cancelled
+                    else if (record_from_adminDB.order_status != 5) // skip if previously cancelled
                         bAddthisOrder = true;
 
                     if (bAddthisOrder)
@@ -110,15 +159,15 @@ namespace AutoCarOperations.DAL
                         if (order_external.referer.Length > 98)
                         {
                             order_external.referer = order_external.referer.Substring(0, 98);
-                            Console.WriteLine("referer "+order_external.referer+" length "+order_external.referer.Length.ToString());
+                            Console.WriteLine("referer " + order_external.referer + " length " + order_external.referer.Length.ToString());
                         }
                         if (order_external.po_no.Length > 49)
                         {
                             Console.WriteLine("po_no " + order_external.po_no + " length " + order_external.po_no.Length.ToString());
                             order_external.po_no = order_external.po_no.Substring(0, 49);
-                            Console.WriteLine("  po_no truncated to " + order_external.po_no );
+                            Console.WriteLine("  po_no truncated to " + order_external.po_no);
                         }
-                        if (record_from_adminDB != null && record_from_adminDB.shipcomplete.ToLower() == "submitted" && order_external.order_status==1)
+                        if (record_from_adminDB != null && record_from_adminDB.shipcomplete.ToLower() == "submitted" && order_external.order_status == 1)
                             order_external.shipcomplete = record_from_adminDB.shipcomplete;
 
                         context.Orders.AddOrUpdate(order_external);
@@ -131,7 +180,7 @@ namespace AutoCarOperations.DAL
                 }
                 foreach (var order_external in mappedOrders)
                 {
-                    order_external.order_items = context.OrderItems.Include(i=> i.Product).Where(i => i.order_id == order_external.order_id).ToList();
+                    order_external.order_items = context.OrderItems.Include(i => i.Product).Where(i => i.order_id == order_external.order_id).ToList();
                     order_external.order_shipments = context.OrderShipments.Where(i => i.order_id == order_external.order_id).ToList();
                 }
 
@@ -150,7 +199,7 @@ namespace AutoCarOperations.DAL
                 {
                     if (!(order.shipcomplete != "Submitted" && order.order_status == 1))
                         continue;
-                    
+
                     var currentorder = JsonConvert.DeserializeObject<orders>(JsonConvert.SerializeObject(order));
                     currentorder.order_items = null;
                     currentorder.order_shipments = null;
@@ -158,7 +207,7 @@ namespace AutoCarOperations.DAL
                     context.Orders.Attach(entity: currentorder);
                     currentorder.shipcomplete = "Submitted";
                     context.Entry(currentorder).Property(I => I.shipcomplete).IsModified = true;
-                    
+
                     var sequenceNo = 1;
                     //todo: need to confirm when Product is null
                     /*
@@ -272,7 +321,7 @@ namespace AutoCarOperations.DAL
         /// <param name="ordersToMap"></param>
         /// <returns></returns>
         public static List<orders> MapOrders(List<Order> ordersToMap, string connectionString)
-        {          
+        {
             List<orders> mappedOrders = new List<orders>();
             foreach (var order in ordersToMap)
             {
@@ -281,7 +330,7 @@ namespace AutoCarOperations.DAL
                 {
                     orders thisLocalOrder = context.Orders.FirstOrDefault(i => i.orderno == thisOrderNoFrom3DCart);
                     if (thisLocalOrder != null && thisLocalOrder.order_status == order.OrderStatusID)
-                            continue;
+                        continue;
                 }
 
                 var orderKeyDict = order.ContinueURL?.Split('&').Select(q => q.Split('='))
@@ -293,11 +342,11 @@ namespace AutoCarOperations.DAL
                 var po_number = order.CustomerComments;
                 if (po_number.ToUpper().Contains("PO ") && order.BillingEmail == "support@justfeedwebsites.com")
                 {
-                    po_number = po_number.ToUpper().Replace("PO NO", "").Replace("BUYER: 500","").Trim();
+                    po_number = po_number.ToUpper().Replace("PO NO", "").Replace("BUYER: 500", "").Trim();
                     po_number = po_number.Replace("BUYER 500", "").Replace("BUYER:500", "");
                     po_number = po_number.Replace(":", "").Replace(";", "").Replace(",", "").Trim();
                 }
-            
+
                 orders thisOrder = new orders
                 {
                     discount = order.OrderDiscount,
@@ -376,7 +425,7 @@ namespace AutoCarOperations.DAL
                     order_shipments = GetOrderShipments(order.OrderID, order.ShipmentList)
                 };
                 // SM: check for shipment status in detailed records
-                if (order.OrderStatusID==5)  // cancelled
+                if (order.OrderStatusID == 5)  // cancelled
                     thisOrder.shipcomplete = "Cancelled";
                 else
                 {
@@ -420,7 +469,7 @@ namespace AutoCarOperations.DAL
                 {
 
                     MySqlCommand cmd = conn.CreateCommand();
-					// 4: Shipped, 5: Cancelled
+                    // 4: Shipped, 5: Cancelled
                     cmd.CommandText =
                         "select orderdate from orders where order_status not in (4, 5) order by orderdate limit 1";
                     //Command to get query needed value from DataBase
@@ -442,7 +491,17 @@ namespace AutoCarOperations.DAL
             }
             return strOrderStart;
         }
+        // SM: trims a string to given length, as well as checks for comma and replaces by ; and removes ' and "
+        private static string TrimTolength(string inputStr, int maxLength)
+        {
+            string outputStr = inputStr.Trim();
+            if (outputStr.Length > maxLength)
+                outputStr = outputStr.Substring(0, maxLength - 1).Trim();
+            outputStr = outputStr.Replace(",", ";").Replace("'", "");
+            outputStr = outputStr.Replace("\"", "");
 
+            return outputStr;
+        }
         /// <summary>
         /// 
         /// </summary>
@@ -453,6 +512,10 @@ namespace AutoCarOperations.DAL
         private static string GenerateOrderLines(orders order, ConfigurationData configData, Action<string, string, string, string> sendEmail)
         {
             StringBuilder orderFinal = new StringBuilder("");
+
+            // SM: Oct 21, '17: IGNORE customer comments for now.
+            string cus_comment = ""; // order.cus_comment
+
             string strMasterPakCode = "";
             string strMasterPakCodeMsg = "";
             if (order.order_items.Count > 1)
@@ -513,20 +576,39 @@ namespace AutoCarOperations.DAL
                 if (order.shipcompany.Length > 25)
                     order.shipcompany = order.shipcompany.Substring(0, 25).Trim();
 
-                //if (order.shipcompany.Length > 25)
-                //    order.shipcompany = order.shipcompany.Substring(0, 25).Trim();
+
 
                 // CK_SKU should be blank when Mfg ID and Variant are present.
 
-                // ** NEED to incorporate length for all fields. See Progarm.cs, line 240
-
                 //"PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,
+
+                /** SM: Oct 21, 17: Need to check field lengths for uploading orders to CK **/
+                /*
+                Ship_Company	The ship to company address ( if applicable )			25 characters max
+                Ship_Name	Ship To Person's name			25 characters max
+                Ship_Addr	Ship To Address ( limit 30 Charecters )			30 characters max
+                Ship_Addr_2	Ship To Address ( limit 30 Charecters )			30 characters max
+                Ship_City	Ship To City			20 characters max
+                Ship_State	Ship To State			10 characters max
+                Ship_Zip	Ship To Zip Code			10 characters max
+                Ship_Country	Ship To Country ( Please use the UN 2 digit country codes )			
+                Ship_Phone	Ship To Phone Number			15 characters max
+                Ship_Email	Ship To Email Address			25 characters max
+                ...
+                Customized_Code	Customization codes for Logo's or Embroidery			
+                Customized_Msg	The Embroidery message that will go with the previous column. Limit 15 charecters			
+                Customized_Code2	Second Logo or Embroidery for the item			
+                Customized_Msg2	Second Embroidery Message that will go the code			
+                Qty	Quantity for this item			
+                Comment	Notes on this order item.			35 characters max
+
+                    */
 
                 string oText = string.Format("{0},{1},{2}", order.orderno, DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss"),
                     order.shipcompany.Replace("\"", "&quot;"));
-                oText += string.Format(",{0}", order.shipfirstname.Trim() + " " + order.shiplastname.Trim());
-                oText += string.Format(",{0}", order.shipaddress.Trim().Replace("\"", "&quot;"));
-                oText += string.Format(",{0}", order.shipaddress2.Trim().Replace("\"", "&quot;"));
+                oText += string.Format(",{0}", TrimTolength(order.shipfirstname.Trim() + " " + order.shiplastname, 25));
+                oText += string.Format(",{0}", TrimTolength(order.shipaddress, 30));
+                oText += string.Format(",{0}", TrimTolength(order.shipaddress2, 30));
                 // MUST have state. If not, set it same as Country
                 if (order.shipstate.Trim() == string.Empty)
                     order.shipstate = order.shipcountry;
@@ -535,10 +617,10 @@ namespace AutoCarOperations.DAL
                     order.shipzip = "0";
 
                 oText += string.Format(",{0},{1},{2},{3}",
-                    order.shipcity.Trim(), order.shipstate.Trim(), order.shipzip.Trim(), order.shipcountry.Trim());
+                    TrimTolength(order.shipcity, 20), TrimTolength(order.shipstate, 10), TrimTolength(order.shipzip, 10), TrimTolength(order.shipcountry, 2));
 
                 // Ship_Phone,Ship_Email,Ship_Service,CK_SKU
-                oText += string.Format(",{0},{1},{2},{3}", order.shipphone.Trim(), order.shipemail.Trim(), "R02", "");
+                oText += string.Format(",{0},{1},{2},{3}", TrimTolength(order.shipphone, 15), TrimTolength(order.shipemail, 25), "R02", "");
 
                 if (!string.IsNullOrEmpty(order.internalcomment))
                 {
@@ -554,7 +636,7 @@ namespace AutoCarOperations.DAL
                         "Comment"
                     };
                     string[] values = new string[custom.Count];
-                    string[] splitComment = order.internalcomment.Split(new string[] {Environment.NewLine},
+                    string[] splitComment = order.internalcomment.Split(new string[] { Environment.NewLine },
                         StringSplitOptions.RemoveEmptyEntries);
                     //CK_Item
                     values[0] = o.Product.mfgid;
@@ -570,14 +652,15 @@ namespace AutoCarOperations.DAL
                     }
                     // PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment
                     //comment
-                    values[7] = order.cus_comment + (string.IsNullOrEmpty(values[5]) ? "" : " " + values[5]);
-                    oText += ","+string.Join(",", values);
+                    values[7] = cus_comment + (string.IsNullOrEmpty(values[5]) ? "" : " " + values[5]);
+                    values[7] = TrimTolength(values[7], 35);
+                    oText += "," + string.Join(",", values);
                 }
                 else
                 {
                     // CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
                     oText += string.Format(",{0},{1},{2},{3},{4},{5},{6},{7}", o.Product.mfgid, variant, strMasterPakCode, strMasterPakCodeMsg, "", "",
-                        o.numitems, order.cus_comment.Trim().Replace("\"", "&quot;"));
+                        o.numitems, cus_comment);
                 }
 
                 orderFinal.AppendLine(oText);
@@ -605,27 +688,32 @@ namespace AutoCarOperations.DAL
             var orderDescs = value.Split(new[] { ' ', ':', ';', '<' }, StringSplitOptions.RemoveEmptyEntries).Select(I => I.Trim());
             foreach (var desc in orderDescs)
             {
-                if (desc.StartsWith(mfgId))
+                if (!string.IsNullOrEmpty(mfgId))
                 {
-                   variant = desc.Replace(mfgId, "");
+                    if (desc.StartsWith(mfgId))
+                    {
+                        variant = desc.Replace(mfgId, "");
+                    }
+                    if (desc.StartsWith("(" + mfgId))
+                    {
+                        variant = desc.TrimStart('(').TrimEnd(')').Replace(mfgId, "");
+                    }
                 }
-                if (desc.StartsWith("(" + mfgId))
-                {
-                    variant = desc.TrimStart('(').TrimEnd(')').Replace(mfgId, "");
-                }
+
             }
-            if (!string.IsNullOrEmpty( variant ) && variant.Substring(0, 1) == "-")
+            if (!string.IsNullOrEmpty(variant) && variant.Substring(0, 1) == "-")
                 variant = variant.Substring(1);
             return variant;
         }
 
+        // SM: This fn no longer used. Merged with PlaceOrder
         private static Tuple<string, string> PrepareOrderFile(ConfigurationData configData, List<orders> orders)
         {
             string fileName = string.Format("ACG-{0}.csv", DateTime.Now.ToString("yyyyMMMdd-HHmm"));
-            string filePath =
-                System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            string filePath = string.Format("{0}\\{1}",
+            System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), configData.CKOrderFolder);
             string strFileNameWithPath = string.Format("{0}\\{1}", filePath,
-                fileName);
+            fileName);
 
             string strCsvHeader = "PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
             File.WriteAllText(strFileNameWithPath, strCsvHeader + "\r\n");
@@ -638,12 +726,12 @@ namespace AutoCarOperations.DAL
                 // RestHelper.Execute(@"http://api.coverking.com/orders/Order_Placement.asmx?op=Place_Orders", config.AuthUserName, config.AuthPassowrd, order);
                 if (order.shipcomplete.ToLower() == "pending" && order.order_status == 1)
                 {
-	                // SM; moved here to avoid getting the email repeatedly
-					if (order.cus_comment !=null && order.cus_comment.ToLower().Contains("(special)"))
-	                {
-	                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Has to be processed manually", "Order Has to be processed manually. The order no is:" + order.orderno, "sales@autocareguys.com");
-	                    continue;
-	                }
+                    // SM; moved here to avoid getting the email repeatedly
+                    if (order.cus_comment != null && order.cus_comment.ToLower().Contains("(special)"))
+                    {
+                        MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Has to be processed manually", "Order Has to be processed manually. The order no is:" + order.orderno, "sales@autocareguys.com");
+                        continue;
+                    }
                     string strOrderLines = GenerateOrderLines(order, configData, MandrillMail.SendEmail);
                     if (strOrderLines != string.Empty)
                     {
@@ -680,15 +768,15 @@ namespace AutoCarOperations.DAL
         }
 
         public static void FixOrderDetails(string connectionString,
-            string orderNo, string serialNo, string status, string shipAgent,
-            string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID, int sequenceNo, int orderItemId)
+        string orderNo, string serialNo, string status, string shipAgent,
+        string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID, int sequenceNo, int orderItemId)
         {
 
         }
 
         public static bool UpdateOrderDetail(string connectionString,
-            string orderNo, string serialNo, string status, string shipAgent,
-            string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID, int sequenceNo)
+        string orderNo, string serialNo, string status, string shipAgent,
+        string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID, int sequenceNo)
         {
             bool orderStatusChanged = false;
             using (var context = new AutoCareDataContext(connectionString))
@@ -733,7 +821,7 @@ namespace AutoCarOperations.DAL
                     order_det.order_no = orderNo;
                     order_det.sequence_no = sequenceNo;
                     // find order_item_id
-                    var product_rec = context.Products.FirstOrDefault(I => I.mfgid == mfgItemID );
+                    var product_rec = context.Products.FirstOrDefault(I => I.mfgid == mfgItemID);
                     order_det.order_item_id = 0;
                     if (product_rec == null)
                     {
@@ -743,7 +831,7 @@ namespace AutoCarOperations.DAL
                     else
                     {
                         var orderItemList = context.OrderItems.Where(I => I.itemid == product_rec.SKU && I.variant_id == variantID).ToList();
-                        if (orderItemList.Count ==0)
+                        if (orderItemList.Count == 0)
                         {
                             //SM: could not map order item id, needs manual check
                             // SM: need to handle error here: Order No: <orderno>: Status API does not match. Order_Items table- ACG ItemID: <product_rec.SKU>, Variant ID: variantID, Serial no <serialNo>     
@@ -754,9 +842,9 @@ namespace AutoCarOperations.DAL
                             {
                                 // check how many of these order_item_id are present in details table
                                 int nItemsInDet = context.OrderItemDetails.Where(i => i.order_item_id == thisOrderItem.order_item_id).Count();
-                                
+
                                 // check the next order_items record if all the quantities are in detail table
-                                if (nItemsInDet >= thisOrderItem.numitems)   // should never be > but to be on th safe side ...
+                                if (nItemsInDet >= thisOrderItem.numitems)   // should never be > but to be on the safe side ...
                                     continue;
                                 // we can use this order_item_id
                                 order_det.order_item_id = thisOrderItem.order_item_id;
@@ -773,9 +861,10 @@ namespace AutoCarOperations.DAL
             }
         }
 
+        // NOT USED ANY MORE
         public static void UpdateOrderDetail_old(string connectionString,
-                    string orderNo, string serialNo, string status, string shipAgent,
-                    string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID)  // , int sequenceNo, int orderItemId
+            string orderNo, string serialNo, string status, string shipAgent,
+            string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID)  // , int sequenceNo, int orderItemId
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
@@ -793,9 +882,9 @@ namespace AutoCarOperations.DAL
                 if (order_det_col.Count() == 0)
                 {
                     order_det = new order_item_details();
-                   // order_det.order_item_id = orderItemId;
+                    // order_det.order_item_id = orderItemId;
                     order_det.order_no = orderNo;
-                  //  order_det.sequence_no = sequenceNo;
+                    //  order_det.sequence_no = sequenceNo;
                 }
                 foreach (var item in order_det_col)
                 {
@@ -825,5 +914,21 @@ namespace AutoCarOperations.DAL
                 context.SaveChanges();
             }
         }
+
+        public static string GetCustomerPOFromOrderNo(string connectionString, string thisorderNo)
+        {
+            string customer_PO = "";
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                orders thisOrder = context.Orders.FirstOrDefault(I => I.orderno == thisorderNo);
+                if (thisOrder != null)
+                {
+                    if (!string.IsNullOrEmpty(thisOrder.po_no))
+                        customer_PO = thisOrder.po_no.Trim();
+                }
+            }
+            return customer_PO;
+        }
+
     }
 }

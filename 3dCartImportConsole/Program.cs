@@ -24,17 +24,21 @@ namespace _3dCartImportConsole
         private static int? acg_invoicenum;
         static void Main(string[] args)
         {
-            var configData = GetConfigurationDetails();
+            ConfigurationData configData = GetConfigurationDetails();
             string filePath =
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
 
             string coverKingTrackingPath = Path.Combine(filePath, "./CoverKingTrackingFiles/");
             string incomingOrdersFilePath = Path.Combine(filePath, "./JFW/Orders/");
+            string JFWTrackingFilePath = Path.Combine(filePath, "./JFW/Tracking/");
             string errorFilePath = Path.Combine(filePath, "./JFW/OrderErrors/");
             string processedFilePath = Path.Combine(filePath, "./ProcessedOrders/");
             string variantFilePath = Path.Combine(filePath, "./VariantFiles/");
+
+            // *** UNcomment this section for processing variant files from ftp
+            #region ProcessVarintFileFromFtp
             //Prepare Variant List from local path
-            
+            /***
             string path = variantFilePath + "Input/";
             FTPHandler.DownloadOrUploadOrDeleteFile(configData._3dCartFTPAddress, configData._3dCartFTPUserName, configData._3dCartFTPPassword, path, "", WebRequestMethods.Ftp.ListDirectory);
             DirectoryInfo variantDir = new DirectoryInfo(path);
@@ -53,7 +57,11 @@ namespace _3dCartImportConsole
 
                 // SM: TODO: Sync main ck_variant table with temp ck variant table
             }
-            
+            ***/
+            #endregion
+
+            // Comment / uncomment for processing JFW incoming orders 
+            #region ProcessJFWOrderFile
             //Download order from JFW FTP and place order
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
             acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
@@ -66,38 +74,42 @@ namespace _3dCartImportConsole
                     string text = File.ReadAllText(file.FullName);
                     string[] lines = text.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
                     string error = string.Empty;
-                    var jfw_orders = Get3dCartOrder(configData.ConnectionString, lines, customer, ref error);
-                    
-                    // SM: Oct 16 ** Need to make sure this PO is not duplicate in jfw_orders
-                    OrderTrackingDAL.SaveJFWOrders(configData.ConnectionString, jfw_orders.Item2, file.Name);
-                    
-                    // SM: Oct 13: Should we proceed even if error occurs in previous step ?
-                    foreach (var order in jfw_orders.Item1)
+                    var jfw_orders = Get3dCartOrder(configData.NewJFWOrderStatusID,configData.ConnectionString, lines, customer, ref error);
+
+                    if (jfw_orders.Item2.Count > 0)   // indicates incoming file could be processed
                     {
-                        // Push order to 3DCart
-                        var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
-                            configData.Token, configData.Store);
+                        // SM: Oct 16 ** Need to make sure this PO is not duplicate in jfw_orders
+                        OrderTrackingDAL.SaveJFWOrders(configData.ConnectionString, jfw_orders.Item2, file.Name);
 
-                        if (recordInfo.Status == ActionStatus.Failed)
+                        // Send this file via email to the whole group - just in case - may need to take out later.
+                        MandrillMail.SendEmail(configData.MandrilAPIKey,
+                                    "New JFW PO", "See attached file.", "team@autocareguys.com",
+                                    file.FullName, file.Name, file.Extension);
+
+                        // SM: Oct 13: Should we proceed even if error occurs in previous step ?
+                        foreach (var order in jfw_orders.Item1)
                         {
-                            // SM: make it to "support@autocareguys.com"
-                            MandrillMail.SendEmail(configData.MandrilAPIKey, 
-                                "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "support@autocareguys.com"
-                                ,file.FullName,file.Name, file.Extension);
+                            // Push order to 3DCart
+                            var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
+                                configData.Token, configData.Store);
+
+                            if (recordInfo.Status == ActionStatus.Failed)
+                            {
+                                // Email error to "support@autocareguys.com"
+                                MandrillMail.SendEmail(configData.MandrilAPIKey,
+                                    "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "support@autocareguys.com",
+                                    file.FullName, file.Name, file.Extension);
+                            }
+                            order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
                         }
-                        //send an email to support@autocareguys.com
-                        order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
                     }
-                    
-                    //SM sep 8: First check if the file is present in ftp site before trying to delete.
+                    //Delete JFW order file from FTP
                     FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, processedFilePath, file.Name, WebRequestMethods.Ftp.DeleteFile);
-                    // SM: need to make sure that Move will not fail
-
+                    
                     var destFile = "";
-
                     if (!string.IsNullOrEmpty(error))
                     {
-                        // SM: make it to "support@autocareguys.com"
+                        // Email order creation error to "support@autocareguys.com"
                         MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed: " + file.Name, error, "support@autocareguys.com"
                             , file.FullName, file.Name, file.Extension);
                         destFile = errorFilePath + file.Name;
@@ -110,17 +122,20 @@ namespace _3dCartImportConsole
                         if (!File.Exists(destFile))
                             File.Move(file.FullName, destFile);
                     }
-
                 }
                 catch (Exception e)
                 {
-                    // SM: make it to "support@autocareguys.com"
+                    // Email generic error to "support@autocareguys.com"
                     MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "support@autocareguys.com");
                 }
             }
+            #endregion
 
+            #region Create_UpdateOrderFrom3DCart
             OrderDAL.PlaceOrder(configData, true, true, true);
+            #endregion
 
+            #region UpdateStatusUsingCKStatusAPI
             var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted" && ord.order_status ==1);
             CKOrderStatus.Order_StatusSoapClient client = new Order_StatusSoapClient();
             Orders_response Response = new Orders_response();
@@ -133,8 +148,8 @@ namespace _3dCartImportConsole
                     var s = client.Get_OrderStatus_by_PO(configData.CoverKingAPIKey, o.orderno, configData.AuthUserName);
                     if (s.Orders_list != null && s.Orders_list.Length > 0)
                     {
-                        var orderStatus = s.Orders_list[0];
-                        foreach (var partStatus in orderStatus.Parts_list)
+                        var ordersWithStatus = s.Orders_list[0];
+                        foreach (var partStatus in ordersWithStatus.Parts_list)
                         {
                             if (partStatus != null)
                             {
@@ -208,32 +223,42 @@ namespace _3dCartImportConsole
             // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
             //var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
             //OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
+
             var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm") + ".txt";
-            string strFilePath = string.Format("{0}..\\..\\..\\JFW\\", filePath);
-            string strFileNameWithPath = string.Format("{0}\\Tracking\\{1}", strFilePath, jfwFilename);
+            string strFilePath = string.Format("{0}\\JFW\\", filePath);
+            
+            string strFileNameWithPath = string.Format("{0}{1}", JFWTrackingFilePath, jfwFilename);
             //string strTextHeader = "JFW PO_No,Tracking_No";
             //File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
             //var jfwFilteredList = OrderTrackingDAL.GetOrderTracking(configData.ConnectionString);
-            var jfwFilteredList = partList.Where(I => I.Status.ToLower() == "shipped");
+
+            // SM: need to filter only JFW orders. Preferably by BillEmail address. Later these need to be in a separate table.
+            var jfwFilteredList = partList.Where(I => I.Status.ToLower() == "shipped" && I.Customer_PO.ToUpper().StartsWith("ACGA-"));
             if (jfwFilteredList != null && jfwFilteredList.Any())
             {
                 var lastPo = jfwFilteredList.LastOrDefault().Customer_PO;
                 foreach (var jfwOrder in jfwFilteredList)
                 {
-                    string text = string.Format("{0}, {1}", jfwOrder.Customer_PO.Trim(), jfwOrder.Package_No.Trim());
-                    if (jfwOrder.Customer_PO != lastPo)
+                    //SM Oct 21: We need the Original PO - not the PO coming from part status
+                    //  Customer_PO in partstatus is actually the ACG order no
+                    string JFW_PO = OrderDAL.GetCustomerPOFromOrderNo(configData.ConnectionString, jfwOrder.Customer_PO);
+                    if (JFW_PO.Length>0)
                     {
-                        text = text + Environment.NewLine;
+                        string text = string.Format("{0}, {1}", JFW_PO, jfwOrder.Package_No.Trim());
+                        if (jfwOrder.Customer_PO != lastPo)
+                        {
+                            text = text + Environment.NewLine;
+                        }
+                        File.AppendAllText(strFileNameWithPath, text);
                     }
-                    File.AppendAllText(strFileNameWithPath, text);
                 }
-                FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, strFilePath, "\\Tracking\\" + jfwFilename, WebRequestMethods.Ftp.UploadFile);
+                FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, JFWTrackingFilePath, "\\Tracking\\" + jfwFilename, WebRequestMethods.Ftp.UploadFile);
+                // FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, JFWTrackingFilePath, jfwFilename, WebRequestMethods.Ftp.UploadFile);
                 //OrderTrackingDAL.UpdateOrderStatus(configData.ConnectionString, trackingList);
             }
             //File.Delete(strFilePath+ "\\Tracking\\" + jfwFilename);
             //DeleteAllFile(coverKingTrackingPath + "/Tracking");
-            //acga > prefix
-            //170801 > invoice
+            #endregion
         }
 
         static List<List<TempCKVariant>> GetDataTableFromCsv(string path, bool isFirstRowHeader)
@@ -300,7 +325,7 @@ namespace _3dCartImportConsole
                 }
             }
         }
-        public static Tuple<List<Order>, List<jfw_orders>> Get3dCartOrder(string connectionString, string[] lines, customers customer, ref string error)
+        public static Tuple<List<Order>, List<jfw_orders>> Get3dCartOrder(string NewJFWOrderStatusID, string connectionString, string[] lines, customers customer, ref string error)
         {
             if (acg_invoicenum == null)
             {
@@ -310,7 +335,7 @@ namespace _3dCartImportConsole
             List<jfw_orders> jfw_order_list = new List<jfw_orders>();
             Order order = new Order();
             order.InvoiceNumberPrefix = "ACGA-";
-            order.OrderStatusID = 1;//Was 11 - Unpaid, now New - 1
+            order.OrderStatusID = Convert.ToInt32(NewJFWOrderStatusID);  //SM: READ from Config data, so we can control order creation from outside.
             order.Referer = "PHONE ORDER";
             order.SalesPerson = "RB";
             order.OrderDate = DateTime.Now;
@@ -331,6 +356,14 @@ namespace _3dCartImportConsole
                     orderSer.OrderItemList = new List<OrderItem>();
                     orderSer.ShipmentList = new List<Shipment>();
                     var jfw_order_map = GenerateOrder(connectionString, orderSer, lines[0], lines[i], ref noOfItems, ref tempError);
+                    //SM: Note that jfw_order_map may return two empty objects if lines cannot be processed
+                    if (noOfItems == 0)
+                    {
+                        error += Environment.NewLine + tempError;
+                        break;   // exit out of processing more lines.
+                    }
+                        
+                    
                     if (string.IsNullOrEmpty(tempError))
                     {
                         orderSer = jfw_order_map.Item1;
@@ -340,6 +373,7 @@ namespace _3dCartImportConsole
                         error += Environment.NewLine + tempError;
 
                     jfw_order_list.Add(jfw_order_map.Item2);
+                    
                 }
             }
             return Tuple.Create(orderList, jfw_order_list);
@@ -383,6 +417,21 @@ namespace _3dCartImportConsole
             var ship = new Shipment();
             var jfwOrder = new jfw_orders();
             string buyer = "500";
+            noOfItems = 0;
+
+            //SM: Oct 21: Need to check if header and lines have the same no of elements
+            if (splitText.Length != length)
+            {
+                // cannot process, return empty order with error
+                if (!string.IsNullOrEmpty(error))
+                {
+                    error = error + Environment.NewLine;
+                }
+                error += string.Format("Incoming PO File header and line do not have same number of items: \r\n  Header items:{0}, Line Items: {1}",
+                    length, splitText.Length);
+                return Tuple.Create(order, jfwOrder);
+            }
+
             // Sep 7, Sam: take both formats - emailed or downloaded
             for (int i = 0; i< length; i++)
             {
@@ -558,7 +607,7 @@ namespace _3dCartImportConsole
                         {
                             error = error + Environment.NewLine;
                         }
-                        string thiserror = string.Format("Product does not exist in local db: \r\n  SKU:{0}, JFW PO No {1},  PO date: {2}, Ship to: {3} \r\n" ,
+                        string thiserror = string.Format("Product does not exist in the system: \r\n  SKU:{0}, JFW PO No {1},  PO date: {2}, Ship to: {3} \r\n" ,
                             order.SKU, jfwOrder.PO, jfwOrder.PO_Date, jfwOrder.Ship_Name);
                         error += thiserror;
                     }
@@ -581,7 +630,7 @@ namespace _3dCartImportConsole
                         {
                             error = error + Environment.NewLine;
                         }
-                        string thiserror = string.Format("Variant does not exist in local db. \r\n  SKU:{0}, ItemNo: {4}, JFW PO No {1},  PO date: {2}, Ship to: {3} \r\n",
+                        string thiserror = string.Format("SKU does not exist the system. \r\n  SKU:{0}, ItemNo: {4}, JFW PO No {1},  PO date: {2}, Ship to: {3} \r\n",
                             order.SKU, jfwOrder.PO, jfwOrder.PO_Date, jfwOrder.Ship_Name, orderItem.ItemID);
                         error += thiserror;
 
@@ -592,7 +641,7 @@ namespace _3dCartImportConsole
                     order.CustomerComments = string.Format("PO NO: {0}; Buyer: {1}", order.PONo, buyer);
                     order.OrderItemList.Add(orderItem);
                     order.ShipmentList.Add(ship);
-                    //todo: Keep it commented for now
+                    
                     if (noOfItems > 1)
                     {
                         noOfItems = noOfItems - 1;
@@ -622,7 +671,9 @@ namespace _3dCartImportConsole
                 CoverKingAPIKey = ConfigurationManager.AppSettings["CoverKingAPIKey"],
                 _3dCartFTPAddress = ConfigurationManager.AppSettings["3dCartFTPAddress"],
                 _3dCartFTPUserName = ConfigurationManager.AppSettings["3dCartFTPUserName"],
-                _3dCartFTPPassword = ConfigurationManager.AppSettings["3dCartFTPPassword"]
+                _3dCartFTPPassword = ConfigurationManager.AppSettings["3dCartFTPPassword"],
+                CKOrderFolder = ConfigurationManager.AppSettings["CKOrderFolder"],
+                NewJFWOrderStatusID = ConfigurationManager.AppSettings["JFWNewOrderStatus"]
             };
         }
 
