@@ -62,6 +62,8 @@ namespace _3dCartImportConsole
 
             // Comment / uncomment for processing JFW incoming orders 
             #region ProcessJFWOrderFile
+            //First Sync orders but DO NOT create orders or upload order files
+            OrderDAL.PlaceOrder(configData, true, false, false);
             //Download order from JFW FTP and place order
             var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
             acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
@@ -74,7 +76,7 @@ namespace _3dCartImportConsole
                     string text = File.ReadAllText(file.FullName);
                     string[] lines = text.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
                     string error = string.Empty;
-                    var jfw_orders = Get3dCartOrder(configData.NewJFWOrderStatusID,configData.ConnectionString, lines, customer, ref error);
+                    var jfw_orders = Get3dCartOrder(configData.NewJFWOrderStatusID, configData.ConnectionString, lines, customer, ref error);
 
                     if (jfw_orders.Item2.Count > 0)   // indicates incoming file could be processed
                     {
@@ -105,7 +107,7 @@ namespace _3dCartImportConsole
                     }
                     //Delete JFW order file from FTP
                     FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, processedFilePath, file.Name, WebRequestMethods.Ftp.DeleteFile);
-                    
+
                     var destFile = "";
                     if (!string.IsNullOrEmpty(error))
                     {
@@ -132,11 +134,12 @@ namespace _3dCartImportConsole
             #endregion
 
             #region Create_UpdateOrderFrom3DCart
-            OrderDAL.PlaceOrder(configData, true, true, true);
+            // Get ONLY new orders, create order file and upload
+            OrderDAL.PlaceOrder(configData, false, true, true);
             #endregion
 
             #region UpdateStatusUsingCKStatusAPI
-            var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted" && ord.order_status ==1);
+            var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted" && ord.order_status == 1);
             CKOrderStatus.Order_StatusSoapClient client = new Order_StatusSoapClient();
             Orders_response Response = new Orders_response();
             List<Parts> partList = new List<Parts>();
@@ -177,7 +180,7 @@ namespace _3dCartImportConsole
                                     //     "cs@autocareguys.com");
                                     // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.billemail,
                                     //     "cs@autocareguys.com");
-                                
+
                                     List<Shipment> li = new List<Shipment>();
                                     foreach (var ship in o.order_shipments)
                                     {
@@ -208,14 +211,14 @@ namespace _3dCartImportConsole
                                 }
                             }
                         }
-                        
+
                     }
                     //send email only if shipped
                     //update shipping information on 3dcart
                 }
                 catch (Exception e)
                 {
-                    
+
                 }
             }
             // Process Tracking information - Not needed any more
@@ -226,7 +229,7 @@ namespace _3dCartImportConsole
 
             var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm") + ".txt";
             string strFilePath = string.Format("{0}\\JFW\\", filePath);
-            
+
             string strFileNameWithPath = string.Format("{0}{1}", JFWTrackingFilePath, jfwFilename);
             //string strTextHeader = "JFW PO_No,Tracking_No";
             //File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
@@ -242,7 +245,7 @@ namespace _3dCartImportConsole
                     //SM Oct 21: We need the Original PO - not the PO coming from part status
                     //  Customer_PO in partstatus is actually the ACG order no
                     string JFW_PO = OrderDAL.GetCustomerPOFromOrderNo(configData.ConnectionString, jfwOrder.Customer_PO);
-                    if (JFW_PO.Length>0)
+                    if (JFW_PO.Length > 0)
                     {
                         string text = string.Format("{0}, {1}", JFW_PO, jfwOrder.Package_No.Trim());
                         if (jfwOrder.Customer_PO != lastPo)
