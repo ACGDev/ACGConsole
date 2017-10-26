@@ -60,7 +60,7 @@ namespace AutoCarOperations.DAL
 
     public class CommonConstant
     {
-        public const int NumOfDays = -2;
+        public int NumOfDays = -2;
         public const string EmailFrom = "billing@autocareguys.com";
     }
 }

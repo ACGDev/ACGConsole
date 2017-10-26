@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.Data;
 using System.Data.OleDb;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Text;
+using System.Threading.Tasks;
 using AutoCarOperations;
 using AutoCarOperations.DAL;
 using AutoCarOperations.Model;
@@ -29,13 +32,14 @@ namespace _3dCartImportConsole
                 if (SegmentToProcess.StartsWith("/"))
                     SegmentToProcess = SegmentToProcess.Replace("/", "");
                 if (SegmentToProcess.StartsWith("-"))
-                    SegmentToProcess = SegmentToProcess.Replace("/", "");
+                                    SegmentToProcess = SegmentToProcess.Replace("/", "");
 
                 if (args.Length > 1 && SegmentToProcess == "2")
                     numDaysToSync = Convert.ToInt16(args[1]);
 
             }
-            if (String.IsNullOrEmpty(SegmentToProcess))
+            
+            if (String.IsNullOrEmpty(SegmentToProcess ) )
             {
                 Console.WriteLine("Usage: ");
                 Console.WriteLine(" ACGOrderProcessing 1  := Process JFW Orders ");
@@ -43,7 +47,7 @@ namespace _3dCartImportConsole
                 Console.WriteLine(" ACGOrderProcessing 3: Update Order status from CK and create/upload JFW Tracking info ");
                 return;
             }
-
+            
             ConfigurationData configData = GetConfigurationDetails();
             string filePath =
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
@@ -81,22 +85,24 @@ namespace _3dCartImportConsole
             #endregion
 
             #region ProcessJFWOrderFile
-            if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess == "1")
+            if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess =="1")
             {
 
                 //First Sync orders but DO NOT create orders or upload order files
-                Console.WriteLine("\r\nProcessing JFW Orders. First sync 3DCart orders to get the last JFW order.");
+                Console.WriteLine("\r\nProcessing JFW Orders. First sync 3DCart orders to get the latest JFW order.");
                 OrderDAL.PlaceOrder(configData, true, false, false);
                 //Download order from JFW FTP and place order
                 var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
                 acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
-                Console.WriteLine(string.Format("  New Invoice no from "));
+                Console.WriteLine(string.Format("  New Invoice no for JFW starting with {0} ", acg_invoicenum+1));
+                Console.WriteLine("  Downloading JFW Orders from ftp ");
                 FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
                 DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
                 foreach (var file in dir.GetFiles("*.txt"))
                 {
                     try
                     {
+                        Console.WriteLine(string.Format("\r\n  Processing Order File {0} ", file.Name));
                         string text = File.ReadAllText(file.FullName);
                         string[] lines = text.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
                         string error = string.Empty;
@@ -108,6 +114,7 @@ namespace _3dCartImportConsole
                             OrderTrackingDAL.SaveJFWOrders(configData.ConnectionString, jfw_orders.Item2, file.Name);
 
                             // Send this file via email to the whole group - just in case - may need to take out later.
+                            Console.WriteLine(string.Format("  Emailing Order file to Team: ", file.Name));
                             MandrillMail.SendEmail(configData.MandrilAPIKey,
                                         "New JFW PO", "See attached file.", "team@autocareguys.com",
                                         file.FullName, file.Name, file.Extension);
@@ -116,12 +123,14 @@ namespace _3dCartImportConsole
                             foreach (var order in jfw_orders.Item1)
                             {
                                 // Push order to 3DCart
+                                Console.WriteLine(string.Format("  Creating 3DCart Order for {0}-{1} ", order.InvoiceNumberPrefix, order.InvoiceNumber));
                                 var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
                                     configData.Token, configData.Store);
 
                                 if (recordInfo.Status == ActionStatus.Failed)
                                 {
                                     // Email error to "support@autocareguys.com"
+                                    Console.WriteLine(string.Format("    ** 3DCart Order creation failed "));
                                     MandrillMail.SendEmail(configData.MandrilAPIKey,
                                         "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "support@autocareguys.com",
                                         file.FullName, file.Name, file.Extension);
@@ -130,12 +139,14 @@ namespace _3dCartImportConsole
                             }
                         }
                         //Delete JFW order file from FTP
+                        Console.WriteLine(string.Format("    Deleting JFW PO file from ftp: {0} ", file.Name));
                         FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, processedFilePath, file.Name, WebRequestMethods.Ftp.DeleteFile);
 
                         var destFile = "";
                         if (!string.IsNullOrEmpty(error))
                         {
                             // Email order creation error to "support@autocareguys.com"
+                            Console.WriteLine(string.Format("    Sending error email to Support "));
                             MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed: " + file.Name, error, "support@autocareguys.com"
                                 , file.FullName, file.Name, file.Extension);
                             destFile = errorFilePath + file.Name;
@@ -152,6 +163,7 @@ namespace _3dCartImportConsole
                     catch (Exception e)
                     {
                         // Email generic error to "support@autocareguys.com"
+                        Console.WriteLine(string.Format("    Unexpected message {0} ", e.Message));
                         MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "support@autocareguys.com");
                     }
                 }
@@ -164,7 +176,7 @@ namespace _3dCartImportConsole
             {
                 Console.WriteLine("\r\n*** Fetching 3D Cart Order and Creating CK Orders");
                 // Get ONLY new orders, create order file and upload
-                OrderDAL.PlaceOrder(configData, false, true, true);
+                OrderDAL.PlaceOrder(configData, false, true, true, null, numDaysToSync);
             }
             #endregion
 
@@ -465,6 +477,7 @@ namespace _3dCartImportConsole
                 }
                 error += string.Format("Incoming PO File header and line do not have same number of items: \r\n  Header items:{0}, Line Items: {1}",
                     length, splitText.Length);
+                Console.WriteLine(string.Format("  ** Error in processing order {0} \r\n   ", error));
                 return Tuple.Create(order, jfwOrder);
             }
 
@@ -645,6 +658,7 @@ namespace _3dCartImportConsole
                         }
                         string thiserror = string.Format("Product does not exist in the system: \r\n  SKU:{0}, JFW PO No {1},  PO date: {2}, Ship to: {3} \r\n" ,
                             order.SKU, jfwOrder.PO, jfwOrder.PO_Date, jfwOrder.Ship_Name);
+                        Console.WriteLine(string.Format("  ** Error in processing order {0} \r\n   ", thiserror));
                         error += thiserror;
                     }
                     var ckVariant = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
@@ -668,6 +682,7 @@ namespace _3dCartImportConsole
                         }
                         string thiserror = string.Format("SKU does not exist the system. \r\n  SKU:{0}, ItemNo: {4}, JFW PO No {1},  PO date: {2}, Ship to: {3} \r\n",
                             order.SKU, jfwOrder.PO, jfwOrder.PO_Date, jfwOrder.Ship_Name, orderItem.ItemID);
+                        Console.WriteLine(string.Format("  ** Error in processing order {0} \r\n   ", thiserror));
                         error += thiserror;
 
                     }
@@ -682,11 +697,38 @@ namespace _3dCartImportConsole
                     {
                         noOfItems = noOfItems - 1;
                         GenerateOrder(connectionString, order, header, text, ref noOfItems, ref error);
+                        Console.WriteLine(string.Format("  JFW PO {2} Order No {0}-{1} ", order.InvoiceNumberPrefix, order.InvoiceNumber, order.PONo));
                     }
                 }
             }
             return Tuple.Create(order, jfwOrder);
         }
+        public static ConfigurationData GetConfigurationDetails()
+        {
+            return new ConfigurationData
+            {
+                ConnectionString = ConfigurationManager.ConnectionStrings["mysqlconnection"].ConnectionString,
+                PrivateKey = ConfigurationManager.AppSettings["PrivateKey"],
+                Store = ConfigurationManager.AppSettings["Store"],
+                Token = ConfigurationManager.AppSettings["Token"],
+                AuthUserName = ConfigurationManager.AppSettings["AuthUserName"],
+                AuthPassowrd = ConfigurationManager.AppSettings["AuthPassowrd"],
+                FTPAddress = ConfigurationManager.AppSettings["FTPAddress"],
+                FTPUserName = ConfigurationManager.AppSettings["FTPUserName"],
+                FTPPassword = ConfigurationManager.AppSettings["FTPPassword"],
+                MandrilAPIKey = ConfigurationManager.AppSettings["MandrilAPIKey"],
+                JFWFTPAddress = ConfigurationManager.AppSettings["JFWFTPAddress"],
+                JFWFTPUserName = ConfigurationManager.AppSettings["JFWFTPUserName"],
+                JFWFTPPassword = ConfigurationManager.AppSettings["JFWFTPPassword"],
+                CoverKingAPIKey = ConfigurationManager.AppSettings["CoverKingAPIKey"],
+                _3dCartFTPAddress = ConfigurationManager.AppSettings["3dCartFTPAddress"],
+                _3dCartFTPUserName = ConfigurationManager.AppSettings["3dCartFTPUserName"],
+                _3dCartFTPPassword = ConfigurationManager.AppSettings["3dCartFTPPassword"],
+                CKOrderFolder = ConfigurationManager.AppSettings["CKOrderFolder"],
+                NewJFWOrderStatusID = ConfigurationManager.AppSettings["JFWNewOrderStatus"]
+            };
+        }
+
         public static List<order_tracking> ReadTrackingFile(string filePath)
         {
             DirectoryInfo dir = new DirectoryInfo(filePath);
@@ -751,31 +793,6 @@ namespace _3dCartImportConsole
             return orderTrackingList;
         }
 
-        public static ConfigurationData GetConfigurationDetails()
-        {
-            return new ConfigurationData
-            {
-                ConnectionString = ConfigurationManager.ConnectionStrings["mysqlconnection"].ConnectionString,
-                PrivateKey = ConfigurationManager.AppSettings["PrivateKey"],
-                Store = ConfigurationManager.AppSettings["Store"],
-                Token = ConfigurationManager.AppSettings["Token"],
-                AuthUserName = ConfigurationManager.AppSettings["AuthUserName"],
-                AuthPassowrd = ConfigurationManager.AppSettings["AuthPassowrd"],
-                FTPAddress = ConfigurationManager.AppSettings["FTPAddress"],
-                FTPUserName = ConfigurationManager.AppSettings["FTPUserName"],
-                FTPPassword = ConfigurationManager.AppSettings["FTPPassword"],
-                MandrilAPIKey = ConfigurationManager.AppSettings["MandrilAPIKey"],
-                JFWFTPAddress = ConfigurationManager.AppSettings["JFWFTPAddress"],
-                JFWFTPUserName = ConfigurationManager.AppSettings["JFWFTPUserName"],
-                JFWFTPPassword = ConfigurationManager.AppSettings["JFWFTPPassword"],
-                CoverKingAPIKey = ConfigurationManager.AppSettings["CoverKingAPIKey"],
-                _3dCartFTPAddress = ConfigurationManager.AppSettings["3dCartFTPAddress"],
-                _3dCartFTPUserName = ConfigurationManager.AppSettings["3dCartFTPUserName"],
-                _3dCartFTPPassword = ConfigurationManager.AppSettings["3dCartFTPPassword"],
-                CKOrderFolder = ConfigurationManager.AppSettings["CKOrderFolder"],
-                NewJFWOrderStatusID = ConfigurationManager.AppSettings["JFWNewOrderStatus"]
-            };
-        }
         public static void DeleteAllFile(string filePath)
         {
             DirectoryInfo dir = new DirectoryInfo(filePath);
