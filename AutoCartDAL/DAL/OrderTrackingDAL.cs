@@ -18,6 +18,7 @@ namespace AutoCarOperations.DAL
             {
                 foreach (var order in orders)
                 {
+                    Console.WriteLine(string.Format("  Storing JFW PO to JFW table {0} ", order.PO));
                     order.Filename = filename;
                     context.JFWOrders.Add(order);
                 }

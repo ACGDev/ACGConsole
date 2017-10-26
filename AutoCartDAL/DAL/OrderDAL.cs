@@ -48,11 +48,11 @@ namespace AutoCarOperations.DAL
         }
 
         //SM: Oct  ReWritten to upload one order at a time - to avoid holding up all orders for problem in a specific one
-        public static void PlaceOrder(ConfigurationData configData, bool fetchDate = true, bool prepareFile = true, bool uploadFile = true, List<orders> orderList = null)
+        public static void PlaceOrder(ConfigurationData configData, bool fetchDate = true, bool prepareFile = true, bool uploadFile = true, List<orders> orderList = null, int numDaysToSync = 2)
         {
             if (orderList == null)
             {
-                orderList = SyncOrders(configData, fetchDate); // orderlist now contains ONLY new orders
+                orderList = SyncOrders(configData, fetchDate, numDaysToSync); // orderlist now contains ONLY new orders
                 Console.WriteLine("  Sync Order complete. ");
             }
             if (prepareFile && orderList.Count > 0)
@@ -109,9 +109,9 @@ namespace AutoCarOperations.DAL
         /// <param name="config"></param>
         /// <param name="fetchDate"></param>
         /// <returns></returns>
-        private static List<orders> SyncOrders(ConfigurationData config, bool fetchDate)
+        private static List<orders> SyncOrders(ConfigurationData config, bool fetchDate, int numDaysToSync = 2)
         {
-            var strOrderStart = FetchLastOrderDate(config.ConnectionString, fetchDate);
+            var strOrderStart = FetchLastOrderDate(config.ConnectionString, fetchDate, numDaysToSync);
             Console.WriteLine(string.Format("  Syncing orders from 3DCart starting {0}", strOrderStart));
             List<Order> orders_fromsite = new List<Order>();
             var skip = 0;
@@ -341,7 +341,11 @@ namespace AutoCarOperations.DAL
                 {
                     thisLocalOrder = context.Orders.FirstOrDefault(i => i.orderno == thisOrderNoFrom3DCart);
                     if (thisLocalOrder != null && thisLocalOrder.order_status == order.OrderStatusID)
-                        continue;
+                    {
+                        if ( ! (thisLocalOrder.order_status == 1 && thisLocalOrder.shipcomplete.ToLower()=="pending"))
+                            continue;
+                    }
+                        
                 }
                 if (thisLocalOrder == null)
                     Console.WriteLine(string.Format(" 3D Cart Order {0}-{1} will be added ", order.InvoiceNumberPrefix,order.InvoiceNumber));
@@ -470,9 +474,9 @@ namespace AutoCarOperations.DAL
         /// <param name="myConnectionString"></param>
         /// <param name="fetchDate"></param>
         /// <returns></returns>
-        private static string FetchLastOrderDate(string myConnectionString, bool fetchDate)
+        private static string FetchLastOrderDate(string myConnectionString, bool fetchDate, int numDaysToSync = 2)
         {
-            string strOrderStart = DateTime.Today.AddDays(CommonConstant.NumOfDays).ToString("MM/dd/yyyy");
+            string strOrderStart = DateTime.Today.AddDays(-numDaysToSync).ToString("MM/dd/yyyy");
             if (!fetchDate)
             {
                 return strOrderStart;
