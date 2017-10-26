@@ -22,8 +22,31 @@ namespace _3dCartImportConsole
     class Program
     {
         private static int? acg_invoicenum;
+        public static int numDaysToSync = 2;
         static void Main(string[] args)
         {
+            var SegmentToProcess = string.Empty;  // 1: Import JFW orders, 2: PlaceOrder, 3: UpdateOrderStatus from CK API, ALL: All
+            if (args.Length > 0)
+            {
+                SegmentToProcess = args[0];
+                if (SegmentToProcess.StartsWith("/"))
+                    SegmentToProcess = SegmentToProcess.Replace("/", "");
+                if (SegmentToProcess.StartsWith("-"))
+                                    SegmentToProcess = SegmentToProcess.Replace("/", "");
+
+                if (args.Length > 1 && SegmentToProcess == "2")
+                    numDaysToSync = Convert.ToInt16(args[1]);
+
+            }
+            if (String.IsNullOrEmpty(SegmentToProcess ) )
+            {
+                Console.WriteLine("Usage: ");
+                Console.WriteLine(" ACGOrderProcessing 1  := Process JFW Orders ");
+                Console.WriteLine(" ACGOrderProcessing 2 [<numDays>] := Import 3D Cart orders and create CK Orders. <numDays>: Number of days to go back for order sync");
+                Console.WriteLine(" ACGOrderProcessing 3: Update Order status from CK and create/upload JFW Tracking info ");
+                return;
+            }
+            
             ConfigurationData configData = GetConfigurationDetails();
             string filePath =
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
@@ -60,204 +83,217 @@ namespace _3dCartImportConsole
             ***/
             #endregion
 
-            // Comment / uncomment for processing JFW incoming orders 
             #region ProcessJFWOrderFile
-            //First Sync orders but DO NOT create orders or upload order files
-            OrderDAL.PlaceOrder(configData, true, false, false);
-            //Download order from JFW FTP and place order
-            var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
-            acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
-            FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
-            DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
-            foreach (var file in dir.GetFiles("*.txt"))
+            if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess =="1")
             {
-                try
+
+                //First Sync orders but DO NOT create orders or upload order files
+                Console.WriteLine("\r\nProcessing JFW Orders. First sync 3DCart orders to get the last JFW order.");
+                OrderDAL.PlaceOrder(configData, true, false, false);
+                //Download order from JFW FTP and place order
+                var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
+                acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
+                Console.WriteLine(string.Format("  New Invoice no from ");
+                FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
+                DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
+                foreach (var file in dir.GetFiles("*.txt"))
                 {
-                    string text = File.ReadAllText(file.FullName);
-                    string[] lines = text.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
-                    string error = string.Empty;
-                    var jfw_orders = Get3dCartOrder(configData.NewJFWOrderStatusID, configData.ConnectionString, lines, customer, ref error);
-
-                    if (jfw_orders.Item2.Count > 0)   // indicates incoming file could be processed
+                    try
                     {
-                        // SM: Oct 16 ** Need to make sure this PO is not duplicate in jfw_orders
-                        OrderTrackingDAL.SaveJFWOrders(configData.ConnectionString, jfw_orders.Item2, file.Name);
+                        string text = File.ReadAllText(file.FullName);
+                        string[] lines = text.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
+                        string error = string.Empty;
+                        var jfw_orders = Get3dCartOrder(configData.NewJFWOrderStatusID, configData.ConnectionString, lines, customer, ref error);
 
-                        // Send this file via email to the whole group - just in case - may need to take out later.
-                        MandrillMail.SendEmail(configData.MandrilAPIKey,
-                                    "New JFW PO", "See attached file.", "team@autocareguys.com",
-                                    file.FullName, file.Name, file.Extension);
-
-                        // SM: Oct 13: Should we proceed even if error occurs in previous step ?
-                        foreach (var order in jfw_orders.Item1)
+                        if (jfw_orders.Item2.Count > 0)   // indicates incoming file could be processed
                         {
-                            // Push order to 3DCart
-                            var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
-                                configData.Token, configData.Store);
+                            // SM: Oct 16 ** Need to make sure this PO is not duplicate in jfw_orders
+                            OrderTrackingDAL.SaveJFWOrders(configData.ConnectionString, jfw_orders.Item2, file.Name);
 
-                            if (recordInfo.Status == ActionStatus.Failed)
+                            // Send this file via email to the whole group - just in case - may need to take out later.
+                            MandrillMail.SendEmail(configData.MandrilAPIKey,
+                                        "New JFW PO", "See attached file.", "team@autocareguys.com",
+                                        file.FullName, file.Name, file.Extension);
+
+                            // SM: Oct 13: Should we proceed even if error occurs in previous step ?
+                            foreach (var order in jfw_orders.Item1)
                             {
-                                // Email error to "support@autocareguys.com"
-                                MandrillMail.SendEmail(configData.MandrilAPIKey,
-                                    "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "support@autocareguys.com",
-                                    file.FullName, file.Name, file.Extension);
+                                // Push order to 3DCart
+                                var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
+                                    configData.Token, configData.Store);
+
+                                if (recordInfo.Status == ActionStatus.Failed)
+                                {
+                                    // Email error to "support@autocareguys.com"
+                                    MandrillMail.SendEmail(configData.MandrilAPIKey,
+                                        "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "support@autocareguys.com",
+                                        file.FullName, file.Name, file.Extension);
+                                }
+                                order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
                             }
-                            order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
+                        }
+                        //Delete JFW order file from FTP
+                        FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, processedFilePath, file.Name, WebRequestMethods.Ftp.DeleteFile);
+
+                        var destFile = "";
+                        if (!string.IsNullOrEmpty(error))
+                        {
+                            // Email order creation error to "support@autocareguys.com"
+                            MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed: " + file.Name, error, "support@autocareguys.com"
+                                , file.FullName, file.Name, file.Extension);
+                            destFile = errorFilePath + file.Name;
+                            if (!File.Exists(destFile))
+                                File.Move(file.FullName, destFile);
+                        }
+                        else
+                        {
+                            destFile = processedFilePath + file.Name;
+                            if (!File.Exists(destFile))
+                                File.Move(file.FullName, destFile);
                         }
                     }
-                    //Delete JFW order file from FTP
-                    FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, processedFilePath, file.Name, WebRequestMethods.Ftp.DeleteFile);
-
-                    var destFile = "";
-                    if (!string.IsNullOrEmpty(error))
+                    catch (Exception e)
                     {
-                        // Email order creation error to "support@autocareguys.com"
-                        MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed: " + file.Name, error, "support@autocareguys.com"
-                            , file.FullName, file.Name, file.Extension);
-                        destFile = errorFilePath + file.Name;
-                        if (!File.Exists(destFile))
-                            File.Move(file.FullName, destFile);
+                        // Email generic error to "support@autocareguys.com"
+                        MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "support@autocareguys.com");
                     }
-                    else
-                    {
-                        destFile = processedFilePath + file.Name;
-                        if (!File.Exists(destFile))
-                            File.Move(file.FullName, destFile);
-                    }
-                }
-                catch (Exception e)
-                {
-                    // Email generic error to "support@autocareguys.com"
-                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "support@autocareguys.com");
                 }
             }
             #endregion
 
+
             #region Create_UpdateOrderFrom3DCart
-            // Get ONLY new orders, create order file and upload
-            OrderDAL.PlaceOrder(configData, false, true, true);
+            if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess == "2")
+            {
+                Console.WriteLine("\r\n*** Fetching 3D Cart Order and Creating CK Orders");
+                // Get ONLY new orders, create order file and upload
+                OrderDAL.PlaceOrder(configData, false, true, true);
+            }
             #endregion
 
             #region UpdateStatusUsingCKStatusAPI
-            var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted" && ord.order_status == 1);
-            CKOrderStatus.Order_StatusSoapClient client = new Order_StatusSoapClient();
-            Orders_response Response = new Orders_response();
-            List<Parts> partList = new List<Parts>();
-            //todo:group 5 orders
-            foreach (var o in orders)
+            if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess == "3")
             {
-                try
+                var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted" && ord.order_status == 1);
+                CKOrderStatus.Order_StatusSoapClient client = new Order_StatusSoapClient();
+                Orders_response Response = new Orders_response();
+                List<Parts> partList = new List<Parts>();
+                //todo:group 5 orders
+                foreach (var o in orders)
                 {
-                    var s = client.Get_OrderStatus_by_PO(configData.CoverKingAPIKey, o.orderno, configData.AuthUserName);
-                    if (s.Orders_list != null && s.Orders_list.Length > 0)
+                    try
                     {
-                        var ordersWithStatus = s.Orders_list[0];
-                        foreach (var partStatus in ordersWithStatus.Parts_list)
+                        var s = client.Get_OrderStatus_by_PO(configData.CoverKingAPIKey, o.orderno, configData.AuthUserName);
+                        if (s.Orders_list != null && s.Orders_list.Length > 0)
                         {
-                            if (partStatus != null)
+                            var ordersWithStatus = s.Orders_list[0];
+                            foreach (var partStatus in ordersWithStatus.Parts_list)
                             {
-                                //SM: Ignore cancelled status from CK API. This may be because the order was temporarily cancelled.
-                                if (partStatus.Status.ToLower() == "cancelled")
-                                    continue;
-
-                                var sequenceNo = 1;
-                                bool statusChanged = OrderDAL.UpdateOrderDetail(configData.ConnectionString, o.orderno, partStatus.Serial_No,
-                                    partStatus.Status, partStatus.Shipping_agent_used,
-                                    partStatus.Shipping_agent_service_used,
-                                    partStatus.Package_No, partStatus.Package_link, partStatus.ItemNo, partStatus.VariantID, sequenceNo);
-                                sequenceNo += 1;
-                                if (statusChanged)
+                                if (partStatus != null)
                                 {
-                                    partList.Add(partStatus);
-                                }
-                                continue;   //****** Temporary to avoid SHipment problem
+                                    //SM: Ignore cancelled status from CK API. This may be because the order was temporarily cancelled.
+                                    if (partStatus.Status.ToLower() == "cancelled")
+                                        continue;
 
-                                if (partStatus.Status.ToLower() == "shipped")
-                                {
-                                    //TODO: Need to have template for sending ship confirmation to customers
-
-                                    // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.shipemail,
-                                    //     "cs@autocareguys.com");
-                                    // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.billemail,
-                                    //     "cs@autocareguys.com");
-
-                                    List<Shipment> li = new List<Shipment>();
-                                    foreach (var ship in o.order_shipments)
+                                    var sequenceNo = 1;
+                                    bool statusChanged = OrderDAL.UpdateOrderDetail(configData.ConnectionString, o.orderno, partStatus.Serial_No,
+                                        partStatus.Status, partStatus.Shipping_agent_used,
+                                        partStatus.Shipping_agent_service_used,
+                                        partStatus.Package_No, partStatus.Package_link, partStatus.ItemNo, partStatus.VariantID, sequenceNo);
+                                    sequenceNo += 1;
+                                    if (statusChanged)
                                     {
-                                        li.Add(new Shipment()
-                                        {
-                                            ShipmentCity = o.shipcity,
-                                            ShipmentFirstName = o.shipfirstname,
-                                            ShipmentCountry = o.shipcountry,
-                                            ShipmentCost = o.shipcost,
-                                            ShipmentAddress2 = o.shipaddress2,
-                                            ShipmentState = o.shipstate,
-                                            ShipmentPhone = o.shipphone,
-                                            ShipmentAddress = o.shipaddress,
-                                            ShipmentCompany = o.shipcompany,
-                                            ShipmentEmail = o.shipemail,
-                                            ShipmentID = o.order_shipments != null && o.order_shipments.Count > 0 ? o.order_shipments[0].shipping_id : null,
-                                            ShipmentLastName = o.shiplastname,
-                                            ShipmentMethodID = o.shipmethodid,
-                                            ShipmentZipCode = o.shipzip,
-                                            ShipmentTrackingCode = o.order_shipments != null
-                                                && o.order_shipments.Count > 0 ? o.order_shipments[0].trackingcode
-                                                : null
-                                        });
+                                        partList.Add(partStatus);
                                     }
-                                    //Update Shipment Information
-                                    RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
-                                        configData.Store, o.order_id);
+                                    continue;   //****** Temporary to avoid SHipment problem
+
+                                    if (partStatus.Status.ToLower() == "shipped")
+                                    {
+                                        //TODO: Need to have template for sending ship confirmation to customers
+
+                                        // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.shipemail,
+                                        //     "cs@autocareguys.com");
+                                        // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.billemail,
+                                        //     "cs@autocareguys.com");
+
+                                        List<Shipment> li = new List<Shipment>();
+                                        foreach (var ship in o.order_shipments)
+                                        {
+                                            li.Add(new Shipment()
+                                            {
+                                                ShipmentCity = o.shipcity,
+                                                ShipmentFirstName = o.shipfirstname,
+                                                ShipmentCountry = o.shipcountry,
+                                                ShipmentCost = o.shipcost,
+                                                ShipmentAddress2 = o.shipaddress2,
+                                                ShipmentState = o.shipstate,
+                                                ShipmentPhone = o.shipphone,
+                                                ShipmentAddress = o.shipaddress,
+                                                ShipmentCompany = o.shipcompany,
+                                                ShipmentEmail = o.shipemail,
+                                                ShipmentID = o.order_shipments != null && o.order_shipments.Count > 0 ? o.order_shipments[0].shipping_id : null,
+                                                ShipmentLastName = o.shiplastname,
+                                                ShipmentMethodID = o.shipmethodid,
+                                                ShipmentZipCode = o.shipzip,
+                                                ShipmentTrackingCode = o.order_shipments != null
+                                                    && o.order_shipments.Count > 0 ? o.order_shipments[0].trackingcode
+                                                    : null
+                                            });
+                                        }
+                                        //Update Shipment Information
+                                        RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
+                                            configData.Store, o.order_id);
+                                    }
                                 }
                             }
+
                         }
-
+                        //send email only if shipped
+                        //update shipping information on 3dcart
                     }
-                    //send email only if shipped
-                    //update shipping information on 3dcart
-                }
-                catch (Exception e)
-                {
-
-                }
-            }
-            // Process Tracking information - Not needed any more
-            //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 20);
-            // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
-            //var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
-            //OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
-
-            var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm") + ".txt";
-            string strFilePath = string.Format("{0}\\JFW\\", filePath);
-
-            string strFileNameWithPath = string.Format("{0}{1}", JFWTrackingFilePath, jfwFilename);
-            //string strTextHeader = "JFW PO_No,Tracking_No";
-            //File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
-            //var jfwFilteredList = OrderTrackingDAL.GetOrderTracking(configData.ConnectionString);
-
-            // SM: need to filter only JFW orders. Preferably by BillEmail address. Later these need to be in a separate table.
-            var jfwFilteredList = partList.Where(I => I.Status.ToLower() == "shipped" && I.Customer_PO.ToUpper().StartsWith("ACGA-"));
-            if (jfwFilteredList != null && jfwFilteredList.Any())
-            {
-                var lastPo = jfwFilteredList.LastOrDefault().Customer_PO;
-                foreach (var jfwOrder in jfwFilteredList)
-                {
-                    //SM Oct 21: We need the Original PO - not the PO coming from part status
-                    //  Customer_PO in partstatus is actually the ACG order no
-                    string JFW_PO = OrderDAL.GetCustomerPOFromOrderNo(configData.ConnectionString, jfwOrder.Customer_PO);
-                    if (JFW_PO.Length > 0)
+                    catch (Exception e)
                     {
-                        string text = string.Format("{0}, {1}", JFW_PO, jfwOrder.Package_No.Trim());
-                        if (jfwOrder.Customer_PO != lastPo)
-                        {
-                            text = text + Environment.NewLine;
-                        }
-                        File.AppendAllText(strFileNameWithPath, text);
+
                     }
                 }
-                FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, JFWTrackingFilePath, "\\Tracking\\" + jfwFilename, WebRequestMethods.Ftp.UploadFile);
-                // FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, JFWTrackingFilePath, jfwFilename, WebRequestMethods.Ftp.UploadFile);
-                //OrderTrackingDAL.UpdateOrderStatus(configData.ConnectionString, trackingList);
+                // Process Tracking information - Not needed any more
+                //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 20);
+                // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
+                //var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
+                //OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
+
+                var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm") + ".txt";
+                string strFilePath = string.Format("{0}\\JFW\\", filePath);
+
+                string strFileNameWithPath = string.Format("{0}{1}", JFWTrackingFilePath, jfwFilename);
+                //string strTextHeader = "JFW PO_No,Tracking_No";
+                //File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
+                //var jfwFilteredList = OrderTrackingDAL.GetOrderTracking(configData.ConnectionString);
+
+                // SM: need to filter only JFW orders. Preferably by BillEmail address. Later these need to be in a separate table.
+                var jfwFilteredList = partList.Where(I => I.Status.ToLower() == "shipped" && I.Customer_PO.ToUpper().StartsWith("ACGA-"));
+                if (jfwFilteredList != null && jfwFilteredList.Any())
+                {
+                    var lastPo = jfwFilteredList.LastOrDefault().Customer_PO;
+                    foreach (var jfwOrder in jfwFilteredList)
+                    {
+                        //SM Oct 21: We need the Original PO - not the PO coming from part status
+                        //  Customer_PO in partstatus is actually the ACG order no
+                        string JFW_PO = OrderDAL.GetCustomerPOFromOrderNo(configData.ConnectionString, jfwOrder.Customer_PO);
+                        if (JFW_PO.Length > 0)
+                        {
+                            string text = string.Format("{0}, {1}", JFW_PO, jfwOrder.Package_No.Trim());
+                            if (jfwOrder.Customer_PO != lastPo)
+                            {
+                                text = text + Environment.NewLine;
+                            }
+                            File.AppendAllText(strFileNameWithPath, text);
+                        }
+                    }
+                    FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, JFWTrackingFilePath, "\\Tracking\\" + jfwFilename, WebRequestMethods.Ftp.UploadFile);
+                    // FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, JFWTrackingFilePath, jfwFilename, WebRequestMethods.Ftp.UploadFile);
+                    //OrderTrackingDAL.UpdateOrderStatus(configData.ConnectionString, trackingList);
+                }
             }
             //File.Delete(strFilePath+ "\\Tracking\\" + jfwFilename);
             //DeleteAllFile(coverKingTrackingPath + "/Tracking");

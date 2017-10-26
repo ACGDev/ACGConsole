@@ -74,7 +74,7 @@ namespace AutoCarOperations
                     requestStream.Write(fileContents, 0, fileContents.Length);
                     requestStream.Close();
                     using (response = (FtpWebResponse)request.GetResponse())
-                        Console.WriteLine("Upload File Complete, status {0}", response.StatusDescription);
+                        Console.WriteLine("  FTP file upload status {0}", response.StatusDescription);
                     break;
                 case WebRequestMethods.Ftp.DeleteFile:
                     try
@@ -90,6 +90,7 @@ namespace AutoCarOperations
                     catch (Exception ex)
                     {
                         // TODO: need reason for failure
+                        Console.WriteLine("  FTP method {0}, Error: {1} File: {2}", method, ex.Message, fileName);
                         break;
                     }
                     

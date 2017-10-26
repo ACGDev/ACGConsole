@@ -33,7 +33,7 @@ namespace AutoCarOperations.DAL
             }
             if (prepareFile && orderList.Count > 0)
             {
-                //returns Filepath, FileName
+               //returns Filepath, FileName
                 var orderListCopy = JsonConvert.DeserializeObject<List<orders>>(JsonConvert.SerializeObject(orderList));
                 var fileDetail = PrepareOrderFile(configData, orderList);
                 if (uploadFile)
@@ -53,9 +53,11 @@ namespace AutoCarOperations.DAL
             if (orderList == null)
             {
                 orderList = SyncOrders(configData, fetchDate); // orderlist now contains ONLY new orders
+                Console.WriteLine("  Sync Order complete. ");
             }
             if (prepareFile && orderList.Count > 0)
             {
+                Console.WriteLine(string.Format("\r\nNumber of New Orders to be processed: {0}", orderList.Count));
                 //SM: Why do we need orderList as well as orderListCopy when we are not really changing the original orderList ?
                 var orderListCopy = JsonConvert.DeserializeObject<List<orders>>(JsonConvert.SerializeObject(orderList));
 
@@ -73,6 +75,7 @@ namespace AutoCarOperations.DAL
                             // Check for Special Order - Do not upload - send email
                             if (order.cus_comment != null && order.cus_comment.ToLower().Contains("(special)"))
                             {
+                                Console.WriteLine(string.Format("  Order Has to be processed manually: {0}. Sending email to sales", order.orderno));
                                 MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Has to be processed manually", "Order Has to be processed manually. The order no is:" + order.orderno, "sales@autocareguys.com");
                                 continue;
                             }
@@ -81,16 +84,21 @@ namespace AutoCarOperations.DAL
                             {
                                 string fileName = string.Format("{0}-{1}.csv", order.orderno, DateTime.Now.ToString("yyyyMMMdd-HHmm"));
                                 string strFileNameWithPath = string.Format("{0}\\{1}", filePath, fileName);
+                                Console.WriteLine(string.Format("  Creating Order File in folder {0},\r\n    Filename: {1}", filePath, fileName));
                                 File.WriteAllText(strFileNameWithPath, strCsvHeader + "\r\n");
                                 File.AppendAllText(strFileNameWithPath, strOrderLines);
-                                //need to create donload stream as ref doesnt allow optional parameter
+
                                 //todo: create overloaded method
+                                Console.WriteLine(string.Format("  Uplaoding {0} to CK Order ftp site", fileName));
                                 FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, filePath, fileName, WebRequestMethods.Ftp.UploadFile);
+                                Console.WriteLine("  ... file successfully uploaded");
                             }
                         }
                     }
                     //Update Order status as Submitted
+                    Console.WriteLine(string.Format("  UpdateStatus: Marking orders as Submitted"));
                     UpdateStatus(configData.ConnectionString, orderListCopy);
+                    Console.WriteLine(string.Format("  UpdateStatus complete"));
                 }
             }
         }
@@ -104,13 +112,14 @@ namespace AutoCarOperations.DAL
         private static List<orders> SyncOrders(ConfigurationData config, bool fetchDate)
         {
             var strOrderStart = FetchLastOrderDate(config.ConnectionString, fetchDate);
+            Console.WriteLine(string.Format("  Syncing orders from 3DCart starting {0}", strOrderStart));
             List<Order> orders_fromsite = new List<Order>();
             var skip = 0;
             while (true)
             {
                 var records = RestHelper.GetRestAPIRecords<Order>("", "Orders", config.PrivateKey, config.Token, config.Store, "100", skip, strOrderStart);
                 int counter = records.Count;
-                Console.WriteLine("..........Fetches " + counter + " Order Record..........");
+                Console.WriteLine("..........Fetched " + counter + " Order Record..........");
                 orders_fromsite.AddRange(records);
                 if (counter < 100)
                 {
@@ -133,6 +142,7 @@ namespace AutoCarOperations.DAL
         private static List<orders> Map_n_Add_ExtOrders(string connectionString, string strOrderStart, List<Order> orders_fromsite)
         {
             var mappedOrders = MapOrders(orders_fromsite, connectionString);
+            Console.WriteLine(string.Format("  Total {0} orders to be Added or Updated", mappedOrders.Count));
             using (var context = new AutoCareDataContext(connectionString))
             {
                 bool flag = false;
@@ -326,12 +336,17 @@ namespace AutoCarOperations.DAL
             foreach (var order in ordersToMap)
             {
                 string thisOrderNoFrom3DCart = order.InvoiceNumberPrefix.Trim() + order.InvoiceNumber.ToString();
+                orders thisLocalOrder;
                 using (var context = new AutoCareDataContext(connectionString))
                 {
-                    orders thisLocalOrder = context.Orders.FirstOrDefault(i => i.orderno == thisOrderNoFrom3DCart);
+                    thisLocalOrder = context.Orders.FirstOrDefault(i => i.orderno == thisOrderNoFrom3DCart);
                     if (thisLocalOrder != null && thisLocalOrder.order_status == order.OrderStatusID)
                         continue;
                 }
+                if (thisLocalOrder == null)
+                    Console.WriteLine(string.Format(" 3D Cart Order {0}-{1} will be added ", order.InvoiceNumberPrefix,order.InvoiceNumber));
+                else
+                    Console.WriteLine(string.Format(" 3D Cart Order {0}-{1} will be updated ", order.InvoiceNumberPrefix, order.InvoiceNumber));
 
                 var orderKeyDict = order.ContinueURL?.Split('&').Select(q => q.Split('='))
                                        .ToDictionary(k => k[0], v => v[1]) ?? new Dictionary<string, string>();
@@ -712,8 +727,7 @@ namespace AutoCarOperations.DAL
             string fileName = string.Format("ACG-{0}.csv", DateTime.Now.ToString("yyyyMMMdd-HHmm"));
             string filePath = string.Format("{0}\\{1}",
             System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), configData.CKOrderFolder);
-            string strFileNameWithPath = string.Format("{0}\\{1}", filePath,
-            fileName);
+            string strFileNameWithPath = string.Format("{0}\\{1}", filePath, fileName);
 
             string strCsvHeader = "PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
             File.WriteAllText(strFileNameWithPath, strCsvHeader + "\r\n");

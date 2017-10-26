@@ -7,7 +7,7 @@
     <ProjectGuid>{FAEFDAA5-18B9-4D04-9806-1FBE72FB6F27}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>_3dCartImportConsole</RootNamespace>
-    <AssemblyName>3dCartImportConsole</AssemblyName>
+    <AssemblyName>ACGOrderProcessing</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -76,6 +76,7 @@
     <Reference Include="System.Core" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.ServiceModel" />
+    <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
