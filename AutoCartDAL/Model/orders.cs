@@ -84,6 +84,8 @@ namespace AutoCarOperations.Model
         public List<order_items> order_items { get; set; }
         [ForeignKey("order_id")]
         public List<order_shipments> order_shipments { get; set; }
+        [NotMapped]
+        public List<order_item_details> order_item_details { get; set; }
     }
 
     public class order_items
@@ -328,5 +330,18 @@ namespace AutoCarOperations.Model
         public DateTime? acg_inv_date { get; set; }
         public DateTime? ACG_inv_pay_date { get; set; }
         public string tracking_link { get; set; }
+        public string description { get; set; }
+    }
+
+    public class ordertemplate
+    {
+        public string Name { get; set; }
+        public string OrderNo { get; set; }
+        public string Contact { get; set; }
+        public string Address { get; set; }
+        public string City { get; set; }
+        public string State { get; set; }
+        public string ZipCode { get; set; }
+        public List<object> OrderList { get; set; }
     }
 }

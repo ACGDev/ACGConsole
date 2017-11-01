@@ -837,6 +837,7 @@ namespace AutoCarOperations.DAL
                     order_det.mfg_item_id = mfgItemID;
                     order_det.sku = mfgItemID.TrimEnd() + variantID.TrimEnd();
                     order_det.order_no = orderNo;
+                    
                     order_det.sequence_no = sequenceNo;
                     // find order_item_id
                     var product_rec = context.Products.FirstOrDefault(I => I.mfgid == mfgItemID);
@@ -848,6 +849,7 @@ namespace AutoCarOperations.DAL
                     }
                     else
                     {
+                        order_det.description = product_rec.description;
                         var orderItemList = context.OrderItems.Where(I => I.itemid == product_rec.SKU && I.variant_id == variantID).ToList();
                         if (orderItemList.Count == 0)
                         {
@@ -879,60 +881,6 @@ namespace AutoCarOperations.DAL
             }
         }
 
-        // NOT USED ANY MORE
-        public static void UpdateOrderDetail_old(string connectionString,
-            string orderNo, string serialNo, string status, string shipAgent,
-            string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID)  // , int sequenceNo, int orderItemId
-        {
-            using (var context = new AutoCareDataContext(connectionString))
-            {
-                // Find in order_item_detail table, incoming serial no and order no. If found update
-
-
-                // If not,
-                // Find ACG item ID from product table and mfgItemID
-                // Map ACG item ID and Variant ID with order_items table
-                // get order_item_id
-                //   insert in order_item_detail table && populate the order_item_detail table
-                // Update order details according to CK status
-                var order_det_col = context.OrderItemDetails.Where(I => I.order_no == orderNo);
-                order_item_details order_det = null;
-                if (order_det_col.Count() == 0)
-                {
-                    order_det = new order_item_details();
-                    // order_det.order_item_id = orderItemId;
-                    order_det.order_no = orderNo;
-                    //  order_det.sequence_no = sequenceNo;
-                }
-                foreach (var item in order_det_col)
-                {
-                    order_det = item;
-                    order_det.production_slno = serialNo;
-                    order_det.status = status;
-                    order_det.status_datetime = DateTime.Now;
-                    order_det.ship_agent = shipAgent;
-                    order_det.ship_service_code = shipServiceCode;
-                    order_det.tracking_no = trackingNo;
-                    order_det.tracking_link = trackingLink;
-                    order_det.mfg_item_id = mfgItemID;
-                    order_det.sku = mfgItemID.TrimEnd() + variantID.TrimEnd();
-                    context.OrderItemDetails.AddOrUpdate(order_det);
-                }
-                //TODO: Rahul - check if all items in this orders has been shipped, then mark it as shipped
-
-
-                //if (status.ToLower() == &quot;shipped&quot;)
-                //{
-                //    var order = context.Orders.FirstOrDefault(I =&gt; I.orderno == orderNo);
-                //    context.Entry(order).State = EntityState.Modified;
-                //    context.Orders.Attach(entity: order);
-                //    order.shipcomplete = &quot;Shipped&quot;;
-                //    context.Entry(order).Property(I =&gt; I.shipcomplete).IsModified = true;
-                //}
-                context.SaveChanges();
-            }
-        }
-
         public static string GetCustomerPOFromOrderNo(string connectionString, string thisorderNo)
         {
             string customer_PO = "";
@@ -948,5 +896,29 @@ namespace AutoCarOperations.DAL
             return customer_PO;
         }
 
+        public static List<orders> GetOrderWithDetails(string connectionString, List<string> orderNos)
+        {
+            List<orders> li = new List<orders>();
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                //foreach (var order in orderNos)
+                //{
+                    var orders = (from o in context.Orders.Include(I => I.order_shipments).Include(I => I.order_items)
+                                   where orderNos.Contains(o.orderno)
+                                   select o).ToList();
+                if (orders.Any())
+                {
+                    foreach (var order in orders)
+                    {
+                        order.order_item_details = context.OrderItemDetails.Where(I => I.order_no == order.orderno)
+                            .ToList();
+                    }
+                    li = orders.ToList();
+                }
+                //}
+            }
+            
+            return li;
+        }
     }
 }
