@@ -287,33 +287,13 @@ namespace _3dCartImportConsole
                 //Update Order Status
                 List<orders> updateOrderList = new List<orders>();
                 foreach (var order in orders)
-                {
-                    //Test Shipment Records
-                    var records = RestHelper.GetRestAPIRecords<Shipment>("", string.Format("Orders/{0}/Shipments", order.order_id), configData.PrivateKey, configData.Token, configData.Store, "100", 0);
-                    if (records == null || records.Count == 0)
-                    {
-                        Console.WriteLine("No Shipment Record found.");                        
-                    }
+                {   
                     bool allShipped = true;
-                    foreach (var item in order.order_items)
+                    foreach (var detail in order.order_item_details)
                     {
-                        var orderDetailList = OrderDAL.GetOrderItemDetail(configData.ConnectionString,
-                            details => details.order_item_id == item.order_item_id);
-                        if (item.numitems > orderDetailList.Count)
+                        if (detail.status != "Shipped")
                         {
                             allShipped = false;
-                            break;
-                        }
-                        foreach (var detail in orderDetailList)
-                        {
-                            if (detail.status != "Shipped")
-                            {
-                                allShipped = false;
-                                break;
-                            }
-                        }
-                        if (!allShipped)
-                        {
                             break;
                         }
                     }
@@ -324,33 +304,18 @@ namespace _3dCartImportConsole
                 }
                 if (updateOrderList.Count > 0)
                 {
-                    OrderDAL.UpdateStatus(configData.ConnectionString, updateOrderList, "Shipped", 7);
+                    OrderDAL.UpdateStatus(configData.ConnectionString, updateOrderList, "Shipped", 4);
 
                     foreach (var o in updateOrderList)
                     {
+                        var records = RestHelper.GetRestAPIRecords<Shipment>("", string.Format("Orders/{0}/Shipments", o.order_id), configData.PrivateKey, configData.Token, configData.Store, "100", 0);
                         List<Shipment> li = new List<Shipment>();
-                        foreach (var ship in o.order_shipments)
+                        foreach (var ship in records)
                         {
-                            li.Add(new Shipment()
-                            {
-                                ShipmentCity = o.shipcity,
-                                ShipmentFirstName = o.shipfirstname,
-                                ShipmentCountry = o.shipcountry,
-                                ShipmentCost = o.shipcost,
-                                ShipmentAddress2 = o.shipaddress2,
-                                ShipmentState = o.shipstate,
-                                ShipmentPhone = o.shipphone,
-                                ShipmentAddress = o.shipaddress,
-                                ShipmentCompany = o.shipcompany,
-                                ShipmentEmail = o.shipemail,
-                                ShipmentID = o.order_shipments != null && o.order_shipments.Count > 0 ? o.order_shipments[0].shipping_id : null,
-                                ShipmentLastName = o.shiplastname,
-                                ShipmentMethodID = o.shipmethodid,
-                                ShipmentZipCode = o.shipzip,
-                                ShipmentTrackingCode = o.order_shipments != null
-                                                       && o.order_shipments.Count > 0 ? o.order_shipments[0].trackingcode
-                                    : null
-                            });
+                            ship.ShipmentID = 0;
+                            ship.ShipmentState = "Shipped";
+                            ship.ShipmentOrderStatus = 4;
+                            li.Add(ship);
                         }
                         //Update Shipment Information
                         RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
