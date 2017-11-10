@@ -33,13 +33,12 @@ namespace _3dCartImportConsole
                 if (SegmentToProcess.StartsWith("/"))
                     SegmentToProcess = SegmentToProcess.Replace("/", "");
                 if (SegmentToProcess.StartsWith("-"))
-                                    SegmentToProcess = SegmentToProcess.Replace("/", "");
+                    SegmentToProcess = SegmentToProcess.Replace("/", "");
 
                 if (args.Length > 1 && SegmentToProcess == "2")
                     numDaysToSync = Convert.ToInt16(args[1]);
-
             }
-            
+
             if (String.IsNullOrEmpty(SegmentToProcess ) )
             {
                 Log.Info("Usage: ");
@@ -272,7 +271,50 @@ namespace _3dCartImportConsole
 
                     }
                 }
-                Log.Info(string.Format("  CK status retrieval complered "));
+                if (partList.Any())
+                {
+                    List<orders> orderwithdetails = OrderDAL.GetOrderWithDetails(configData.ConnectionString,
+                        partList.Select(I => I.Customer_PO).ToList());
+                    foreach (var order in orderwithdetails)
+                    {
+                        var orderList = new List<object>();
+                        foreach (var item in order.order_item_details)
+                        {
+                            orderList.Add(new
+                            {
+                                TRACKINGLINK = item.tracking_link,
+                                TRACKINGNO = item.tracking_no,
+                                SKU = item.sku,
+                                DESCRIPTION = item.description,
+                                SHIPDATE = item.status_datetime?.ToString("dd-MMM-yyyy") ?? ""
+                            });
+                        }
+                        MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
+                            "Order Success", "", "israhulroy@gmail.com", new ordertemplate
+                            {
+                                Name = $"{order.shipfirstname} {order.shiplastname}",
+                                OrderNo = order.orderno,
+                                Contact = order.shipphone,
+                                Address = $"{order.shipaddress} {order.shipaddress2}",
+                                City = order.shipcity,
+                                State = order.shipstate,
+                                ZipCode = order.shipzip,
+                                OrderList = orderList
+                            });
+                        MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
+                            "Order Success", "", "israhulroy@gmail.com", new ordertemplate
+                            {
+                                Name = $"{order.billfirstname} {order.billlastname}",
+                                OrderNo = order.orderno,
+                                Contact = order.billphone,
+                                Address = $"{order.billaddress} {order.billaddress2}",
+                                City = order.billcity,
+                                State = order.billstate,
+                                ZipCode = order.billzip,
+                                OrderList = orderList
+                            });
+                    }
+                }
                 // Process Tracking information - Not needed any more
                 //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 20);
                 // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");

@@ -48,6 +48,29 @@ namespace AutoCarOperations
             result.Wait();
             var checkResult = result.Result;
         }
+        public static void SendEmailWithTemplate(string apiKey, string header, string body, string emailTo, ordertemplate orderTemplate)
+        {
+            /*
+             * Uncomment namespace from top
+             * <add key="MandrilAPIKey" value="fake"/>
+             */
+            var api = new MandrillApi(apiKey);
+            var message = new MandrillMessage(CommonConstant.EmailFrom, emailTo,
+                header, body);
+            
+            message.AddGlobalMergeVars("NAME", orderTemplate.Name);
+            message.AddGlobalMergeVars("ORDERNO", orderTemplate.OrderNo);
+            message.AddGlobalMergeVars("CONTACT", orderTemplate.Contact);
+            message.AddGlobalMergeVars("ADDRESS", orderTemplate.Address);
+            message.AddGlobalMergeVars("CITY", orderTemplate.Name);
+            message.AddGlobalMergeVars("STATE", orderTemplate.Name);
+            message.AddGlobalMergeVars("ZIPCODE", orderTemplate.Name);
+            message.AddGlobalMergeVars("ORDERLIST", orderTemplate.OrderList);
+            message.MergeLanguage = MandrillMessageMergeLanguage.Handlebars;
+            var result = api.Messages.SendTemplateAsync(message, "OrderSuccessTemplate");
+            result.Wait();
+            var checkResult = result.Result;
+        }
         public static byte[] FileToByteArray(string fileName)
         {
             byte[] fileData = null;
