@@ -747,7 +747,7 @@ namespace AutoCarOperations.DAL
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
-                return context.Orders.Include(I => I.order_items).Include(I => I.order_shipments).Where(whereFunc).ToList();
+                return context.Orders.Include(I => I.order_items).Where(ord => ord.shipcomplete == "Submitted" && ord.order_status == 1).ToList();
             }
         }
 
@@ -774,6 +774,7 @@ namespace AutoCarOperations.DAL
                 }
                 if (order_det != null)
                 {
+                    Console.WriteLine(string.Format("   Existing Order Details record "));
                     order_det.production_slno = serialNo;
                     order_det.status = status;
                     order_det.status_datetime = DateTime.Now;
@@ -792,6 +793,7 @@ namespace AutoCarOperations.DAL
                     // get order_item_id
                     //   insert in order_item_detail table && populate the order_item_detail table
                     // Update order details according to CK status
+                    Console.WriteLine(string.Format("   New Order Details record "));
                     order_det = new order_item_details();
                     order_det.production_slno = serialNo;
                     order_det.status = status;
@@ -812,6 +814,7 @@ namespace AutoCarOperations.DAL
                     {
                         //SM: could not map order item id, needs manual check
                         // SM: need to handle error here: Order No: <orderno>: Status API does not match Products table. Mfg Item ID: <mfgItemID>. Serial no <serialNo>
+                        Console.WriteLine(string.Format("   mfg ID from Status {0} not found in Products table. Status needs to be maniually sent ", mfgItemID));
                     }
                     else
                     {
@@ -821,6 +824,7 @@ namespace AutoCarOperations.DAL
                         {
                             //SM: could not map order item id, needs manual check
                             // SM: need to handle error here: Order No: <orderno>: Status API does not match. Order_Items table- ACG ItemID: <product_rec.SKU>, Variant ID: variantID, Serial no <serialNo>     
+                            Console.WriteLine(string.Format("   Item {0} and / or Varianr {1} not found in Order_Items table table. Status needs to be maniually sent ", product_rec.SKU, variantID));
                         }
                         else
                         {
@@ -834,6 +838,7 @@ namespace AutoCarOperations.DAL
                                     continue;
                                 // we can use this order_item_id
                                 order_det.order_item_id = thisOrderItem.order_item_id;
+                                Console.WriteLine(string.Format("   Using order item id ", thisOrderItem.order_item_id));
                                 break;
                             }
                         }
