@@ -215,44 +215,6 @@ namespace _3dCartImportConsole
                                         partList.Add(partStatus);
                                     }
                                     continue;   //****** Temporary to avoid SHipment problem
-
-                                    if (partStatus.Status.ToLower() == "shipped")
-                                    {
-                                        //TODO: Need to have template for sending ship confirmation to customers
-
-                                        // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.shipemail,
-                                        //     "cs@autocareguys.com");
-                                        // MandrillMail.SendEmail(configData.MandrilAPIKey, "Order has been shipped", o.billemail,
-                                        //     "cs@autocareguys.com");
-
-                                        List<Shipment> li = new List<Shipment>();
-                                        foreach (var ship in o.order_shipments)
-                                        {
-                                            li.Add(new Shipment()
-                                            {
-                                                ShipmentCity = o.shipcity,
-                                                ShipmentFirstName = o.shipfirstname,
-                                                ShipmentCountry = o.shipcountry,
-                                                ShipmentCost = o.shipcost,
-                                                ShipmentAddress2 = o.shipaddress2,
-                                                ShipmentState = o.shipstate,
-                                                ShipmentPhone = o.shipphone,
-                                                ShipmentAddress = o.shipaddress,
-                                                ShipmentCompany = o.shipcompany,
-                                                ShipmentEmail = o.shipemail,
-                                                ShipmentID = o.order_shipments != null && o.order_shipments.Count > 0 ? o.order_shipments[0].shipping_id : null,
-                                                ShipmentLastName = o.shiplastname,
-                                                ShipmentMethodID = o.shipmethodid,
-                                                ShipmentZipCode = o.shipzip,
-                                                ShipmentTrackingCode = o.order_shipments != null
-                                                    && o.order_shipments.Count > 0 ? o.order_shipments[0].trackingcode
-                                                    : null
-                                            });
-                                        }
-                                        //Update Shipment Information
-                                        RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
-                                            configData.Store, o.order_id);
-                                    }
                                 }
                             }
 
@@ -265,6 +227,7 @@ namespace _3dCartImportConsole
 
                     }
                 }
+                //Send Email to users
                 if (partList.Any())
                 {
                     List<orders> orderwithdetails = OrderDAL.GetOrderWithDetails(configData.ConnectionString,
@@ -283,32 +246,112 @@ namespace _3dCartImportConsole
                                 SHIPDATE = item.status_datetime?.ToString("dd-MMM-yyyy") ?? ""
                             });
                         }
-                        MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
-                            "Order Success", "", "israhulroy@gmail.com", new ordertemplate
-                            {
-                                Name = $"{order.shipfirstname} {order.shiplastname}",
-                                OrderNo = order.orderno,
-                                Contact = order.shipphone,
-                                Address = $"{order.shipaddress} {order.shipaddress2}",
-                                City = order.shipcity,
-                                State = order.shipstate,
-                                ZipCode = order.shipzip,
-                                OrderList = orderList
-                            });
-                        MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
-                            "Order Success", "", "israhulroy@gmail.com", new ordertemplate
-                            {
-                                Name = $"{order.billfirstname} {order.billlastname}",
-                                OrderNo = order.orderno,
-                                Contact = order.billphone,
-                                Address = $"{order.billaddress} {order.billaddress2}",
-                                City = order.billcity,
-                                State = order.billstate,
-                                ZipCode = order.billzip,
-                                OrderList = orderList
-                            });
+                        if (order.shipemail != null)
+                        {
+                            MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
+                                "Order Success", "", "israhulroy@gmail.com", new ordertemplate
+                                {
+                                    Name = $"{order.shipfirstname} {order.shiplastname}",
+                                    OrderNo = order.orderno,
+                                    Contact = order.shipphone,
+                                    Address = $"{order.shipaddress} {order.shipaddress2}",
+                                    City = order.shipcity,
+                                    State = order.shipstate,
+                                    ZipCode = order.shipzip,
+                                    OrderList = orderList
+                                });
+                        }
+                        if (order.billemail != null)
+                        {
+                            MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
+                                "Order Success", "", "israhulroy@gmail.com", new ordertemplate
+                                {
+                                    Name = $"{order.billfirstname} {order.billlastname}",
+                                    OrderNo = order.orderno,
+                                    Contact = order.billphone,
+                                    Address = $"{order.billaddress} {order.billaddress2}",
+                                    City = order.billcity,
+                                    State = order.billstate,
+                                    ZipCode = order.billzip,
+                                    OrderList = orderList
+                                });
+                        }
                     }
                 }
+                //Update Order Status
+                List<orders> updateOrderList = new List<orders>();
+                foreach (var order in orders)
+                {
+                    //Test Shipment Records
+                    var records = RestHelper.GetRestAPIRecords<Shipment>("", string.Format("Orders/{0}/Shipments", order.order_id), configData.PrivateKey, configData.Token, configData.Store, "100", 0);
+                    if (records == null || records.Count == 0)
+                    {
+                        Console.WriteLine("No Shipment Record found.");                        
+                    }
+                    bool allShipped = true;
+                    foreach (var item in order.order_items)
+                    {
+                        var orderDetailList = OrderDAL.GetOrderItemDetail(configData.ConnectionString,
+                            details => details.order_item_id == item.order_item_id);
+                        if (item.numitems > orderDetailList.Count)
+                        {
+                            allShipped = false;
+                            break;
+                        }
+                        foreach (var detail in orderDetailList)
+                        {
+                            if (detail.status != "Shipped")
+                            {
+                                allShipped = false;
+                                break;
+                            }
+                        }
+                        if (!allShipped)
+                        {
+                            break;
+                        }
+                    }
+                    if (allShipped)
+                    {
+                        updateOrderList.Add(order);
+                    }
+                }
+                if (updateOrderList.Count > 0)
+                {
+                    OrderDAL.UpdateStatus(configData.ConnectionString, updateOrderList, "Shipped", 7);
+
+                    foreach (var o in updateOrderList)
+                    {
+                        List<Shipment> li = new List<Shipment>();
+                        foreach (var ship in o.order_shipments)
+                        {
+                            li.Add(new Shipment()
+                            {
+                                ShipmentCity = o.shipcity,
+                                ShipmentFirstName = o.shipfirstname,
+                                ShipmentCountry = o.shipcountry,
+                                ShipmentCost = o.shipcost,
+                                ShipmentAddress2 = o.shipaddress2,
+                                ShipmentState = o.shipstate,
+                                ShipmentPhone = o.shipphone,
+                                ShipmentAddress = o.shipaddress,
+                                ShipmentCompany = o.shipcompany,
+                                ShipmentEmail = o.shipemail,
+                                ShipmentID = o.order_shipments != null && o.order_shipments.Count > 0 ? o.order_shipments[0].shipping_id : null,
+                                ShipmentLastName = o.shiplastname,
+                                ShipmentMethodID = o.shipmethodid,
+                                ShipmentZipCode = o.shipzip,
+                                ShipmentTrackingCode = o.order_shipments != null
+                                                       && o.order_shipments.Count > 0 ? o.order_shipments[0].trackingcode
+                                    : null
+                            });
+                        }
+                        //Update Shipment Information
+                        RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
+                            configData.Store, o.order_id);
+                    }
+                }
+
                 // Process Tracking information - Not needed any more
                 //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 20);
                 // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");

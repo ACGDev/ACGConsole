@@ -201,13 +201,13 @@ namespace AutoCarOperations.DAL
         ///     Update Order Status as 'Submitted' in Database
         /// </summary>
         /// <param name="db_orders"></param>
-        private static void UpdateStatus(string connectionString, List<orders> db_orders)
+        public static void UpdateStatus(string connectionString, List<orders> db_orders, string shipStatus = "Submitted", int status = 1)
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
                 foreach (var order in db_orders)
                 {
-                    if (!(order.shipcomplete != "Submitted" && order.order_status == 1))
+                    if (!(order.shipcomplete != shipStatus && order.order_status == status))
                         continue;
 
                     var currentorder = JsonConvert.DeserializeObject<orders>(JsonConvert.SerializeObject(order));
@@ -215,42 +215,8 @@ namespace AutoCarOperations.DAL
                     currentorder.order_shipments = null;
                     context.Entry(currentorder).State = EntityState.Modified;
                     context.Orders.Attach(entity: currentorder);
-                    currentorder.shipcomplete = "Submitted";
+                    currentorder.shipcomplete = shipStatus;
                     context.Entry(currentorder).Property(I => I.shipcomplete).IsModified = true;
-
-                    var sequenceNo = 1;
-                    //todo: need to confirm when Product is null
-                    /*
-                    foreach (var item in order.order_items)
-                    {
-                        for (int i = 0; i < item.numitems; i++)
-                        {
-                            //var thisItemId = item.itemid;
-                            //if (thisItemId.StartsWith("CK_"))
-                            //    thisItemId.Replace("CK_", "");
-                            //if (thisItemId.StartsWith("SK_"))
-                            //    thisItemId.Replace("SK_", "");
-                            
-                            // SM: Handle if product is null
-
-                            var orderItemDet = new order_item_details
-                            {
-                                order_item_id = item.order_item_id,
-                                order_no = order.orderno,
-                                sequence_no = sequenceNo,
-                                mfg_item_id = item.Product != null ? item.Product.mfgid : null ,
-                                sku = item.Product != null ? item.Product.SKU : null,
-                                //ship_agent =,
-                                //ship_service_code = order.ship
-                                //tracking_no = order.order_shipments != null && order.order_shipments.Count > 0 ? order.order_shipments[0].trackingcode : "",
-                                //ship_date = order.d,
-                            };
-                            //todo: if qty > 1
-                            sequenceNo = sequenceNo + 1;
-                            context.OrderItemDetails.Add(orderItemDet);
-                        }
-                    }
-                    */
                 }
                 context.SaveChanges();
             }
@@ -919,6 +885,15 @@ namespace AutoCarOperations.DAL
             }
             
             return li;
+        }
+
+        public static List<order_item_details> GetOrderItemDetail(string connectionString,
+            Func<order_item_details, bool> condFunc)
+        {
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                return context.OrderItemDetails.Where(condFunc).ToList();
+            }
         }
     }
 }
