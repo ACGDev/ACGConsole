@@ -55,7 +55,7 @@ namespace _3dCartImportConsole
 
             string coverKingTrackingPath = Path.Combine(filePath, "./CoverKingTrackingFiles/");
             string incomingOrdersFilePath = Path.Combine(filePath, "./JFW/Orders/");
-            string JFWTrackingFilePath = Path.Combine(filePath, "./JFW/Tracking/");
+            string JFWTrackingFilePath = Path.Combine(filePath, "./JFW");
             string errorFilePath = Path.Combine(filePath, "./JFW/OrderErrors/");
             string processedFilePath = Path.Combine(filePath, "./ProcessedOrders/");
             string variantFilePath = Path.Combine(filePath, "./VariantFiles/");
@@ -91,7 +91,7 @@ namespace _3dCartImportConsole
 
                 //First Sync orders but DO NOT create orders or upload order files
                 Log.Info("\r\nProcessing JFW Orders. First sync 3DCart orders to get the latest JFW order.");
-                OrderDAL.PlaceOrder(configData, true, false, false);
+                OrderDAL.PlaceOrder(configData, false, true, true,null ,5);
                 //Download order from JFW FTP and place order
                 var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
                 acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
@@ -177,6 +177,7 @@ namespace _3dCartImportConsole
             {
                 Log.Info("\r\n*** Fetching 3D Cart Order and Creating CK Orders");
                 // Get ONLY new orders, create order file and upload
+                
                 OrderDAL.PlaceOrder(configData, false, true, true, null, numDaysToSync);
             }
             #endregion
@@ -184,6 +185,7 @@ namespace _3dCartImportConsole
             #region UpdateStatusUsingCKStatusAPI
             if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess == "3")
             {
+                Log.Info("\r\n*** Fetching CK Order Status, Update JFW tracking and send Shipping Emails");
                 var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted" && ord.order_status == 1);
                 CKOrderStatus.Order_StatusSoapClient client = new Order_StatusSoapClient();
                 Orders_response Response = new Orders_response();
@@ -193,7 +195,9 @@ namespace _3dCartImportConsole
                 {
                     try
                     {
+                        Log.Info(string.Format("  Getting CK status for Order {0}", o.orderno));
                         var s = client.Get_OrderStatus_by_PO(configData.CoverKingAPIKey, o.orderno, configData.AuthUserName);
+                        Log.Info(string.Format("   ... Number of Line Items =  {0}", s.Orders_list.Length));
                         if (s.Orders_list != null && s.Orders_list.Length > 0)
                         {
                             var ordersWithStatus = s.Orders_list[0];
@@ -201,6 +205,8 @@ namespace _3dCartImportConsole
                             {
                                 if (partStatus != null)
                                 {
+                                    Log.Info(string.Format("   Status for ItemNo {0}, Variant {1}, Sl No: {2} : {3} Tracking {4} ", 
+                                        partStatus.ItemNo, partStatus.VariantID, partStatus.Serial_No, partStatus.Status, partStatus.Package_No));
                                     //SM: Ignore cancelled status from CK API. This may be because the order was temporarily cancelled.
                                     if (partStatus.Status.ToLower() == "cancelled")
                                         continue;
@@ -266,6 +272,7 @@ namespace _3dCartImportConsole
 
                     }
                 }
+                Log.Info(string.Format("  CK status retrieval complered "));
                 // Process Tracking information - Not needed any more
                 //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 20);
                 // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
@@ -273,9 +280,10 @@ namespace _3dCartImportConsole
                 //OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
 
                 var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm") + ".txt";
-                string strFilePath = string.Format("{0}\\JFW\\", filePath);
+                string strFilePath = string.Format("{0}\\JFW", filePath);
 
-                string strFileNameWithPath = string.Format("{0}{1}", JFWTrackingFilePath, jfwFilename);
+                string strFileNameWithPath = string.Format("{0}\\Tracking\\{1}", JFWTrackingFilePath, jfwFilename);
+                Log.Info(string.Format("  Creating JFW Tracking File {0} ", strFileNameWithPath));
                 //string strTextHeader = "JFW PO_No,Tracking_No";
                 //File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
                 //var jfwFilteredList = OrderTrackingDAL.GetOrderTracking(configData.ConnectionString);
@@ -293,6 +301,7 @@ namespace _3dCartImportConsole
                         if (JFW_PO.Length > 0)
                         {
                             string text = string.Format("{0}, {1}", JFW_PO, jfwOrder.Package_No.Trim());
+                            Log.Info(string.Format("  Include Tracking: JFW PO {0}, ACG Order {1}, Tracking no ", JFW_PO, jfwOrder.Customer_PO, jfwOrder.Package_No.Trim()));
                             if (jfwOrder.Customer_PO != lastPo)
                             {
                                 text = text + Environment.NewLine;
@@ -300,6 +309,7 @@ namespace _3dCartImportConsole
                             File.AppendAllText(strFileNameWithPath, text);
                         }
                     }
+                    Log.Info(string.Format("  Uploading Tracking file to ftp ", jfwFilename));
                     FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, JFWTrackingFilePath, "\\Tracking\\" + jfwFilename, WebRequestMethods.Ftp.UploadFile);
                     // FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, JFWTrackingFilePath, jfwFilename, WebRequestMethods.Ftp.UploadFile);
                     //OrderTrackingDAL.UpdateOrderStatus(configData.ConnectionString, trackingList);
