@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using AutoCarConsole.ACG_CK;
 using Newtonsoft.Json.Serialization;
@@ -32,14 +33,14 @@ namespace AutoCarConsole
             string filePath =
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             string coverKingJobberFilePath = Path.Combine(filePath, "../../CoverKingData/ACG92_Custom Floormats_11112017.csv");
-            var jData = baseCSBV.Read<JobberData>(coverKingJobberFilePath, true);
-            foreach (var item in jData)
+            var aData = baseCSBV.Read<AppData>(coverKingJobberFilePath, true);
+            foreach (var item in aData)
             {
                 CoverKingDAL.Save(config.ConnectionString, item);
             }
 
             string coverKingAppDataFilePath = Path.Combine(filePath, "../../CoverKingData/ACG92_11112017.csv");
-            var appData = baseCSBV.Read<AppData>(coverKingAppDataFilePath, true, new Dictionary<string, string>()
+            var jData = baseCSBV.Read<JobberData>(coverKingAppDataFilePath, true, new Dictionary<string, string>()
             {
                 {"ItemOrSKU", "Item/SKU" },
                 { "UPC_Code", "UPC Code" },
@@ -47,7 +48,7 @@ namespace AutoCarConsole
                 { "Product_Family_ID", "ProductFamily ID" },
                 { "Product_Family_Description", "Product Family Description" },
             });
-            foreach (var item in appData)
+            foreach (var item in jData)
             {
                 CoverKingDAL.Save(config.ConnectionString, item);
             }
@@ -59,7 +60,8 @@ namespace AutoCarConsole
             });
             foreach (var item in amazonVariantData)
             {
-                CoverKingDAL.Save(config.ConnectionString, item);
+                var groupItem = item.GroupBy(i => i.ASIN).Select(j => j.First()).ToList();
+                CoverKingDAL.Save(config.ConnectionString, groupItem);
             }
             //OrderDAL.PlaceOrder(config, true, true, true);
         }
@@ -158,8 +160,16 @@ namespace AutoCarConsole
                         var propertyValues = line.Split(new[] {',', '\t'});
                         if (propertyValues.Length != headerNames.Length)
                         {
-                            oldLine = line;
-                            continue;
+                            var result =  Regex.Split(line, ",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
+                            if (result.Length != headerNames.Length)
+                            {
+                                oldLine = line;
+                                continue;
+                            }
+                            else
+                            {
+                                propertyValues = result;
+                            }
                         }
                         oldLine = string.Empty;
                         AssignValuesFromCsv(obj, propertyValues, headerNames, fieldMap);

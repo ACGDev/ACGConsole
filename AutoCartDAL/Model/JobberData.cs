@@ -8,7 +8,8 @@ using System.Threading.Tasks;
 
 namespace AutoCarOperations.Model
 {
-    public class JobberData
+    [Table("ck_app_data")]
+    public class AppData
     {
         public string VariantID { get; set; }
         public string Make_Descr { get; set; }
@@ -23,10 +24,10 @@ namespace AutoCarOperations.Model
         public string SubModel { get; set; }
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int JobberId { get; set; }
+        public int AppDataId { get; set; }
     }
-    [Table("ck_app_data")]
-    public class AppData
+    [Table("ck_jobber")]
+    public class JobberData
     {
         public string ItemOrSKU { get; set; }
         public string Description { get; set; }
@@ -40,9 +41,9 @@ namespace AutoCarOperations.Model
         public string Product_Family_Description { get; set; }
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int AppDataId { get; set; }
+        public int JobberId { get; set; }
     }
-    [Table("ck_amazon_variant")]
+    [Table("ck_temp_amazon_variant")]
     public class AmazonVariant
     {
         [Key]

@@ -24,8 +24,8 @@ namespace AutoCarOperations.DAL
         public DbSet<order_tracking> OrderTracking { get; set; }
         public DbSet<jfw_orders> JFWOrders { get; set; }
         public DbSet<order_item_details> OrderItemDetails { get; set; }
-        public DbSet<JobberData> CKJobberData { get; set; }
         public DbSet<AppData> CKAppData { get; set; }
+        public DbSet<JobberData> CKJobber { get; set; }
         public DbSet<AmazonVariant> CKAmazonVariant { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
@@ -59,7 +59,6 @@ namespace AutoCarOperations.DAL
             modelBuilder.Entity<products>().ToTable("3dc_products");
             modelBuilder.Entity<CKVariant>().ToTable("ck_itemvariant");
             modelBuilder.Entity<TempCKVariant>().ToTable("ck_temp_itemvariant");
-            modelBuilder.Entity<JobberData>().ToTable("ck_jobber");
         }
     }
 
