@@ -43,7 +43,7 @@ namespace AutoCarOperations.Model
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int JobberId { get; set; }
     }
-    [Table("ck_temp_amazon_variant")]
+    [Table("ck_amazon_variant")]
     public class AmazonVariant
     {
         [Key]

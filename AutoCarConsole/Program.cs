@@ -32,36 +32,41 @@ namespace AutoCarConsole
             CsvFilebase baseCSBV = new CsvFilebase();
             string filePath =
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-            string coverKingJobberFilePath = Path.Combine(filePath, "../../CoverKingData/ACG92_Custom Floormats_11112017.csv");
-            var aData = baseCSBV.Read<AppData>(coverKingJobberFilePath, true);
-            foreach (var item in aData)
+            string coverkingPath = Path.Combine(filePath, "../../CoverKingData/");
+
+            DirectoryInfo dirApp = new DirectoryInfo(Path.Combine(coverkingPath, "AppData/Incoming/"));
+            foreach (var file in dirApp.GetFiles())
             {
-                CoverKingDAL.Save(config.ConnectionString, item);
+                var aData = baseCSBV.Read<AppData>(file.FullName, true);
+                CoverKingDAL.Save(config.ConnectionString, aData);
+                file.MoveTo(Path.Combine(coverkingPath, "AppData/Processed/" + file.Name));
             }
 
-            string coverKingAppDataFilePath = Path.Combine(filePath, "../../CoverKingData/ACG92_11112017.csv");
-            var jData = baseCSBV.Read<JobberData>(coverKingAppDataFilePath, true, new Dictionary<string, string>()
+            DirectoryInfo dirJobber = new DirectoryInfo(Path.Combine(coverkingPath, "Jobber/Incoming/"));
+            foreach (var file in dirJobber.GetFiles())
             {
-                {"ItemOrSKU", "Item/SKU" },
-                { "UPC_Code", "UPC Code" },
-                { "Gross_Weight", "Gross Weight" },
-                { "Product_Family_ID", "ProductFamily ID" },
-                { "Product_Family_Description", "Product Family Description" },
-            });
-            foreach (var item in jData)
-            {
-                CoverKingDAL.Save(config.ConnectionString, item);
+                var jData = baseCSBV.Read<JobberData>(file.FullName, true, new Dictionary<string, string>()
+                {
+                    {"ItemOrSKU", "Item/SKU" },
+                    { "UPC_Code", "UPC Code" },
+                    { "Gross_Weight", "Gross Weight" },
+                    { "Product_Family_ID", "ProductFamily ID" },
+                    { "Product_Family_Description", "Product Family Description" },
+                });
+                CoverKingDAL.Save(config.ConnectionString, jData);
+                file.MoveTo(Path.Combine(coverkingPath, "Jobber/Processed/"+file.Name));
             }
 
-            string amazonVariant = Path.Combine(filePath, "../../CoverKingData/20171110-ItmVr-As.txt");
-            var amazonVariantData = baseCSBV.Read<AmazonVariant>(amazonVariant, true, new Dictionary<string, string>()
+            DirectoryInfo dirAmazon = new DirectoryInfo(Path.Combine(coverkingPath, "AmazonVariant/Incoming/"));
+            foreach (var file in dirAmazon.GetFiles())
             {
-                {"SKUOrUPC", "SKU/UPC" },
-            });
-            foreach (var item in amazonVariantData)
-            {
-                var groupItem = item.GroupBy(i => i.ASIN).Select(j => j.First()).ToList();
-                CoverKingDAL.Save(config.ConnectionString, groupItem);
+                var amazonVariantData = baseCSBV.Read<AmazonVariant>(file.FullName, true,
+                    new Dictionary<string, string>()
+                    {
+                        {"SKUOrUPC", "SKU/UPC"},
+                    });
+                CoverKingDAL.Save(config.ConnectionString, amazonVariantData);
+                file.MoveTo(Path.Combine(coverkingPath, "Jobber/Processed/" + file.Name));
             }
             //OrderDAL.PlaceOrder(config, true, true, true);
         }

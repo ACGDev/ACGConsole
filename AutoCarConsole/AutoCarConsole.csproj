@@ -96,8 +96,8 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="CoverKingData\ACG92_11112017.csv" />
-    <None Include="CoverKingData\ACG92_Custom Floormats_11112017.csv" />
+    <None Include="CoverKingData\Jobber\Incoming\ACG92_11112017.csv" />
+    <None Include="CoverKingData\AppData\Incoming\ACG92_Custom Floormats_11112017.csv" />
     <None Include="App.config">
       <SubType>Designer</SubType>
     </None>
@@ -160,7 +160,12 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="CoverKingData\20171110-ItmVr-As.txt" />
+    <Content Include="CoverKingData\AmazonVariant\Incoming\20171110-ItmVr-As.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="CoverKingData\AmazonVariant\Processed\" />
+    <Folder Include="CoverKingData\AppData\Processed\" />
+    <Folder Include="CoverKingData\Jobber\Processed\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
