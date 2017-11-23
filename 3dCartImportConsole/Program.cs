@@ -289,14 +289,20 @@ namespace _3dCartImportConsole
                 foreach (var order in orders)
                 {   
                     bool allShipped = true;
-                    foreach (var detail in order.order_item_details)
+                    if (!(null == order.order_item_details))
                     {
-                        if (detail.status != "Shipped")
+                        foreach (var detail in order.order_item_details)
                         {
-                            allShipped = false;
-                            break;
+                            if (detail.status != "Shipped")
+                            {
+                                allShipped = false;
+                                break;
+                            }
+
                         }
                     }
+                    else
+                        allShipped = false;
                     if (allShipped)
                     {
                         updateOrderList.Add(order);
