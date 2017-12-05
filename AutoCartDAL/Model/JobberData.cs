@@ -25,11 +25,13 @@ namespace AutoCarOperations.Model
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int AppDataId { get; set; }
+        public string BaseVehicleID { get; set; }
+        public string RecID { get; set; }
     }
-    [Table("ck_jobber")]
-    public class JobberData
+    [Table("ck_downloaded_item")]
+    public class DownloadedItem
     {
-        public string ItemOrSKU { get; set; }
+        public string ItemID { get; set; }
         public string Description { get; set; }
         public decimal? Jobber { get; set; }
         public string UPC_Code { get; set; }
@@ -42,6 +44,9 @@ namespace AutoCarOperations.Model
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int JobberId { get; set; }
+
+        public string ProductID { get; set; }
+        public string MaterialID { get; set; }
     }
     [Table("ck_amazon_variant")]
     public class AmazonVariant
@@ -55,5 +60,13 @@ namespace AutoCarOperations.Model
         public string NavVariant { get; set; }
         public string ForceBlock { get; set; }
         public string ResourceCode { get; set; }
+    }
+    [Table("ck_product_master")]
+    public class ProductMaster
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.None)]
+        public string product_id { get; set; }
+        public int product_family_id { get; set; }
     }
 }

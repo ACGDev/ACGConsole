@@ -25,7 +25,9 @@ namespace AutoCarOperations.DAL
         public DbSet<jfw_orders> JFWOrders { get; set; }
         public DbSet<order_item_details> OrderItemDetails { get; set; }
         public DbSet<AppData> CKAppData { get; set; }
-        public DbSet<JobberData> CKJobber { get; set; }
+        public DbSet<ProductMaster> CKProductMaster { get; set; }
+
+        public DbSet<DownloadedItem> CKDownloadedItem { get; set; }
         public DbSet<AmazonVariant> CKAmazonVariant { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)

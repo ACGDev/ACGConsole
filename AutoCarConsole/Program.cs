@@ -29,6 +29,8 @@ namespace AutoCarConsole
             // Uncomment following to get Customer records
             //  CustomerDAL.AddCustomer(config);
             // ProductDAL.AddProduct(config);
+            //CoverKingDAL.SaveBaseVehicleAppData(config.ConnectionString);
+            //CoverKingDAL.SaveItemVariantImages(config.ConnectionString);
             CsvFilebase baseCSBV = new CsvFilebase();
             string filePath =
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
@@ -45,7 +47,7 @@ namespace AutoCarConsole
             DirectoryInfo dirJobber = new DirectoryInfo(Path.Combine(coverkingPath, "Jobber/Incoming/"));
             foreach (var file in dirJobber.GetFiles())
             {
-                var jData = baseCSBV.Read<JobberData>(file.FullName, true, new Dictionary<string, string>()
+                var jData = baseCSBV.Read<DownloadedItem>(file.FullName, true, new Dictionary<string, string>()
                 {
                     {"ItemOrSKU", "Item/SKU" },
                     { "UPC_Code", "UPC Code" },
@@ -68,6 +70,8 @@ namespace AutoCarConsole
                 CoverKingDAL.Save(config.ConnectionString, amazonVariantData);
                 file.MoveTo(Path.Combine(coverkingPath, "Jobber/Processed/" + file.Name));
             }
+            CoverKingDAL.SaveProductOnJobber(config.ConnectionString);
+
             //OrderDAL.PlaceOrder(config, true, true, true);
         }
 

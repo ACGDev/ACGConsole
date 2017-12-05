@@ -747,7 +747,7 @@ namespace AutoCarOperations.DAL
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
-                return context.Orders.Include(I => I.order_items).Where(ord => ord.shipcomplete == "Submitted" && ord.order_status == 1).ToList();
+                return context.Orders.Include(I => I.order_items).Where(whereFunc).ToList();
             }
         }
 
