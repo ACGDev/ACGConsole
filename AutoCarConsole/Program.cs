@@ -39,7 +39,7 @@ namespace AutoCarConsole
             DirectoryInfo dirApp = new DirectoryInfo(Path.Combine(coverkingPath, "AppData/Incoming/"));
             foreach (var file in dirApp.GetFiles())
             {
-                var aData = baseCSBV.Read<AppData>(file.FullName, true);
+                var aData = baseCSBV.Read<DownloadVariant>(file.FullName, true);
                 CoverKingDAL.Save(config.ConnectionString, aData);
                 file.MoveTo(Path.Combine(coverkingPath, "AppData/Processed/" + file.Name));
             }

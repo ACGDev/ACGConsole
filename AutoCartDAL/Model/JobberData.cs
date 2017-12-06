@@ -8,8 +8,8 @@ using System.Threading.Tasks;
 
 namespace AutoCarOperations.Model
 {
-    [Table("ck_app_data")]
-    public class AppData
+    [Table("ck_downloaded_variant")]
+    public class DownloadVariant
     {
         public string VariantID { get; set; }
         public string Make_Descr { get; set; }
