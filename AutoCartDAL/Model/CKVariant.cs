@@ -36,4 +36,20 @@ namespace AutoCarOperations.Model
         public string ProductCode { get; set; }
         public string ProductFamily { get; set; }
     }
+    [Table("jfw_dealeritemprice")]
+    public class DealerItemPrice
+    {
+        [Key]
+        [Column(Order =1)]
+        public string DealerCode { get; set; }
+        public string DealerEmail { get; set; }
+        public string Brand { get; set; }
+        [Key]
+        [Column(Order = 2)]
+        public string ItemID { get; set; }
+        public double MSRP { get; set; }
+        public int DiscPct { get; set; }
+        public int ShipCost { get; set; }
+        public double CostToDealer { get; set; }
+    }
 }
