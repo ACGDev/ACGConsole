@@ -243,6 +243,14 @@ namespace _3dCartImportConsole
                         partList.Select(I => I.Customer_PO).ToList());
                     foreach (var order in orderwithdetails)
                     {
+                        foreach (var o in orders)
+                        {
+                            if (order.orderno == o.orderno)
+                            {
+                                o.order_item_details = order.order_item_details;
+                                break;
+                            }
+                        }
                         var orderList = new List<object>();
                         foreach (var item in order.order_item_details)
                         {
@@ -255,35 +263,40 @@ namespace _3dCartImportConsole
                                 SHIPDATE = item.status_datetime?.ToString("dd-MMM-yyyy") ?? ""
                             });
                         }
-                        if (order.shipemail != null)
+                        //if we know the status value then we need to check with that
+                        if (order.shipstate.ToLower() != "pending")
                         {
-                            MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
-                                "Order Success", "", "israhulroy@gmail.com", new ordertemplate
-                                {
-                                    Name = $"{order.shipfirstname} {order.shiplastname}",
-                                    OrderNo = order.orderno,
-                                    Contact = order.shipphone,
-                                    Address = $"{order.shipaddress} {order.shipaddress2}",
-                                    City = order.shipcity,
-                                    State = order.shipstate,
-                                    ZipCode = order.shipzip,
-                                    OrderList = orderList
-                                });
-                        }
-                        if (order.billemail != null)
-                        {
-                            MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
-                                "Order Success", "", "israhulroy@gmail.com", new ordertemplate
-                                {
-                                    Name = $"{order.billfirstname} {order.billlastname}",
-                                    OrderNo = order.orderno,
-                                    Contact = order.billphone,
-                                    Address = $"{order.billaddress} {order.billaddress2}",
-                                    City = order.billcity,
-                                    State = order.billstate,
-                                    ZipCode = order.billzip,
-                                    OrderList = orderList
-                                });
+                            if (order.shipemail != null)
+                            {
+                                MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
+                                    "Order Success", "", "israhulroy@gmail.com", new ordertemplate
+                                    {
+                                        Name = $"{order.shipfirstname} {order.shiplastname}",
+                                        OrderNo = order.orderno,
+                                        Contact = order.shipphone,
+                                        Address = $"{order.shipaddress} {order.shipaddress2}",
+                                        City = order.shipcity,
+                                        State = order.shipstate,
+                                        ZipCode = order.shipzip,
+                                        OrderList = orderList
+                                    });
+                            }
+                            if (order.billemail != null)
+                            {
+                                MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
+                                    "Order Success", "", "israhulroy@gmail.com", new ordertemplate
+                                    {
+                                        Name = $"{order.billfirstname} {order.billlastname}",
+                                        OrderNo = order.orderno,
+                                        Contact = order.billphone,
+                                        Address = $"{order.billaddress} {order.billaddress2}",
+                                        City = order.billcity,
+                                        State = order.billstate,
+                                        ZipCode = order.billzip,
+                                        OrderList = orderList
+                                    });
+                            }
+
                         }
                     }
                 }
@@ -327,7 +340,7 @@ namespace _3dCartImportConsole
                             li.Add(ship);
                         }
                         //Update Shipment Information
-                        RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
+                        var status = RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
                             configData.Store, o.order_id);
                     }
                 }
@@ -730,18 +743,20 @@ namespace _3dCartImportConsole
                         Log.Info(string.Format("  ** Error in processing order {0} \r\n   ", thiserror));
                         error += thiserror;
                     }
-                    var ckVariant = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
-                    if (ckVariant != null)
+                    var productAndDealerItems = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
+                    if (productAndDealerItems != null)
                     {
-                        orderItem.ItemID = ckVariant.SKU;
+                        var product = productAndDealerItems.Item1;
+                        var dealerPrice = productAndDealerItems.Item2;
+                        orderItem.ItemID = order.SKU;
                         //order.SKU = ckVariant.SKU;
-                        orderItem.ItemOptionPrice = ckVariant.price * 70 / 100;
-                        if (orderItem.ItemOptionPrice < 150)
-                        {
-                            ship.ShipmentCost = 5;
-                        }
-                        orderItem.CatalogID = ckVariant.catalogid;
-                        orderItem.ItemDescription = ckVariant.description;
+                        orderItem.ItemOptionPrice = dealerPrice.CostToDealer;
+                        //if (orderItem.ItemOptionPrice < 150)
+                        //{
+                            ship.ShipmentCost = dealerPrice.ShipCost;
+                        //}
+                        orderItem.CatalogID = product.catalogid;
+                        orderItem.ItemDescription = product.description;
                     }
                     else
                     {

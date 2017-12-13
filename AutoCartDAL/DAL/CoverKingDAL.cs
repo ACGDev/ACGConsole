@@ -31,16 +31,16 @@ namespace AutoCarOperations.DAL
                 context.Configuration.ValidateOnSaveEnabled = true;
             }
         }
-        public static void Save(string connectionString, IEnumerable<IEnumerable<AppData>> appData)
+        public static void Save(string connectionString, IEnumerable<IEnumerable<DownloadVariant>> downloadedVariant)
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
                 context.Configuration.AutoDetectChangesEnabled = false;
                 context.Configuration.ValidateOnSaveEnabled = false;
                 context.Database.ExecuteSqlCommand("TRUNCATE ck_app_data;");
-                foreach (var items in appData)
+                foreach (var items in downloadedVariant)
                 {
-                    context.CKAppData.AddRange(items);
+                    context.CKDownloadedVariant.AddRange(items);
                 }
                 context.SaveChanges();
                 context.Configuration.AutoDetectChangesEnabled = true;
@@ -114,10 +114,10 @@ namespace AutoCarOperations.DAL
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
-                var appData = context.CKAppData.OrderBy(I => I.ProductID).ThenBy(I=> I.VariantID).ThenBy(I => I.SubModel).ToList();
+                var appData = context.CKDownloadedVariant.OrderBy(I => I.ProductID).ThenBy(I=> I.VariantID).ThenBy(I => I.SubModel).ToList();
                 foreach (var a in appData)
                 {
-                    context.CKAppData.Attach(a);
+                    context.CKDownloadedVariant.Attach(a);
 
                     var baseVehicleId =
                         CallService(
