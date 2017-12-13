@@ -90,7 +90,7 @@ namespace _3dCartImportConsole
 
                 //First Sync orders but DO NOT create orders or upload order files
                 Log.Info("\r\nProcessing JFW Orders. First sync 3DCart orders to get the latest JFW order.");
-                OrderDAL.PlaceOrder(configData, false, true, true,null ,5);
+                OrderDAL.PlaceOrder(configData, false, true, true,null ,20);
                 //Download order from JFW FTP and place order
                 var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
                 acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
@@ -185,7 +185,8 @@ namespace _3dCartImportConsole
             if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess == "3")
             {
                 Log.Info("\r\n*** Fetching CK Order Status, Update JFW tracking and send Shipping Emails");
-                var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted" && ord.order_status == 1);
+                // var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted" && ord.order_status == 1);
+                var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.orderdate >= DateTime.Parse("10/01/2017") && (ord.order_status ==1 || ord.order_status == 4) );
                 CKOrderStatus.Order_StatusSoapClient client = new Order_StatusSoapClient();
                 Orders_response Response = new Orders_response();
                 List<Parts> partList = new List<Parts>();
@@ -195,6 +196,8 @@ namespace _3dCartImportConsole
                     try
                     {
                         Log.Info(string.Format("  Getting CK status for Order {0}", o.orderno));
+                        var ss = client.CustomSet1(o.orderno, configData.AuthUserName);
+
                         var s = client.Get_OrderStatus_by_PO(configData.CoverKingAPIKey, o.orderno, configData.AuthUserName);
                         Log.Info(string.Format("   ... Number of Line Items =  {0}", s.Orders_list.Length));
                         if (s.Orders_list != null && s.Orders_list.Length > 0)
@@ -330,10 +333,9 @@ namespace _3dCartImportConsole
                 }
 
                 // Process Tracking information - Not needed any more
-                //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 20);
-                // string filePathWithName = Path.Combine(filePath, @"\BDL_ORDERS_20170818-1915-A.txt");
-                //var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
-                //OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
+                FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 50);
+                var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
+                OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
 
                 var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm") + ".txt";
                 string strFilePath = string.Format("{0}\\JFW", filePath);

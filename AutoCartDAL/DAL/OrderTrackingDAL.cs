@@ -28,7 +28,7 @@ namespace AutoCarOperations.DAL
 
         public static void SaveOrderTracking(string connectionString, List<order_tracking> trackings)
         {
-			DateTime thisDateMinus2 = DateTime.Now.AddDays(-20);
+			DateTime thisDateMinus2 = DateTime.Now.AddDays(-70);
             StringBuilder sb = new StringBuilder("");
             using (var context = new AutoCareDataContext(connectionString))
             {
@@ -51,7 +51,7 @@ namespace AutoCarOperations.DAL
 					*/
                     if (existingEntry == null && tracking.ship_date>= thisDateMinus2)
                     {
-                        context.OrderTracking.AddOrUpdate(tracking);
+                        // context.OrderTracking.AddOrUpdate(tracking);
                         sb.AppendLine(string.Format("INSERT INTO `order_tracking` (`po_no`,`order_no`,`order_date`,`SKU`,`ship_address`,`ship_date`,`tracking_no`,`ship_agent`,`ship_service`,`processed`) values (" +
                             "'{0}','{1}','{2} 00:00:00','{3}','{4}','{5} 00:00:00','{6}','{7}','{8}',0);", tracking.po_no, tracking.order_no, tracking.order_date.ToString("yyyy-MM-dd"), tracking.SKU,
                             tracking.ship_address, tracking.ship_date.ToString("yyyy-MM-dd"), tracking.tracking_no, tracking.ship_agent, tracking.ship_service));
