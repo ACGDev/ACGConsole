@@ -36,7 +36,7 @@ namespace AutoCarOperations.Model
         public string ProductCode { get; set; }
         public string ProductFamily { get; set; }
     }
-    [Table("jfw_dealeritemprice")]
+    [Table("acg_dealeritemprice")]
     public class DealerItemPrice
     {
         [Key]

@@ -191,12 +191,12 @@ namespace AutoCarOperations.DAL
             return dbProducts;
         }
 
-        public static Tuple<products,DealerItemPrice> FindOrderFromSKU(string connectionString, string sku)
+        public static Tuple<products,DealerItemPrice> FindOrderFromSKU(string connectionString, string sku, string itemId)
         {
             using (var context = new AutoCareDataContext(connectionString))
             {
                 var product = context.Products.Join(context.CKVaraints.Where(I => I.SKU == sku && I.Blocked.ToLower() == "no"), i => i.mfgid, j => j.ItemID, (i, j) => i).FirstOrDefault();
-                var dealerPrice = context.ACGDealerItemPrice.Join(context.CKAmazonVariant.Where(I => I.SKUOrUPC == sku), i => i.ItemID, j => j.NavItem, (i,j) => i).FirstOrDefault();
+                var dealerPrice = context.ACGDealerItemPrice.FirstOrDefault(I => I.ItemID == itemId);
                 return Tuple.Create(product, dealerPrice);
             }
         } 
