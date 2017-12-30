@@ -743,7 +743,7 @@ namespace _3dCartImportConsole
                         Log.Info(string.Format("  ** Error in processing order {0} \r\n   ", thiserror));
                         error += thiserror;
                     }
-                    var productAndDealerItems = ProductDAL.FindOrderFromSKU(connectionString, order.SKU, orderItem.ItemID);
+                    var productAndDealerItems = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
                     if (productAndDealerItems != null)
                     {
                         var product = productAndDealerItems.Item1;
