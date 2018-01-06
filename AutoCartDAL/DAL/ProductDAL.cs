@@ -75,12 +75,12 @@ namespace AutoCarOperations.DAL
                     categoriesaaa = null,
                     categoryspecial = product.CategorySpecial,//changed int to boolean
                     cost = product.SKUInfo.Cost,
-                    date_created = product.DateCreated.ToString(),
+                    date_created = Convert.ToDateTime(product.DateCreated).ToString("yyyy-MM-dd"),
                     depth = product.Depth,//changed int to double
                     description = product.ShortDescription,
                     displaytext = product.DisplayText,
                     display_stock = product.OutOfStockMessage,
-                    distributor = product.DistributorList != null && product.DistributorList.Count > 0 ? product.DistributorList[0].DistributorName : string.Empty,
+                    // distributor = product.DistributorList != null && product.DistributorList.Count > 0 ? product.DistributorList[0].DistributorName : string.Empty,
                     eproduct_expire = null,
                     eproduct_instructions = product.SpecialInstructions,
                     eproduct_password = null,
@@ -131,7 +131,7 @@ namespace AutoCarOperations.DAL
                     imagecaption4 = product.AdditionalImageCaption4,
                     instock_message = product.InStockMessage,
                     keywords = product.Keywords,
-                    last_update = upd_dt.ToString("yyyy-MM-ddTHH:mm:ss"),  // product.LastUpdate.ToString(),
+                    last_update = upd_dt.ToString("yyyy-MM-dd"),  // product.LastUpdate.ToString(),
                     loginlevel = product.LoginRequiredOptionID,
                     manufacturer = product.ManufacturerID.ToString(),
                     maximumorder = product.MaximumQuantity.ToString(),
@@ -196,8 +196,8 @@ namespace AutoCarOperations.DAL
             using (var context = new AutoCareDataContext(connectionString))
             {
                 var product = context.Products.Join(context.CKVaraints.Where(I => I.SKU == sku && I.Blocked.ToLower() == "no"), i => i.mfgid, j => j.ItemID, (i, j) => i).FirstOrDefault();
-                var dealerPrice = context.Products.Join((context.CKVaraints.Where(I => I.SKU == sku && I.Blocked.ToLower() == "no").Join(context.ACGDealerItemPrice, C=> C.ItemID, A=> A.ItemID, (variant, price) => price)), i => i.mfgid, j => j.ItemID, (i, j) => j).FirstOrDefault();
-                //var dealerPrice = context.ACGDealerItemPrice.FirstOrDefault(I => I.ItemID == itemId);
+                //var dealerPrice = context.Products.Join((context.CKVaraints.Where(I => I.SKU == sku && I.Blocked.ToLower() == "no").Join(context.ACGDealerItemPrice, C=> C.ItemID, A=> A.ItemID, (variant, price) => price)), i => i.mfgid, j => j.ItemID, (i, j) => j).FirstOrDefault();
+                var dealerPrice = context.ACGDealerItemPrice.FirstOrDefault(I => I.ItemID == product.SKU);
                 return Tuple.Create(product, dealerPrice);
             }
         } 

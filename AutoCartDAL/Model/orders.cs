@@ -130,7 +130,7 @@ namespace AutoCarOperations.Model
         public string categoriesaaa { get; set; }
         public string mfgid { get; set; }
         public string manufacturer { get; set; }
-        public string distributor { get; set; }
+       // public string distributor { get; set; }
         public double? cost { get; set; }
         public double? price { get; set; }
         public double? price2 { get; set; }
