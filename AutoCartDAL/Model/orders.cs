@@ -130,7 +130,7 @@ namespace AutoCarOperations.Model
         public string categoriesaaa { get; set; }
         public string mfgid { get; set; }
         public string manufacturer { get; set; }
-       // public string distributor { get; set; }
+        //public string distributor { get; set; }
         public double? cost { get; set; }
         public double? price { get; set; }
         public double? price2 { get; set; }
@@ -139,7 +139,7 @@ namespace AutoCarOperations.Model
         public int? onsale { get; set; }
         public int? stock { get; set; }
         public string stock_alert { get; set; }
-        public string display_stock { get; set; }
+        //public string display_stock { get; set; }
         public int? weight { get; set; }
         public string minimumorder { get; set; }
         public string maximumorder { get; set; }
@@ -153,9 +153,9 @@ namespace AutoCarOperations.Model
         public string image2 { get; set; }
         public string image3 { get; set; }
         public string image4 { get; set; }
-        public string realmedia { get; set; }
-        public string related { get; set; }
-        public string accessories { get; set; }
+        //public string realmedia { get; set; }
+        //public string related { get; set; }
+        //public string accessories { get; set; }
         public double? shipcost { get; set; }
         public string imagecaption1 { get; set; }
         public string imagecaption2 { get; set; }
@@ -164,19 +164,19 @@ namespace AutoCarOperations.Model
         public string title { get; set; }
         public string metatags { get; set; }
         public string displaytext { get; set; }
-        public string eproduct_password { get; set; }
-        public string eproduct_random { get; set; }
-        public string eproduct_expire { get; set; }
-        public string eproduct_path { get; set; }
-        public string eproduct_serial { get; set; }
-        public string eproduct_instructions { get; set; }
+        //public string eproduct_password { get; set; }
+        //public string eproduct_random { get; set; }
+        //public string eproduct_expire { get; set; }
+        //public string eproduct_path { get; set; }
+        //public string eproduct_serial { get; set; }
+        //public string eproduct_instructions { get; set; }
         public bool? homespecial { get; set; }
         public bool? categoryspecial { get; set; }
         public bool? hide { get; set; }
         public bool? free_shipping { get; set; }
         public bool? nontax { get; set; }
         public bool? notforsale { get; set; }
-        public bool? giftcertificate { get; set; }
+        //public bool? giftcertificate { get; set; }
         public string userid { get; set; }
         public string last_update { get; set; }
         public string extra_field_1 { get; set; }
@@ -192,8 +192,8 @@ namespace AutoCarOperations.Model
         public string extra_field_11 { get; set; }
         public string extra_field_12 { get; set; }
         public string extra_field_13 { get; set; }
-        public int? usecatoptions { get; set; }
-        public string qtyoptions { get; set; }
+        //public int? usecatoptions { get; set; }
+        //public string qtyoptions { get; set; }
         public double? price_1 { get; set; }
         public double? price_2 { get; set; }
         public double? price_3 { get; set; }
@@ -214,36 +214,36 @@ namespace AutoCarOperations.Model
         public bool? hide_8 { get; set; }
         public bool? hide_9 { get; set; }
         public bool? hide_10 { get; set; }
-        public int? minorderpkg { get; set; }
+        //public int? minorderpkg { get; set; }
         public int? listing_displaytype { get; set; }
-        public int? show_out_stock { get; set; }
+        //public int? show_out_stock { get; set; }
         public bool? pricing_groupopt { get; set; }
-        public bool? qtydiscount_opt { get; set; }
+        //public bool? qtydiscount_opt { get; set; }
         public int? loginlevel { get; set; }
-        public string redirectto { get; set; }
+        //public string redirectto { get; set; }
         public string accessgroup { get; set; }
-        public int? self_ship { get; set; }
-        public string tax_code { get; set; }
-        public string eproduct_reuseserial { get; set; }
+        //public int? self_ship { get; set; }
+        //public string tax_code { get; set; }
+        //public string eproduct_reuseserial { get; set; }
         public bool? nonsearchable { get; set; }
-        public string instock_message { get; set; }
-        public string outofstock_message { get; set; }
-        public string backorder_message { get; set; }
+        //public string instock_message { get; set; }
+        //public string outofstock_message { get; set; }
+        //public string backorder_message { get; set; }
         public int? height { get; set; }
         public int? width { get; set; }
         public double? depth { get; set; }
-        public int? reward_points { get; set; }
-        public int? reward_disable { get; set; }
-        public int? reward_redeem { get; set; }
+        //public int? reward_points { get; set; }
+//        public int? reward_disable { get; set; }
+        //public int? reward_redeem { get; set; }
         public string filename { get; set; }
-        public string fractional_qty { get; set; }
+        //public string fractional_qty { get; set; }
         public string gtin { get; set; }
-        public string rma_maxperiod { get; set; }
-        public string recurring_order { get; set; }
-        public string reminders_enabled { get; set; }
-        public string reminders_frequency { get; set; }
-        public string review_average { get; set; }
-        public int? review_count { get; set; }
+        //public string rma_maxperiod { get; set; }
+        //public string recurring_order { get; set; }
+        //public string reminders_enabled { get; set; }
+        //public string reminders_frequency { get; set; }
+        //public string review_average { get; set; }
+        //public int? review_count { get; set; }
     }
 
     public class order_shipments
