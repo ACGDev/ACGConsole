@@ -153,7 +153,6 @@ namespace DCartRestAPIClient
     #region Order Auxiliary Tables
     public class OrderItem
     {
-        
         public int? CatalogID { get; set; }
         public int? ItemIndexID { get; set; }
         public string ItemID { get; set; }
@@ -241,6 +240,11 @@ namespace DCartRestAPIClient
         public int? ShipmentNumber { get; set; }
         public int? ShipmentAddressTypeID { get; set; }
 
+    }
+    public class ChangedOrderNumbers
+    {
+        public string ACG_OrderNo { get; set; }
+        public string Manuf_PO_No { get; set; }
     }
     #endregion
 }

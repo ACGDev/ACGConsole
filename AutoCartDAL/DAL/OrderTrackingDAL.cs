@@ -28,7 +28,7 @@ namespace AutoCarOperations.DAL
 
         public static void SaveOrderTracking(string connectionString, List<order_tracking> trackings)
         {
-			DateTime thisDateMinus2 = DateTime.Now.AddDays(-70);
+			DateTime thisDateMinus2 = DateTime.Now.AddDays(-20);
             StringBuilder sb = new StringBuilder("");
             using (var context = new AutoCareDataContext(connectionString))
             {

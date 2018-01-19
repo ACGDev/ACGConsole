@@ -185,72 +185,186 @@ namespace _3dCartImportConsole
             if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess == "3")
             {
                 Log.Info("\r\n*** Fetching CK Order Status, Update JFW tracking and send Shipping Emails");
-                // var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.shipcomplete == "Submitted" && ord.order_status == 1);
-                var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.orderdate >= DateTime.Parse("10/01/2017") && (ord.order_status ==1 || ord.order_status == 4) );
+                var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.order_status == 1);
+                // var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.orderdate >= DateTime.Parse("10/01/2017") && (ord.order_status ==1 || ord.order_status == 4) );
+
+                Log.Info(String.Format("\r\n*** Number of Open Orders {0} ", orders.Count));
+
+                // SM: Read Changed_ACGOrderNo.txt for substituted order numbers in CK
+                String currentAppPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                String changedOrderFileName = System.IO.Path.GetDirectoryName(currentAppPath)+ "\\Changed_ACGOrderNo.txt" ;
+                Log.Info(String.Format("\r\n*** Reading Changed Order file {0} ", changedOrderFileName));
+                string textAll = File.ReadAllText(changedOrderFileName);
+                string[] lines = textAll.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
+                List<ChangedOrderNumbers> changedOrders = new List<ChangedOrderNumbers>();
+                foreach (var thisLine in lines)
+                {
+                    if (thisLine.StartsWith("//") || thisLine.Trim().Length == 0)
+                        continue;
+                    var segments = thisLine.Split(',');
+                    if (segments.Length==2)
+                    {
+                        ChangedOrderNumbers c = new ChangedOrderNumbers();
+                        c.ACG_OrderNo = segments[0].Trim();
+                        c.Manuf_PO_No = segments[1].Trim();
+                        changedOrders.Add(c);
+                    }
+                }
+                
                 CKOrderStatus.Order_StatusSoapClient client = new Order_StatusSoapClient();
                 Orders_response Response = new Orders_response();
                 List<Parts> partList = new List<Parts>();
+                List<orders> shippedOrderList = new List<orders>();
+                List<Parts>jfwShippedList = new List<Parts>();
                 //todo:group 5 orders
                 foreach (var o in orders)
                 {
                     try
                     {
                         Log.Info(string.Format("  Getting CK status for Order {0}", o.orderno));
-                        var ss = client.CustomSet1(o.orderno, configData.AuthUserName);
+                        // var ss = client.CustomSet1(o.orderno, configData.AuthUserName);
+                        //SM: First check if this order no was changed in CK
+                        string thisOrderNoInCK = o.orderno;
+                        if (changedOrders.Count>0)
+                        {
+                            foreach (var chOrd in changedOrders)
+                            {
+                                if (chOrd.ACG_OrderNo == thisOrderNoInCK)
+                                {
+                                    thisOrderNoInCK = chOrd.Manuf_PO_No;
+                                    break;
+                                }
+                            }
+                        }
 
-                        var s = client.Get_OrderStatus_by_PO(configData.CoverKingAPIKey, o.orderno, configData.AuthUserName);
+                        var s = client.Get_OrderStatus_by_PO(configData.CoverKingAPIKey, thisOrderNoInCK, configData.AuthUserName);
                         Log.Info(string.Format("   ... Number of Line Items =  {0}", s.Orders_list.Length));
                         if (s.Orders_list != null && s.Orders_list.Length > 0)
                         {
-                            var ordersWithStatus = s.Orders_list[0];
-                            foreach (var partStatus in ordersWithStatus.Parts_list)
+                            int totalItemsShipped = 0;
+                            int sequenceNo = 0;
+                            DateTime? lastShipDate = Convert.ToDateTime("01/01/2017");
+
+                            foreach (var ordersWithStatus in s.Orders_list)
                             {
-                                if (partStatus != null)
+                                foreach (var partStatus in ordersWithStatus.Parts_list)
                                 {
-                                    Log.Info(string.Format("   Status for ItemNo {0}, Variant {1}, Sl No: {2} : {3} Tracking {4} ", 
-                                        partStatus.ItemNo, partStatus.VariantID, partStatus.Serial_No, partStatus.Status, partStatus.Package_No));
-                                    //SM: Ignore cancelled status from CK API. This may be because the order was temporarily cancelled.
-                                    if (partStatus.Status.ToLower() == "cancelled")
+                                    if (partStatus == null)
                                         continue;
 
-                                    var sequenceNo = 1;
-                                    bool statusChanged = OrderDAL.UpdateOrderDetail(configData.ConnectionString, o.orderno, partStatus.Serial_No,
-                                        partStatus.Status, partStatus.Shipping_agent_used,
-                                        partStatus.Shipping_agent_service_used,
-                                        partStatus.Package_No, partStatus.Package_link, partStatus.ItemNo, partStatus.VariantID, sequenceNo);
-                                    sequenceNo += 1;
-                                    if (statusChanged)
+                                    //SM replace incoming PO no with ACG's order no, if order no was changed.
+                                    if (partStatus.Customer_PO != o.orderno)
                                     {
-                                        partList.Add(partStatus);
+                                        partStatus.Customer_PO = o.orderno;
                                     }
-                                    continue;   //****** Temporary to avoid SHipment problem
-                                }
-                            }
+                                    Log.Info(string.Format("   Status for ItemNo {0}, Variant {1}, Sl No: {2} : {3} Tracking {4} ",
+                                    partStatus.ItemNo, partStatus.VariantID, partStatus.Serial_No, partStatus.Status, partStatus.Package_No));
+                                    //SM: Ignore cancelled status from CK API. This may be because the order was temporarily cancelled.
+                                    if (partStatus.Status.ToLower() != "cancelled")
+                                    {
+                                        sequenceNo += 1;
+                                        bool statusChanged = OrderDAL.UpdateOrderDetail(configData.ConnectionString, o.orderno, partStatus.Serial_No,
+                                            partStatus.Status, partStatus.Shipping_agent_used,
+                                            partStatus.Shipping_agent_service_used,
+                                            partStatus.Package_No, partStatus.Package_link, partStatus.ItemNo, partStatus.VariantID, sequenceNo,
+                                            ref totalItemsShipped, ref lastShipDate);
 
-                        }
-                        //send email only if shipped
-                        //update shipping information on 3dcart
+                                        if (statusChanged)
+                                        {
+                                            partList.Add(partStatus);
+                                        }
+                                        if (partStatus.Status == "Shipped" && o.billemail == "support@justfeedwebsites.com")
+                                            jfwShippedList.Add(partStatus);
+                                    }
+                                }
+                                //*** SM: Why can't we take care of updating order status here if shipped ?
+                                if (sequenceNo == totalItemsShipped && totalItemsShipped > 0)
+                                {
+                                    o.last_update = lastShipDate;
+                                    shippedOrderList.Add(o);
+                                }
+
+                            }
+                        } ////
+
                     }
                     catch (Exception e)
                     {
 
                     }
                 }
+                // SM: (new) Update Order Status - Also update order status in 3DCart
+                if (shippedOrderList.Count > 0)
+                {
+                    OrderDAL.UpdateStatus(configData.ConnectionString, shippedOrderList, "Shipped", 4);
+
+                    foreach (var o in shippedOrderList)
+                    {
+                        var records = RestHelper.GetRestAPIRecords<Shipment>("", string.Format("Orders/{0}/Shipments", o.order_id), configData.PrivateKey, configData.Token, configData.Store, "100", 0);
+                        List<Shipment> li = new List<Shipment>();
+                        foreach (var ship in records)
+                        {
+                            ship.ShipmentID = 0;
+                            ship.ShipmentState = "Shipped";
+                            ship.ShipmentOrderStatus = 4;
+                            if (o.last_update != null)
+                               ship.ShipmentShippedDate = o.last_update.ToString();
+                            li.Add(ship);
+                        }
+                        //Update Shipment Information
+                        var status = RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
+                            configData.Store, o.order_id);
+                    }
+                }
+                // SM ** handle JFW stuff here 
+                // Process Tracking information - Not needed any more
+                //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 50);
+                //var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
+                //OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
+
+                var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm") + ".txt";
+                // string strFilePath = string.Format("{0}\\JFW", filePath);
+
+                string strFileNameWithPath = string.Format("{0}\\Tracking\\{1}", JFWTrackingFilePath, jfwFilename);
+                Log.Info(string.Format("  Creating JFW Tracking File {0} ", strFileNameWithPath));
+                //string strTextHeader = "JFW PO_No,Tracking_No";
+                //File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
+                //var jfwFilteredList = OrderTrackingDAL.GetOrderTracking(configData.ConnectionString);
+
+                // SM: need to filter only JFW orders. Preferably by BillEmail address. Later these need to be in a separate table.
+                // not needed var jfwFilteredList = partList.Where(I => I.Status.ToLower() == "shipped" && I.Customer_PO.ToUpper().StartsWith("ACGA-"));
+                if (jfwShippedList != null && jfwShippedList.Any())
+                {
+                    var lastPo = jfwShippedList.LastOrDefault().Customer_PO;
+                    foreach (var jfwOrder in jfwShippedList)
+                    {
+                        //SM Oct 21: We need the Original PO - not the PO coming from part status
+                        //  Customer_PO in partstatus is actually the ACG order no
+                        string JFW_PO = OrderDAL.GetCustomerPOFromOrderNo(configData.ConnectionString, jfwOrder.Customer_PO);
+                        if (JFW_PO.Length > 0)
+                        {
+                            string text = string.Format("{0}, {1}", JFW_PO, jfwOrder.Package_No.Trim());
+                            Log.Info(string.Format("  Include Tracking: JFW PO {0}, ACG Order {1}, Tracking no ", JFW_PO, jfwOrder.Customer_PO, jfwOrder.Package_No.Trim()));
+                            if (jfwOrder.Customer_PO != lastPo)
+                            {
+                                text = text + Environment.NewLine;
+                            }
+                            File.AppendAllText(strFileNameWithPath, text);
+                        }
+                    }
+                    Log.Info(string.Format("  Uploading Tracking file to ftp ", jfwFilename));
+                    FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, JFWTrackingFilePath, "\\Tracking\\" + jfwFilename, WebRequestMethods.Ftp.UploadFile);
+
+                }
+
+                List<orders> orderwithdetails = null;
                 //Send Email to users
                 if (partList.Any())
                 {
-                    List<orders> orderwithdetails = OrderDAL.GetOrderWithDetails(configData.ConnectionString,
+                    orderwithdetails = OrderDAL.GetOrderWithDetails(configData.ConnectionString,
                         partList.Select(I => I.Customer_PO).ToList());
                     foreach (var order in orderwithdetails)
                     {
-                        foreach (var o in orders)
-                        {
-                            if (order.orderno == o.orderno)
-                            {
-                                o.order_item_details = order.order_item_details;
-                                break;
-                            }
-                        }
                         var orderList = new List<object>();
                         foreach (var item in order.order_item_details)
                         {
@@ -260,16 +374,16 @@ namespace _3dCartImportConsole
                                 TRACKINGNO = item.tracking_no,
                                 SKU = item.sku,
                                 DESCRIPTION = item.description,
-                                SHIPDATE = item.status_datetime?.ToString("dd-MMM-yyyy") ?? ""
+                                SHIPDATE = item.status == "Shipped" ? item.status_datetime.Value.ToString("dd-MMM-yyyy"): ""
                             });
                         }
                         //if we know the status value then we need to check with that
-                        if (order.shipstate.ToLower() != "pending")
+                        if (order.shipcomplete.ToLower() != "shipped")
                         {
-                            if (order.shipemail != null)
+                            if (! String.IsNullOrEmpty(order.shipemail))
                             {
                                 MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
-                                    "Order Success", "", "israhulroy@gmail.com", new ordertemplate
+                                    "Order Success", "", "mukherjees2010@gmail.com", new ordertemplate
                                     {
                                         Name = $"{order.shipfirstname} {order.shiplastname}",
                                         OrderNo = order.orderno,
@@ -281,10 +395,10 @@ namespace _3dCartImportConsole
                                         OrderList = orderList
                                     });
                             }
-                            if (order.billemail != null)
+                            if (!String.IsNullOrEmpty(order.billemail))
                             {
                                 MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
-                                    "Order Success", "", "israhulroy@gmail.com", new ordertemplate
+                                    "Order Success", "", "mukherjees2010@gmail.com", new ordertemplate
                                     {
                                         Name = $"{order.billfirstname} {order.billlastname}",
                                         OrderNo = order.orderno,
@@ -301,57 +415,63 @@ namespace _3dCartImportConsole
                     }
                 }
                 //Update Order Status
-                List<orders> updateOrderList = new List<orders>();
-                foreach (var order in orders)
-                {   
-                    bool allShipped = true;
-                    if (!(null == order.order_item_details))
-                    {
-                        foreach (var detail in order.order_item_details)
-                        {
-                            if (detail.status != "Shipped")
-                            {
-                                allShipped = false;
-                                break;
-                            }
-
-                        }
-                    }
-                    else
-                        allShipped = false;
-                    if (allShipped)
-                    {
-                        updateOrderList.Add(order);
-                    }
-                }
-                if (updateOrderList.Count > 0)
+                /** SM: moved above **
+                if (orderwithdetails != null)
                 {
-                    OrderDAL.UpdateStatus(configData.ConnectionString, updateOrderList, "Shipped", 4);
-
-                    foreach (var o in updateOrderList)
+                    List<orders> updateOrderList = new List<orders>();
+                    foreach (var order in orderwithdetails)
                     {
-                        var records = RestHelper.GetRestAPIRecords<Shipment>("", string.Format("Orders/{0}/Shipments", o.order_id), configData.PrivateKey, configData.Token, configData.Store, "100", 0);
-                        List<Shipment> li = new List<Shipment>();
-                        foreach (var ship in records)
+                        bool allShipped = true;
+                        if (!(null == order.order_item_details))
                         {
-                            ship.ShipmentID = 0;
-                            ship.ShipmentState = "Shipped";
-                            ship.ShipmentOrderStatus = 4;
-                            li.Add(ship);
+                            foreach (var detail in order.order_item_details)
+                            {
+                                if (detail.status != "Shipped")
+                                {
+                                    allShipped = false;
+                                    break;
+                                }
+                            }
                         }
-                        //Update Shipment Information
-                        var status = RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
-                            configData.Store, o.order_id);
+                        else
+                            allShipped = false;
+                        if (allShipped)
+                        {
+                            updateOrderList.Add(order);
+                        }
+                    }
+                    if (updateOrderList.Count > 0)
+                    {
+                        OrderDAL.UpdateStatus(configData.ConnectionString, updateOrderList, "Shipped", 4);
+
+                        foreach (var o in updateOrderList)
+                        {
+                            var records = RestHelper.GetRestAPIRecords<Shipment>("", string.Format("Orders/{0}/Shipments", o.order_id), configData.PrivateKey, configData.Token, configData.Store, "100", 0);
+                            List<Shipment> li = new List<Shipment>();
+                            foreach (var ship in records)
+                            {
+                                ship.ShipmentID = 0;
+                                ship.ShipmentState = "Shipped";
+                                ship.ShipmentOrderStatus = 4;
+                                li.Add(ship);
+                            }
+                            //Update Shipment Information
+                            var status = RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
+                                configData.Store, o.order_id);
+                        }
                     }
                 }
+                **/
 
+
+                /*** SM: This section moved above 
                 // Process Tracking information - Not needed any more
-                FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 50);
-                var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
-                OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
+                //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 50);
+                //var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
+                //OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
 
                 var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm") + ".txt";
-                string strFilePath = string.Format("{0}\\JFW", filePath);
+                // string strFilePath = string.Format("{0}\\JFW", filePath);
 
                 string strFileNameWithPath = string.Format("{0}\\Tracking\\{1}", JFWTrackingFilePath, jfwFilename);
                 Log.Info(string.Format("  Creating JFW Tracking File {0} ", strFileNameWithPath));
@@ -385,6 +505,7 @@ namespace _3dCartImportConsole
                     // FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, JFWTrackingFilePath, jfwFilename, WebRequestMethods.Ftp.UploadFile);
                     //OrderTrackingDAL.UpdateOrderStatus(configData.ConnectionString, trackingList);
                 }
+                ***/
             }
             //File.Delete(strFilePath+ "\\Tracking\\" + jfwFilename);
             //DeleteAllFile(coverKingTrackingPath + "/Tracking");
@@ -698,7 +819,8 @@ namespace _3dCartImportConsole
                         {
                             order.InternalComments = Environment.NewLine;
                         }
-                        order.InternalComments = "Customized_Msg: " + jfwOrder.Customized_Msg;
+                        if (! String.IsNullOrEmpty(jfwOrder.Customized_Msg))
+                            order.InternalComments = "Customized_Msg: " + jfwOrder.Customized_Msg;
                         break;
                     case "CUSTOMIZED_CODE2":
                         jfwOrder.Customized_Code2 = splitText[i];
@@ -744,17 +866,15 @@ namespace _3dCartImportConsole
                         error += thiserror;
                     }
                     var productAndDealerItems = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
-                    if (productAndDealerItems != null)
+                    if (productAndDealerItems != null && productAndDealerItems.Item1 != null && productAndDealerItems.Item2 !=null)  // Sam  01/05/18
                     {
                         var product = productAndDealerItems.Item1;
                         var dealerPrice = productAndDealerItems.Item2;
-                        orderItem.ItemID = order.SKU;
+                        orderItem.ItemID = product.SKU;  //  Sam 01/05/18
                         //order.SKU = ckVariant.SKU;
-                        orderItem.ItemOptionPrice = dealerPrice.CostToDealer;
-                        //if (orderItem.ItemOptionPrice < 150)
-                        //{
-                            ship.ShipmentCost = dealerPrice.ShipCost;
-                        //}
+                        orderItem.ItemOptionPrice = Math.Round(dealerPrice.CostToDealer,2) ;
+                        ship.ShipmentCost = dealerPrice.ShipCost ;
+                        
                         orderItem.CatalogID = product.catalogid;
                         orderItem.ItemDescription = product.description;
                     }
