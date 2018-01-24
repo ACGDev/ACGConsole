@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Configuration;
 using System.Data;
 using System.Data.OleDb;
@@ -129,7 +130,7 @@ namespace _3dCartImportConsole
 
                                 if (recordInfo.Status == ActionStatus.Failed)
                                 {
-                                    // Email error to "support@autocareguys.com"
+                                    // Email error to "support@autocareguys.com" => now to support@justfeedwebsites.com
                                     Log.Info(string.Format("    ** 3DCart Order creation failed "));
                                     MandrillMail.SendEmail(configData.MandrilAPIKey,
                                         "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "support@autocareguys.com",
@@ -145,9 +146,10 @@ namespace _3dCartImportConsole
                         var destFile = "";
                         if (!string.IsNullOrEmpty(error))
                         {
-                            // Email order creation error to "support@autocareguys.com"
+                            // Email order creation error to "support@autocareguys.com" => now to support@justfeedwebsites.com
                             Log.Info(string.Format("    Sending error email to Support "));
-                            MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed: " + file.Name, error, "support@autocareguys.com"
+
+                            MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed: " + file.Name, error, "support@justfeedwebsites.com"
                                 , file.FullName, file.Name, file.Extension);
                             destFile = errorFilePath + file.Name;
                             if (!File.Exists(destFile))
@@ -305,10 +307,13 @@ namespace _3dCartImportConsole
                         foreach (var ship in records)
                         {
                             ship.ShipmentID = 0;
-                            ship.ShipmentState = "Shipped";
+                            //SM: This is STATE not Status ** ship.ShipmentState = "Shipped";
                             ship.ShipmentOrderStatus = 4;
                             if (o.last_update != null)
-                               ship.ShipmentShippedDate = o.last_update.ToString();
+                               ship.ShipmentShippedDate =  Convert.ToDateTime(o.last_update.ToString()).ToShortDateString();
+
+                            // Try with this: ship.ShipmentTrackingCode... also  ship.ShipmentNumber
+                            ship.ShipmentPhone = o.shipphone;
                             li.Add(ship);
                         }
                         //Update Shipment Information
@@ -896,13 +901,22 @@ namespace _3dCartImportConsole
                     order.CustomerComments = string.Format("PO NO: {0}; Buyer: {1}", order.PONo, buyer);
                     order.OrderItemList.Add(orderItem);
                     order.ShipmentList.Add(ship);
+
+                    // SM: fix problem when qty > 2
+                    for (var iCount=2; iCount <= noOfItems; iCount++)
+                    {
+                        order.OrderItemList.Add(orderItem);
+                        // order.ShipmentList.Add(ship);
+                    }
                     
+                    /** Not needed
                     if (noOfItems > 1)
                     {
                         noOfItems = noOfItems - 1;
                         GenerateOrder(connectionString, order, header, text, ref noOfItems, ref error);
                         Log.Info(string.Format("  JFW PO {2} Order No {0}-{1} ", order.InvoiceNumberPrefix, order.InvoiceNumber, order.PONo));
                     }
+                     **/
                 }
             }
             return Tuple.Create(order, jfwOrder);
