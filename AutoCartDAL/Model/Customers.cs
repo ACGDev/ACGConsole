@@ -41,6 +41,7 @@ namespace AutoCarOperations.Model
         public double discount{get;set;}
         public string accountno{get;set;}
         public bool maillist{get;set;}
+        public bool? non_taxable { get; set; }
         public int customertype{get;set;}
         public DateTime last_update{get;set;}
         public bool active{get;set;}

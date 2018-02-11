@@ -107,6 +107,7 @@ namespace AutoCarOperations.DAL
                     comments = customer.Comments,
                     email = customer.Email,
                     maillist = customer.MailList,
+                    non_taxable= customer.NonTaxable,
                     pricelevel = group == null ? (int?)null : group.PriceLevel,
                     shipping_address = customer.ShippingAddress1,
                     shipping_address2 = customer.ShippingAddress2,

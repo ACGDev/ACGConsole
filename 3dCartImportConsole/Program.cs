@@ -18,6 +18,8 @@ using Newtonsoft.Json;
 using _3dCartImportConsole.CKOrderStatus;
 using _3dCartImportConsole.Helper;
 using Order = DCartRestAPIClient.Order;
+using System.Windows.Forms;
+using System.Windows.Forms.ComponentModel.Com2Interop;
 
 namespace _3dCartImportConsole
 {
@@ -59,6 +61,8 @@ namespace _3dCartImportConsole
             string errorFilePath = Path.Combine(filePath, "./JFW/OrderErrors/");
             string processedFilePath = Path.Combine(filePath, "./ProcessedOrders/");
             string variantFilePath = Path.Combine(filePath, "./VariantFiles/");
+            double JFW_AR_2017 = 21893.03;  // updated Jan 26, 2018
+            double JFW_AR_Ceiling = 25000.00;
 
             // *** UNcomment this section for processing variant files from ftp
             #region ProcessVarintFileFromFtp
@@ -88,87 +92,116 @@ namespace _3dCartImportConsole
             #region ProcessJFWOrderFile
             if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess =="1")
             {
+                MessageBox.Show(string.Format("JFW balance in 2017: {0} - fix if needed", JFW_AR_2017));
+                // Check JFW order total in 2018 so far
+                Double totalWip_Shipped = OrderDAL.FetchTotalOrderAmt(configData.ConnectionString, "2018-01-01", "support@justfeedwebsites.com");
 
                 //First Sync orders but DO NOT create orders or upload order files
                 Log.Info("\r\nProcessing JFW Orders. First sync 3DCart orders to get the latest JFW order.");
-                OrderDAL.PlaceOrder(configData, false, true, true,null ,20);
+                OrderDAL.PlaceOrder(configData, false, true, true,null ,10);
                 //Download order from JFW FTP and place order
                 var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
                 acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
-                Log.Info(string.Format("  New Invoice no for JFW starting with {0} ", acg_invoicenum+1));
+                Log.Info(string.Format("  New Invoice no for JFW starting with {0} ", acg_invoicenum + 1));
                 Log.Info("  Downloading JFW Orders from ftp ");
                 FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
                 DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
-                foreach (var file in dir.GetFiles("*.txt"))
+                bool bProcessJFWOrder = true;
+                /**
+                if (JFW_AR_2017 + totalWip_Shipped >= JFW_AR_Ceiling && dir.GetFiles("*.txt").Length>0)
                 {
-                    try
+                    
+                    String emailMsg = String.Format(
+                        "Sorry, {0} new orders cannot be processed as the credit limit has reached or exceeded for this account.\r\n" +
+                        "Previous Year AR= {1} \r\n This Year WIP+Shipped = {2};\r\n Total {3} \r\n \r\n" +
+                        "Please pay down the balance to resume processing orders.",
+                        dir.GetFiles("*.txt").Length, JFW_AR_2017.ToString("C2"), totalWip_Shipped.ToString("C2"),
+                        (JFW_AR_2017 + totalWip_Shipped).ToString("C2"));
+
+                    Log.Info(string.Format("    Sending over limit email to JFW "));
+
+                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Cannot process new orders as Credit Limit has exceeded ", emailMsg,
+                        "support@justfeedwebsites.com"); // support@justfeedwebsites.com
+                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Cannot process order as Credit Limit has exceeded ", emailMsg,
+                        "sales@jfw6.com"); // support@justfeedwebsites.com
+                    bProcessJFWOrder = false;
+                }
+                **/
+
+                if (bProcessJFWOrder)
+                { 
+                    foreach (var file in dir.GetFiles("*.txt"))
                     {
-                        Log.Info(string.Format("\r\n  Processing Order File {0} ", file.Name));
-                        string text = File.ReadAllText(file.FullName);
-                        string[] lines = text.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
-                        string error = string.Empty;
-                        var jfw_orders = Get3dCartOrder(configData.NewJFWOrderStatusID, configData.ConnectionString, lines, customer, ref error);
-
-                        if (jfw_orders.Item2.Count > 0)   // indicates incoming file could be processed
+                        try
                         {
-                            // SM: Oct 16 ** Need to make sure this PO is not duplicate in jfw_orders
-                            OrderTrackingDAL.SaveJFWOrders(configData.ConnectionString, jfw_orders.Item2, file.Name);
+                            Log.Info(string.Format("\r\n  Processing Order File {0} ", file.Name));
+                            string text = File.ReadAllText(file.FullName);
+                            string[] lines = text.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
+                            string error = string.Empty;
+                            var jfw_orders = Get3dCartOrder(configData.NewJFWOrderStatusID, configData.ConnectionString, lines, customer, ref error);
 
-                            // Send this file via email to the whole group - just in case - may need to take out later.
-                            Log.Info(string.Format("  Emailing Order file to Team: ", file.Name));
-                            MandrillMail.SendEmail(configData.MandrilAPIKey,
-                                        "New JFW PO", "See attached file.", "team@autocareguys.com",
-                                        file.FullName, file.Name, file.Extension);
-
-                            // SM: Oct 13: Should we proceed even if error occurs in previous step ?
-                            foreach (var order in jfw_orders.Item1)
+                            if (jfw_orders.Item2.Count > 0)   // indicates incoming file could be processed
                             {
-                                // Push order to 3DCart
-                                Log.Info(string.Format("  Creating 3DCart Order for {0}-{1} ", order.InvoiceNumberPrefix, order.InvoiceNumber));
-                                var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
-                                    configData.Token, configData.Store);
+                                // SM: Oct 16 ** Need to make sure this PO is not duplicate in jfw_orders
+                                OrderTrackingDAL.SaveJFWOrders(configData.ConnectionString, jfw_orders.Item2, file.Name);
 
-                                if (recordInfo.Status == ActionStatus.Failed)
+                                // Send this file via email to the whole group - just in case - may need to take out later.
+                                Log.Info(string.Format("  Emailing Order file to Team: ", file.Name));
+                                MandrillMail.SendEmail(configData.MandrilAPIKey,
+                                            "New JFW PO", "See attached file.", "team@autocareguys.com",
+                                            file.FullName, file.Name, file.Extension);
+
+                                // SM: Oct 13: Should we proceed even if error occurs in previous step ?
+                                foreach (var order in jfw_orders.Item1)
                                 {
-                                    // Email error to "support@autocareguys.com" => now to support@justfeedwebsites.com
-                                    Log.Info(string.Format("    ** 3DCart Order creation failed "));
-                                    MandrillMail.SendEmail(configData.MandrilAPIKey,
-                                        "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "support@autocareguys.com",
-                                        file.FullName, file.Name, file.Extension);
+                                    // Push order to 3DCart
+                                    Log.Info(string.Format("  Creating 3DCart Order for {0}-{1} ", order.InvoiceNumberPrefix, order.InvoiceNumber));
+                                    var recordInfo = RestHelper.AddRecord(order, "Orders", configData.PrivateKey,
+                                        configData.Token, configData.Store);
+
+                                    if (recordInfo.Status == ActionStatus.Failed)
+                                    {
+                                        // Email error to "support@autocareguys.com" => now to support@justfeedwebsites.com
+                                        Log.Info(string.Format("    ** 3DCart Order creation failed "));
+                                        MandrillMail.SendEmail(configData.MandrilAPIKey,
+                                            "Failed to enter record in 3dCart. Please see the attached recordset", JsonConvert.SerializeObject(order), "support@autocareguys.com",
+                                            file.FullName, file.Name, file.Extension);
+                                    }
+                                    order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
                                 }
-                                order.OrderID = Convert.ToInt16(recordInfo.ResultSet);
+                            }
+                            //Delete JFW order file from FTP
+                            Log.Info(string.Format("    Deleting JFW PO file from ftp: {0} ", file.Name));
+                            FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, processedFilePath, file.Name, WebRequestMethods.Ftp.DeleteFile);
+
+                            var destFile = "";
+                            if (!string.IsNullOrEmpty(error))
+                            {
+                                // Email order creation error to "support@autocareguys.com" => now to support@justfeedwebsites.com
+                                Log.Info(string.Format("    Sending error email to Support "));
+
+                                MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed: " + file.Name, error, "support@justfeedwebsites.com"
+                                    , file.FullName, file.Name, file.Extension);
+                                destFile = errorFilePath + file.Name;
+                                if (!File.Exists(destFile))
+                                    File.Move(file.FullName, destFile);
+                            }
+                            else
+                            {
+                                destFile = processedFilePath + file.Name;
+                                if (!File.Exists(destFile))
+                                    File.Move(file.FullName, destFile);
                             }
                         }
-                        //Delete JFW order file from FTP
-                        Log.Info(string.Format("    Deleting JFW PO file from ftp: {0} ", file.Name));
-                        FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, processedFilePath, file.Name, WebRequestMethods.Ftp.DeleteFile);
-
-                        var destFile = "";
-                        if (!string.IsNullOrEmpty(error))
+                        catch (Exception e)
                         {
-                            // Email order creation error to "support@autocareguys.com" => now to support@justfeedwebsites.com
-                            Log.Info(string.Format("    Sending error email to Support "));
-
-                            MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed: " + file.Name, error, "support@justfeedwebsites.com"
-                                , file.FullName, file.Name, file.Extension);
-                            destFile = errorFilePath + file.Name;
-                            if (!File.Exists(destFile))
-                                File.Move(file.FullName, destFile);
+                            // Email generic error to "support@autocareguys.com"
+                            Log.Error(string.Format("    Unexpected message {0} ", e.Message));
+                            MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "support@autocareguys.com");
                         }
-                        else
-                        {
-                            destFile = processedFilePath + file.Name;
-                            if (!File.Exists(destFile))
-                                File.Move(file.FullName, destFile);
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        // Email generic error to "support@autocareguys.com"
-                        Log.Error(string.Format("    Unexpected message {0} ", e.Message));
-                        MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Processing Failed", e.Message, "support@autocareguys.com");
                     }
                 }
+
             }
             #endregion
 
@@ -326,20 +359,20 @@ namespace _3dCartImportConsole
                 //FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, coverKingTrackingPath, "Tracking", WebRequestMethods.Ftp.ListDirectory, 50);
                 //var trackingList = ReadTrackingFile(coverKingTrackingPath + "/Tracking");
                 //OrderTrackingDAL.SaveOrderTracking(configData.ConnectionString, trackingList);
-
-                var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm") + ".txt";
-                // string strFilePath = string.Format("{0}\\JFW", filePath);
-
-                string strFileNameWithPath = string.Format("{0}\\Tracking\\{1}", JFWTrackingFilePath, jfwFilename);
-                Log.Info(string.Format("  Creating JFW Tracking File {0} ", strFileNameWithPath));
-                //string strTextHeader = "JFW PO_No,Tracking_No";
-                //File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
-                //var jfwFilteredList = OrderTrackingDAL.GetOrderTracking(configData.ConnectionString);
-
-                // SM: need to filter only JFW orders. Preferably by BillEmail address. Later these need to be in a separate table.
-                // not needed var jfwFilteredList = partList.Where(I => I.Status.ToLower() == "shipped" && I.Customer_PO.ToUpper().StartsWith("ACGA-"));
                 if (jfwShippedList != null && jfwShippedList.Any())
                 {
+                    var jfwFilename = "JFW-" + DateTime.Now.ToString("yyyy-MM-dd-HH-mm") + ".txt";
+                    // string strFilePath = string.Format("{0}\\JFW", filePath);
+
+                    string strFileNameWithPath = string.Format("{0}\\Tracking\\{1}", JFWTrackingFilePath, jfwFilename);
+                    Log.Info(string.Format("  Creating JFW Tracking File {0} ", strFileNameWithPath));
+                    //string strTextHeader = "JFW PO_No,Tracking_No";
+                    //File.WriteAllText(strFileNameWithPath, strTextHeader + "\r\n");
+                    //var jfwFilteredList = OrderTrackingDAL.GetOrderTracking(configData.ConnectionString);
+
+                    // SM: need to filter only JFW orders. Preferably by BillEmail address. Later these need to be in a separate table.
+                    // not needed var jfwFilteredList = partList.Where(I => I.Status.ToLower() == "shipped" && I.Customer_PO.ToUpper().StartsWith("ACGA-"));
+
                     var lastPo = jfwShippedList.LastOrDefault().Customer_PO;
                     foreach (var jfwOrder in jfwShippedList)
                     {
@@ -349,7 +382,7 @@ namespace _3dCartImportConsole
                         if (JFW_PO.Length > 0)
                         {
                             string text = string.Format("{0}, {1}", JFW_PO, jfwOrder.Package_No.Trim());
-                            Log.Info(string.Format("  Include Tracking: JFW PO {0}, ACG Order {1}, Tracking no ", JFW_PO, jfwOrder.Customer_PO, jfwOrder.Package_No.Trim()));
+                            Log.Info(string.Format("  Include Tracking: JFW PO {0}, ACG Order {1}, Tracking no {2}", JFW_PO, jfwOrder.Customer_PO, jfwOrder.Package_No.Trim()));
                             if (jfwOrder.Customer_PO != lastPo)
                             {
                                 text = text + Environment.NewLine;
@@ -593,7 +626,7 @@ namespace _3dCartImportConsole
             order.InvoiceNumberPrefix = "ACGA-";
             order.OrderStatusID = Convert.ToInt32(NewJFWOrderStatusID);  //SM: READ from Config data, so we can control order creation from outside.
             order.Referer = "PHONE ORDER";
-            order.SalesPerson = "RB";
+            order.SalesPerson = "";
             order.OrderDate = DateTime.Now;
             order.OrderID = 0;
             order.CardNumber = "-1";

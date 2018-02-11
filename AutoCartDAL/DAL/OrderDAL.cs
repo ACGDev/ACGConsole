@@ -478,6 +478,48 @@ namespace AutoCarOperations.DAL
             }
             return strOrderStart;
         }
+        // Fethces total order value (shipped plus not) from a certain date for a specific billing address 
+        public static double FetchTotalOrderAmt(string myConnectionString, string strDate, String custEmail )
+        {
+            Double totalAmt = 0.0;
+            DateTime startDate;
+            if (strDate == "")
+                startDate = DateTime.Today;
+            else
+                startDate = Convert.ToDateTime(strDate);
+
+            MySqlConnection conn;
+            try
+            {
+                using (conn = new MySqlConnection(myConnectionString))
+                {
+
+                    MySqlCommand cmd = conn.CreateCommand();
+                    // 4: Shipped, 5: Cancelled
+                    cmd.CommandText =
+                        String.Format(
+                            "select sum(orderamount) as TotalAmount from orders where billemail = '{0}' and order_status in (1, 4) and "+
+                            " po_no in (select PO from jfw_orders where PO_Date>='{1}');",
+                            custEmail, startDate.ToString("yyyy-mm-dd"));
+
+                    
+                    //Command to get query needed value from DataBase
+                    conn.Open();
+                    MySqlDataReader reader = cmd.ExecuteReader();
+
+                    if (reader.Read())
+                    {
+                        totalAmt = reader.GetDouble("TotalAmount");
+                    }
+                    conn.Close();
+                }
+            }
+            catch (MySql.Data.MySqlClient.MySqlException ex)
+            {
+                Console.WriteLine("Error " + ex.Message);
+            }
+            return totalAmt;
+        }
         // SM: trims a string to given length, as well as checks for comma and replaces by ; and removes ' and "
         private static string TrimTolength(string inputStr, int maxLength)
         {
