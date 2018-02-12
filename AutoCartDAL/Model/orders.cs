@@ -238,6 +238,8 @@ namespace AutoCarOperations.Model
         public string filename { get; set; }
         //public string fractional_qty { get; set; }
         public string gtin { get; set; }
+
+        public int? qb_product_id { get; set; }
         //public string rma_maxperiod { get; set; }
         //public string recurring_order { get; set; }
         //public string reminders_enabled { get; set; }

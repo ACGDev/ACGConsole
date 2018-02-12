@@ -13,6 +13,26 @@ namespace AutoCarOperations.DAL
 {
     public static class ProductDAL
     {
+        public static List<products> GetProducts(ConfigurationData config, Func<products, bool> condFunc = null)
+        {
+            using (var context = new AutoCareDataContext(config.ConnectionString))
+            {
+                if (condFunc != null)
+                {
+                    return context.Products.Where(condFunc).ToList();
+                }
+                return context.Products.ToList();
+            }
+        }
+        public static void UpdateProduct(ConfigurationData config, int qbId, string sku)
+        {
+            using (var context = new AutoCareDataContext(config.ConnectionString))
+            {
+                context.Database.ExecuteSqlCommand(
+                    $"UPDATE [3dc_products] SET qb_product_id = {qbId} WHERE SKU = '{sku}'");
+                context.SaveChanges();
+            }
+        }
         public static void AddProduct(ConfigurationData config)
         {
             Console.WriteLine("..........Fetch Product Record..........");

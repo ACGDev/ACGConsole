@@ -11,13 +11,34 @@ namespace AutoCarOperations.DAL
 {
     public static class CustomerDAL
     {
+        public static List<customers> GetAll(ConfigurationData config, Func<customers, bool> condFunc = null)
+        {
+            using (var context = new AutoCareDataContext(config.ConnectionString))
+            {
+                if (condFunc == null)
+                {
+                    return context.Customers.OrderBy(I => I.customer_id).ToList();
+                }
+                return context.Customers.Where(condFunc).OrderBy(I => I.customer_id).ToList();
+            }
+        }
+
         public static customers FindCustomer(ConfigurationData config, Func<customers,bool> condFunc)
         {
             using (var context = new AutoCareDataContext(config.ConnectionString))
             {
                 return context.Customers.FirstOrDefault(condFunc);
             }
-        } 
+        }
+        public static void UpdateCustomer(ConfigurationData config, int qbId, long customerId)
+        {
+            using (var context = new AutoCareDataContext(config.ConnectionString))
+            {
+                context.Database.ExecuteSqlCommand(
+                    $"UPDATE customers SET qb_customer_id = {qbId} WHERE customer_id = {customerId}");
+                context.SaveChanges();
+            }
+        }
         public static void AddCustomer(ConfigurationData config)
         {
             Console.WriteLine("..........Fetch Customer Record..........");

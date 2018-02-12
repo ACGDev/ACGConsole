@@ -1,0 +1,53 @@
+﻿{
+  "Item": {
+    "Name": "Services", //product desc
+    "Active": true,
+    "FullyQualifiedName": "Services", //product desc
+    "Taxable": true,
+    "UnitPrice": 0, //price
+    "Type": "NonInventory",
+    "IncomeAccountRef": {
+      "value": "79", //actual 1
+      "name": "Sales of Product Income" //actual Sales
+    }, //Get information from Account API
+    "PurchaseCost": 0, //cost
+    "TrackQtyOnHand": false,
+    "domain": "QBO",
+    "sparse": false, //Sparse updating provides the ability to update a subset of properties for a given object; only elements specified in the request are updated. Missing elements are left untouched. The ID of the object to update is specified in the request body.
+    "Id": "1",
+    "SyncToken": "0",
+    "MetaData": {
+      "CreateTime": "2017-12-07T14:42:05-08:00",
+      "LastUpdatedTime": "2017-12-07T14:42:05-08:00"
+    }
+  },
+  "time": "2018-01-26T00:39:46.249-08:00"
+}
+{
+  "Item": 
+  {
+    "Name": "International Shipping",
+    "Active": true,
+    "FullyQualifiedName": "International Shipping",
+    "Taxable": false,
+    "UnitPrice": 0,
+    "Type": "NonInventory",
+    "IncomeAccountRef": {
+      "value": "128",
+      "name": "Sales of Product Income"
+    },
+    "PurchaseCost": 0,
+    "ExpenseAccountRef": {
+      "value": "168",
+      "name": "Shipping"
+    },
+    "TrackQtyOnHand": false,
+    "domain": "QBO",
+    "sparse": false,
+    "Id": "21",
+    "SyncToken": "0",
+    "MetaData": {
+      "CreateTime": "2018-02-04T06:07:19-08:00",
+      "LastUpdatedTime": "2018-02-04T06:07:19-08:00"
+    }
+  },"time":"2018-02-04T06:07:18.973-08:00"}

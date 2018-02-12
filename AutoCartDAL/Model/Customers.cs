@@ -49,6 +49,7 @@ namespace AutoCarOperations.Model
         public string additional_field3{get;set;}
         public string additional_field4{get;set;}
         public int? pricelevel {get;set;}
+        public int? qb_customer_id { get; set; }
     }
 
     public class customer_groups
