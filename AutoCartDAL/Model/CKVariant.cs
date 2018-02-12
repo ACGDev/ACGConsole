@@ -12,7 +12,6 @@ namespace AutoCarOperations.Model
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public long ID { get; set; }
         public string SKU { get; set; }
         public string ItemID { get; set; }
         public string VariantId { get; set; }

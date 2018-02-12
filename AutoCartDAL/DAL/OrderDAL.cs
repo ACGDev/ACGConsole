@@ -207,7 +207,7 @@ namespace AutoCarOperations.DAL
             {
                 foreach (var order in db_orders)
                 {
-                    if (!(order.shipcomplete != shipStatus && order.order_status == status))
+                    if (order.shipcomplete == shipStatus && order.order_status == status)
                         continue;
 
                     var currentorder = JsonConvert.DeserializeObject<orders>(JsonConvert.SerializeObject(order));
@@ -216,6 +216,8 @@ namespace AutoCarOperations.DAL
                     context.Entry(currentorder).State = EntityState.Modified;
                     context.Orders.Attach(entity: currentorder);
                     currentorder.shipcomplete = shipStatus;
+                    currentorder.status = status;  //SM
+                    currentorder.order_status = status;  // SM
                     context.Entry(currentorder).Property(I => I.shipcomplete).IsModified = true;
                 }
                 context.SaveChanges();
@@ -475,6 +477,48 @@ namespace AutoCarOperations.DAL
                 Console.WriteLine("Error " + ex.Message);
             }
             return strOrderStart;
+        }
+        // Fethces total order value (shipped plus not) from a certain date for a specific billing address 
+        public static double FetchTotalOrderAmt(string myConnectionString, string strDate, String custEmail )
+        {
+            Double totalAmt = 0.0;
+            DateTime startDate;
+            if (strDate == "")
+                startDate = DateTime.Today;
+            else
+                startDate = Convert.ToDateTime(strDate);
+
+            MySqlConnection conn;
+            try
+            {
+                using (conn = new MySqlConnection(myConnectionString))
+                {
+
+                    MySqlCommand cmd = conn.CreateCommand();
+                    // 4: Shipped, 5: Cancelled
+                    cmd.CommandText =
+                        String.Format(
+                            "select sum(orderamount) as TotalAmount from orders where billemail = '{0}' and order_status in (1, 4) and "+
+                            " po_no in (select PO from jfw_orders where PO_Date>='{1}');",
+                            custEmail, startDate.ToString("yyyy-mm-dd"));
+
+                    
+                    //Command to get query needed value from DataBase
+                    conn.Open();
+                    MySqlDataReader reader = cmd.ExecuteReader();
+
+                    if (reader.Read())
+                    {
+                        totalAmt = reader.GetDouble("TotalAmount");
+                    }
+                    conn.Close();
+                }
+            }
+            catch (MySql.Data.MySqlClient.MySqlException ex)
+            {
+                Console.WriteLine("Error " + ex.Message);
+            }
+            return totalAmt;
         }
         // SM: trims a string to given length, as well as checks for comma and replaces by ; and removes ' and "
         private static string TrimTolength(string inputStr, int maxLength)
@@ -760,7 +804,8 @@ namespace AutoCarOperations.DAL
 
         public static bool UpdateOrderDetail(string connectionString,
         string orderNo, string serialNo, string status, string shipAgent,
-        string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID, int sequenceNo)
+        string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID, int sequenceNo, 
+        ref int totalItemsShipped, ref DateTime? lastShipDate)
         {
             bool orderStatusChanged = false;
             using (var context = new AutoCareDataContext(connectionString))
@@ -770,7 +815,7 @@ namespace AutoCarOperations.DAL
 
                 if (order_det == null || order_det.status != status)
                 {
-                    orderStatusChanged = true;
+                    orderStatusChanged = true; 
                 }
                 if (order_det != null)
                 {
@@ -784,6 +829,9 @@ namespace AutoCarOperations.DAL
                     order_det.tracking_link = trackingLink;
                     order_det.mfg_item_id = mfgItemID;
                     order_det.sku = mfgItemID.TrimEnd() + variantID.TrimEnd();
+                    // SM: take care of Ship date
+                    if (order_det.ship_date == null && status == "Shipped")
+                        order_det.ship_date = order_det.status_datetime;
                     context.OrderItemDetails.AddOrUpdate(order_det);
                 }
                 else
@@ -805,7 +853,9 @@ namespace AutoCarOperations.DAL
                     order_det.mfg_item_id = mfgItemID;
                     order_det.sku = mfgItemID.TrimEnd() + variantID.TrimEnd();
                     order_det.order_no = orderNo;
-                    
+                    if (status == "Shipped")
+                        order_det.ship_date = order_det.status_datetime;
+
                     order_det.sequence_no = sequenceNo;
                     // find order_item_id
                     var product_rec = context.Products.FirstOrDefault(I => I.mfgid == mfgItemID);
@@ -814,7 +864,7 @@ namespace AutoCarOperations.DAL
                     {
                         //SM: could not map order item id, needs manual check
                         // SM: need to handle error here: Order No: <orderno>: Status API does not match Products table. Mfg Item ID: <mfgItemID>. Serial no <serialNo>
-                        Console.WriteLine(string.Format("   mfg ID from Status {0} not found in Products table. Status needs to be maniually sent ", mfgItemID));
+                        Console.WriteLine(string.Format("   mfg ID from Status {0} not found in Products table. Status needs to be manually sent ", mfgItemID));
                     }
                     else
                     {
@@ -838,15 +888,21 @@ namespace AutoCarOperations.DAL
                                     continue;
                                 // we can use this order_item_id
                                 order_det.order_item_id = thisOrderItem.order_item_id;
-                                Console.WriteLine(string.Format("   Using order item id ", thisOrderItem.order_item_id));
+                                Console.WriteLine(string.Format("   Using order item id {0}", thisOrderItem.order_item_id));
                                 break;
                             }
                         }
                     }
                     // SM: if no order_items match, it will be 0
-                    context.OrderItemDetails.Add(order_det);
+                    context.OrderItemDetails.Add(order_det);                  
                 }
-                //TODO: Rahul - check if all items in this orders has been shipped, then mark it as shipped
+                // SM - get values back to calling fn
+                if (order_det.status == "Shipped")
+                {
+                    totalItemsShipped++;
+                    if (order_det.ship_date > lastShipDate)
+                        lastShipDate = order_det.ship_date;
+                }
                 context.SaveChanges();
                 return orderStatusChanged;
             }

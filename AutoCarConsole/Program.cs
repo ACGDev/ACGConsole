@@ -27,7 +27,7 @@ namespace AutoCarConsole
 
             ConfigurationData config = GetConfigurationDetails();
             // Uncomment following to get Customer records
-            //  CustomerDAL.AddCustomer(config);
+              CustomerDAL.AddCustomer(config);
             // ProductDAL.AddProduct(config);
             //CoverKingDAL.SaveBaseVehicleAppData(config.ConnectionString);
             //CoverKingDAL.SaveItemVariantImages(config.ConnectionString);
@@ -35,7 +35,7 @@ namespace AutoCarConsole
             string filePath =
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
             string coverkingPath = Path.Combine(filePath, "../../CoverKingData/");
-
+            /*
             DirectoryInfo dirApp = new DirectoryInfo(Path.Combine(coverkingPath, "AppData/Incoming/"));
             foreach (var file in dirApp.GetFiles())
             {
@@ -43,7 +43,7 @@ namespace AutoCarConsole
                 CoverKingDAL.Save(config.ConnectionString, aData);
                 file.MoveTo(Path.Combine(coverkingPath, "AppData/Processed/" + file.Name));
             }
-
+            */
             DirectoryInfo dirJobber = new DirectoryInfo(Path.Combine(coverkingPath, "Jobber/Incoming/"));
             foreach (var file in dirJobber.GetFiles())
             {
