@@ -29,7 +29,7 @@ namespace AutoCarOperations.DAL
             using (var context = new AutoCareDataContext(config.ConnectionString))
             {
                 context.Database.ExecuteSqlCommand(
-                    $"UPDATE [3dc_products] SET qb_product_id = {qbId} WHERE SKU = '{sku}'");
+                    $"UPDATE `3dc_products` SET qb_product_id = {qbId} WHERE SKU = '{sku}'");
                 context.SaveChanges();
             }
         }
@@ -211,6 +211,13 @@ namespace AutoCarOperations.DAL
             return dbProducts;
         }
 
+        public static List<string> GetDistinctDealerItem(string connectionString)
+        {
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                return context.ACGDealerItemPrice.Select(I => I.DealerCode).Distinct().ToList();
+            }
+        }
         public static Tuple<products,DealerItemPrice> FindOrderFromSKU(string connectionString, string sku)
         {
             using (var context = new AutoCareDataContext(connectionString))

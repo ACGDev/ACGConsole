@@ -10,6 +10,10 @@ namespace AutoCarOperations.DAL
         public AutoCareDataContext(string connectionString)
             : base(connectionString)
         {
+            Configuration.AutoDetectChangesEnabled = false;
+            Configuration.LazyLoadingEnabled = false;
+            Configuration.ProxyCreationEnabled = false;
+            Configuration.UseDatabaseNullSemantics = true;
         }
 
         public DbSet<customers> Customers { get; set; }

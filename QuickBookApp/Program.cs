@@ -14,29 +14,16 @@ using AutoCarOperations.DAL;
 using AutoCarOperations.Model;
 using System.Configuration;
 using Newtonsoft.Json.Linq;
+using QuickBookApp.Model;
 
 namespace QuickBookApp
 {
-    public static class QuickbooksConstants
-    {
-        public const string consumerKey = "Q0PVpJN0uoUBQfkfddCcYcchTfGYKDJZ1ecgKTT7yzjJOdZa6X";
-        public const string consumerSecret = "JeDxiv5fKKmzTZoEmMECui8DUXztWGOKphj114Jh";
-
-        public const string accessToken =
-                "eyJlbmMiOiJBMTI4Q0JDLUhTMjU2IiwiYWxnIjoiZGlyIn0..9MkBlWoOA1Hmn5t--6UJSQ.EDpKpCM-3Vi0PASua9KV95J-H-mxkijrBzJXo7ET5YNGoCFUvqeTSOJkPu9DPo_1jx3TuKZP78e4JZr_yjkINJRQANOrNbBpPMPW_me6-_vsTQY4cEqL33OILzwIeiQg4LYmw5mFLDD2h8w19as7u-BrOLCfW_guOK0mD_9qoiLgwp-XE3NDtosbCjRk9TLK8KRN-w7rCtVbPk5F5jmhhJ5LuQbsTRGYj_faoHBIU203ctZrv-2iklCMMCQIo-dG3iN3eyBeCH6iwEa-N_UzHFF8UKnygYVRzGYnWM78J1hJn3veEFjzU2RYPyyePrLQ3Dfd_tjPFhjN54X30GbmdcncyRnb88zuE5WBqVZtX6nM7yT1pEdWhuFGipJRNGJGSWQA2QTGHPy6hG4mlr-Jkiigb_tHPkmRToQCZVNZkABu1NUQ1ksbd8dsdasdA1l7DsJSAsjbNmdwsvstF6IAffLZj7H4G0Ko7MM2IGC-1JAfI4Q551uIH2rIa9N4YZazLvJfVluvnvNAxhlIcUQaiIDKjkSrh6gh1QtiHUtr7QUB135HNKFhL0Bc5_Pv-CyLKcRUzi82w7jsJ7n1ZvZlYIFQI8o4xHUNFb6rqZBJGlDbSvU9zOqGM0P1D6x7bYSAJSwCV_I5h28yyoAW6opOiZbjW2WTkhOnxC5PEcvUVpC0GpMS1eoNXNNkVS-ykiba.M7gwOCAw5EyDbrOLN9QceQ"
-            ;
-
-        public const string accessTokenSecret = "Q0115160387675JIlGDb3DO7VeXouQiMMKgpfdVWDptJmpE8Ye";
-        public const string realmId = "193514690612794";
-        public const string appToken = "";
-    }
-
     class Program
     {
         static void Main(string[] args)
         {
             Console.WriteLine("+-----------------------+");
-            Console.WriteLine("|  Sign in with Google  |");
+            Console.WriteLine("|  Sign in with AutoCareGuys  |");
             Console.WriteLine("+-----------------------+");
             Console.WriteLine("");
             Console.WriteLine("Press any key to sign in...");
@@ -48,17 +35,12 @@ namespace QuickBookApp
         }
 
         // client configuration
-        const string clientID = QuickbooksConstants.consumerKey
-            ; //"581786658708-elflankerquo1a6vsckabbhn25hclla0.apps.googleusercontent.com";
-
-        const string clientSecret = QuickbooksConstants.consumerSecret; //"3f6NggMbPtrmIBpgx-MK2xXK";
-        const string authorizationEndpoint = "https://appcenter.intuit.com/connect/oauth2";
-        const string tokenEndpoint = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
-        private const string quickbooksURL = "https://sandbox-quickbooks.api.intuit.com/v3/company/193514690615724/";
-        private string refresh_token;
-
-        private string access_token;
-        private string id_token;
+        readonly string clientID = ConfigurationManager.AppSettings["clientId"];
+        readonly string clientSecret = ConfigurationManager.AppSettings["clientSecret"];
+        readonly string authorizationEndpoint = ConfigurationManager.AppSettings["authorizationEndPoint"];
+        readonly string tokenEndpoint = ConfigurationManager.AppSettings["tokenEndpoint"];
+        readonly string quickbooksURL = ConfigurationManager.AppSettings["authorizationEndPoint"];
+        string access_token;
 
         // ref http://stackoverflow.com/a/3978040
         public static int GetRandomUnusedPort()
@@ -196,65 +178,12 @@ namespace QuickBookApp
                         ConnectionString = ConfigurationManager.ConnectionStrings["mysqlconnection"].ConnectionString
                     };
 
-                    var customers = CustomerDAL.GetAll(configData);
-                    foreach (var customer in customers)
-                    {
-                        if (customer.qb_customer_id != null)
-                        {
-                            continue;
-                        }
-                        string response = await CreateCustomer(quickbooksURL, customer);
+                    var customers = await CreateCustomers(configData);
 
-                        if (!response.StartsWith("error"))
-                        {
-                            JToken outer = JToken.Parse(response);
-                            var cId = outer["Customer"]["Id"].Value<int>();
-                            customer.qb_customer_id = cId;
-                            CustomerDAL.UpdateCustomer(configData, cId, customer.customer_id);
-                        }
-                    }
+                    var products = await CreateProducts(configData);
 
-                    List<products> products = ProductDAL.GetProducts(configData, I => I.catalogid == 1004);
-                    foreach (var prod in products)
-                    {
-                        if (prod.qb_product_id != null)
-                        {
-                            continue;
-                        }
-
-                        if (!string.IsNullOrEmpty(prod.description))
-                        {
-                            string response = await CreateItem(quickbooksURL, prod.description);
-                            if (!response.StartsWith("error"))
-                            {
-                                JToken outer = JToken.Parse(response);
-                                var pId = outer["Item"]["Id"].Value<int>();
-                                prod.qb_product_id = pId;
-                                ProductDAL.UpdateProduct(configData, pId, prod.SKU);
-                            }
-                        }
-                    }
-
-                    List<orders> orders = OrderDAL.FetchOrders(configData.ConnectionString,
-                        order => order.orderdate >= DateTime.Parse("12/09/2017"));
-                    foreach (var o in orders)
-                    {
-                        if (!string.IsNullOrEmpty(o.orderno))
-                        {
-                            var customer = customers.FirstOrDefault(I => I.customer_id == o.customerid);
-                            if (customer != null && customer.qb_customer_id.HasValue)
-                            {
-                                string response = await CreateInvoice(quickbooksURL, o, customer.qb_customer_id.Value.ToString(), products);
-                                if (!response.StartsWith("error"))
-                                {
-                                    JToken outer = JToken.Parse(response);
-                                    var pId = outer["Invoice"]["Id"].Value<int>();
-                                    //o.qb_product_id = pId;
-                                    //ProductDAL.UpdateProduct(configData, pId, prod.SKU);
-                                }
-                            }
-                        }
-                    }
+                    await CreateOrders(configData, customers, products);
+                    Console.ReadKey();
                 }
             }
             catch (WebException ex)
@@ -272,13 +201,146 @@ namespace QuickBookApp
                             output(responseText);
                         }
                     }
-
                 }
             }
             catch (Exception ex)
             {
 
             }
+        }
+
+        private async Task CreateOrders(ConfigurationData configData, List<customers> customers, List<products> products)
+        {
+            List<string> dealers = ProductDAL.GetDistinctDealerItem(configData.ConnectionString);
+            List<orders> orders = OrderDAL.FetchOrders(configData.ConnectionString,
+                order => order.orderdate >= DateTime.Parse("12/11/2017"));
+            foreach (var o in orders)
+            {
+                if (!string.IsNullOrEmpty(o.orderno))
+                {
+                    var customer = customers.FirstOrDefault(I => I.customer_id == o.customerid);
+                    if (customer != null && customer.qb_customer_id.HasValue)
+                    {
+                        string response = await CreateInvoice(quickbooksURL, o, customer.qb_customer_id.Value.ToString(),
+                            customer.non_taxable, products, (dealers.Contains(customer.billing_firstname)));
+                        if (!response.StartsWith("error"))
+                        {
+                            //JToken outer = JToken.Parse(response);
+                            //var pId = outer["Invoice"]["Id"].Value<int>();
+                            //o.qb_product_id = pId;
+                            //ProductDAL.UpdateProduct(configData, pId, prod.SKU);
+                        }
+                    }
+                }
+            }
+        }
+
+        private async Task<List<products>> CreateProducts(ConfigurationData configData)
+        {
+            List<products> products = ProductDAL.GetProducts(configData);
+            foreach (var prod in products)
+            {
+                if (prod.qb_product_id != null)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(prod.description))
+                {
+                    string response = await CreateItem(quickbooksURL, $"{prod.SKU}_{prod.description}", prod.SKU);
+                    if (!response.StartsWith("error"))
+                    {
+                        JToken outer = JToken.Parse(response);
+                        var pId = outer["Item"]["Id"].Value<int>();
+                        prod.qb_product_id = pId;
+                        ProductDAL.UpdateProduct(configData, pId, prod.SKU);
+                    }
+                    else
+                    {
+                        response = response.Replace("error: ", "");
+                        try
+                        {
+                            JToken outer = JToken.Parse(response);
+                            var fId = outer["Fault"]["Error"][0]["code"].Value<string>();
+                            if (fId == "6240")
+                            {
+                                response = await RestAPI(
+                                    $"query?query=select Id,Sku from item where Sku = '{prod.SKU}'", "", "GET");
+                                outer = JToken.Parse(response);
+                                var queryresponse = outer["QueryResponse"]["Item"];
+                                foreach (var query in queryresponse)
+                                {
+                                    //string email = query["Sku"].Value<string>();
+                                    //if (email == prod.SKU)
+                                    {
+                                        var pId = query["Id"].Value<int>();
+                                        prod.qb_product_id = pId;
+                                        ProductDAL.UpdateProduct(configData, pId, prod.SKU);
+                                    }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            output("Failed to update product" + prod.SKU);
+                        }
+                    }
+                }
+            }
+            return products;
+        }
+
+        private async Task<List<customers>> CreateCustomers(ConfigurationData configData)
+        {
+            var customers = CustomerDAL.GetAll(configData);
+            foreach (var customer in customers)
+            {
+                if (customer.qb_customer_id != null)
+                {
+                    continue;
+                }
+                string response = await CreateCustomer(quickbooksURL, customer);
+
+                if (!response.StartsWith("error"))
+                {
+                    JToken outer = JToken.Parse(response);
+                    var cId = outer["Customer"]["Id"].Value<int>();
+                    customer.qb_customer_id = cId;
+                    CustomerDAL.UpdateCustomer(configData, cId, customer.customer_id);
+                }
+                else
+                {
+                    response = response.Replace("error: ", "");
+                    try
+                    {
+                        JToken outer = JToken.Parse(response);
+                        var pId = outer["Fault"]["Error"][0]["code"].Value<string>();
+                        if (pId == "6240")
+                        {
+                            response = await RestAPI("query?query=select Id,PrimaryEmailAddr from" +
+                                          " customer where DisplayName = '" +
+                                          (customer.email.Trim()) + "'", "", "GET");
+                            outer = JToken.Parse(response);
+                            var queryresponse = outer["QueryResponse"]["Customer"];
+                            foreach (var query in queryresponse)
+                            {
+                                string email = query["PrimaryEmailAddr"]["Address"].Value<string>();
+                                if (email == customer.email.Trim())
+                                {
+                                    var cId = query["Id"].Value<int>();
+                                    customer.qb_customer_id = cId;
+                                    CustomerDAL.UpdateCustomer(configData, cId, customer.customer_id);
+                                }
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        output("Failed To update customer" + customer.email);
+                    }
+                }
+            }
+            return customers;
         }
 
         /// <summary>
@@ -301,18 +363,6 @@ namespace QuickBookApp
             byte[] bytes = new byte[length];
             rng.GetBytes(bytes);
             return base64urlencodeNoPadding(bytes);
-        }
-
-        /// <summary>
-        /// Returns the SHA256 hash of the input string.
-        /// </summary>
-        /// <param name="inputStirng"></param>
-        /// <returns></returns>
-        public static byte[] sha256(string inputStirng)
-        {
-            byte[] bytes = Encoding.ASCII.GetBytes(inputStirng);
-            SHA256Managed sha256 = new SHA256Managed();
-            return sha256.ComputeHash(bytes);
         }
 
         /// <summary>
@@ -348,66 +398,137 @@ namespace QuickBookApp
             SetForegroundWindow(GetConsoleWindow());
         }
 
-        class LineItem
-        {
-            public double? Amount { get; set; }
-            public string DetailType { get; set; }
-            public SalesItemLineDetail SalesItemLineDetail { get; set; }
-
-        }
-        class SalesItemLineDetail
-        {
-            public ItemRef ItemRef { get; set; }
-            public TaxCodeRef TaxCodeRef { get; set; }
-        }
-
-        class TaxCodeRef
-        {
-            public string value { get; set; }
-        }
-        class ItemRef
-        {
-            public string value { get; set; }
-            public string name { get; set; }
-        }
-        public async Task<string> CreateInvoice(string url, orders order, 
-            string qbCustomerId, bool nonTaxable, List<products> products)
+        #region QB API
+        public async Task<string> CreateInvoice(string url, orders order,
+            string qbCustomerId, bool? nonTaxable, List<products> products, bool isDealer = false)
         {
             List<LineItem> objList = new List<LineItem>();
             foreach (var item in order.order_items)
             {
                 var prod = products.FirstOrDefault(I => I.catalogid == item.catalogid);
-                
+                if (prod == null)
+                {
+                    return "error";
+                }
+                var price = item.optionprice == 0 ? item.unitprice : item.optionprice;
                 objList.Add(
                     new LineItem
                     {
-                        Amount = item.optionprice * item.numitems,
+                        Amount = price * item.numitems,
                         DetailType = "SalesItemLineDetail",
                         SalesItemLineDetail = new SalesItemLineDetail
                         {
                             ItemRef = new ItemRef
                             {
                                 value = prod.qb_product_id.ToString(),
-                                name = prod.description.Substring(0, 100)
+                                name = (prod.SKU + "_" + prod.description).Length > 100 ? (prod.SKU + "_" + prod.description).Substring(0, 100) : (prod.SKU + "_" + prod.description)
                             },
+                            UnitPrice = price,
+                            Qty = Convert.ToInt32(item.numitems),
                             TaxCodeRef = new TaxCodeRef
                             {
-                                value = nonTaxable ? "NON" : "TAX"
+                                value = nonTaxable.HasValue && nonTaxable.Value ? "NON" : "TAX"
                             }
                         }
                     }
                 );
             }
-            
-            var invoice = new
+            if (order.discount > 0)
             {
-                Line = objList,
-                CustomerRef = new
+                objList.Add(new LineItem()
                 {
-                    value = qbCustomerId
-                }
-            };
-            string response = await RestAPI("salesreceipt?minorversion=4", JsonConvert.SerializeObject(invoice));
+                    Amount = order.orderamount * order.discount / 100,
+                    DetailType = "DiscountLineDetail",
+                    DiscountLineDetail = new DiscountLineDetail()
+                    {
+                        PercentBased = true,
+                        DiscountPercent = order.discount.Value,
+                        DiscountAccountRef = new ItemRef()
+                        {
+                            name = "Discounts",
+                            value = "93"
+                        }//todo: Account Ref
+                    }
+                });
+            }
+            if (order.shipcost > 0)
+            {
+                objList.Add(new LineItem()
+                {
+                    Amount = order.shipcost,
+                    DetailType = "SalesItemLineDetail",
+                    SalesItemLineDetail = new SalesItemLineDetail()
+                    {
+                        ItemRef = new ItemRef()
+                        {
+                            value = "128",
+                            name = "Shipping"
+                        }//todo: Account Ref
+                    }
+                });
+            }
+            object invoice;
+            if (nonTaxable.HasValue && nonTaxable.Value)
+            {
+                invoice = new
+                {
+                    Line = objList,
+                    SalesTermRef = new
+                    {
+                        value = order.billfirstname == "JFW" ? "9" : "6"
+                    },
+                    BillEmail = new
+                    {
+                        Address = order.billemail
+                    },
+                    CustomerRef = new
+                    {
+                        value = qbCustomerId
+                    }
+                };
+            }
+            else
+            {
+                invoice = new
+                {
+                    Line = objList,
+                    SalesTermRef = new
+                    {
+                        value = order.billfirstname == "JFW" ? "9" : "6"
+                    },
+                    BillEmail = new
+                    {
+                        Address = order.billemail
+                    },
+                    TxnTaxDetail = new
+                    {
+                        TxnTaxCodeRef = new
+                        {
+                            value = "TAX"
+                        },//todo: Tax Code ref
+                        TotalTax = order.salestax,
+                        TaxLine = new[] {
+                            new {
+                                Amount= order.salestax,
+                                DetailType= "TaxLineDetail",
+                                TaxLineDetail= new {
+                                    TaxRateRef= new {
+                                        value= "4"
+                                    },//todo: need to create TaxAgency, TaxService
+                                    PercentBased= true,
+                                    TaxPercent= 8,
+                                    NetAmountTaxable= order.orderamount
+                                }
+                            }
+                        }
+                    },
+                    CustomerRef = new
+                    {
+                        value = qbCustomerId
+                    }
+                };
+            }
+            string response = await RestAPI((isDealer ? "invoice" : "salesreceipt") + "?minorversion=4", JsonConvert.SerializeObject(invoice));
             return response;
         }
         public async System.Threading.Tasks.Task<string> CreateCustomer(string url, customers cus)
@@ -427,60 +548,57 @@ namespace QuickBookApp
                 MiddleName = cus.billing_lastname,
                 FullyQualifiedName = cus.billing_firstname + " " + cus.billing_lastname,
                 CompanyName = cus.billing_company,
-                DisplayName = cus.billing_firstname + " " + cus.billing_lastname,
+                DisplayName = cus.email.Trim(),
                 PrimaryPhone = new
                 {
                     FreeFormNumber = cus.billing_phone
                 },
                 PrimaryEmailAddr = new
                 {
-                    Address = cus.email
+                    Address = cus.email.Trim()
                 }
             };
             string response = await RestAPI("customer?minorversion=4", JsonConvert.SerializeObject(customer));
             return response;
         }
 
-        public async System.Threading.Tasks.Task<string> CreateItem(string url, string desc)
+        public async System.Threading.Tasks.Task<string> CreateItem(string url, string desc, string sku)
         {
             var item = new
             {
-                Name = desc.Substring(0, 100),
+                Name = desc.Length > 100 ? desc.Substring(0, 100) : desc,
                 IncomeAccountRef = new
                 {
-                    value = "128",
-                    name = "Sales of Product Income"
-                },
+                    value = "96",
+                    name = "Sales"
+                },//todo: Account ref
+                Sku = sku,
                 ExpenseAccountRef = new
                 {
-                    value = "168",
+                    value = "127",
                     name = "Cost of Goods Sold"
-                },
-                //AssetAccountRef = new
-                //{
-                //    value = "130",
-                //    name = "Inventory Asset"
-                //},
+                },//todo: Account Ref
                 Type = "NonInventory",
-                TrackQtyOnHand = false,
-                //QtyOnHand = 10,
-                //InvStartDate = "2015-01-01"
+                TrackQtyOnHand = false
             };
             string response = await RestAPI("item?minorversion=4", JsonConvert.SerializeObject(item));
             return response;
         }
-        private async Task<string> RestAPI(string url, string data)
+        private async Task<string> RestAPI(string url, string data, string method = "POST")
         {
             string responseText = null;
-            HttpWebRequest tokenRequest = (HttpWebRequest)WebRequest.Create("https://sandbox-quickbooks.api.intuit.com/v3/company/193514690615724/" + url);
-            tokenRequest.Method = "POST";
+            HttpWebRequest tokenRequest = (HttpWebRequest)WebRequest.Create("https://sandbox-quickbooks.api.intuit.com/v3/company/193514690586999/" + url);
+            tokenRequest.Method = method;
             tokenRequest.ContentType = "application/json";
             tokenRequest.Accept = "application/json";
             tokenRequest.Headers[HttpRequestHeader.Authorization] = "Bearer " + access_token;
-            using (Stream requestStream = tokenRequest.GetRequestStream())
-            using (StreamWriter writer = new StreamWriter(requestStream))
+            if (method == "POST")
             {
-                writer.Write(data);
+                using (Stream requestStream = tokenRequest.GetRequestStream())
+                using (StreamWriter writer = new StreamWriter(requestStream))
+                {
+                    writer.Write(data);
+                }
             }
             try
             {
@@ -514,5 +632,6 @@ namespace QuickBookApp
             }
             return responseText;
         }
+        #endregion
     }
 }
