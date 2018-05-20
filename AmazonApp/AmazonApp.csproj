@@ -33,6 +33,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
@@ -42,6 +43,57 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AbstractMwsObject.cs" />
+    <Compile Include="IMwsCall.cs" />
+    <Compile Include="IMwsObject.cs" />
+    <Compile Include="IMwsReader.cs" />
+    <Compile Include="IMwsRequestType.cs" />
+    <Compile Include="IMwsWriter.cs" />
+    <Compile Include="ListOrdersResponse.cs" />
+    <Compile Include="MarketplaceWebServiceOrders.cs" />
+    <Compile Include="MarketplaceWebServiceOrdersClient.cs" />
+    <Compile Include="MarketplaceWebServiceOrdersConfig.cs" />
+    <Compile Include="MarketplaceWebServiceOrdersException.cs" />
+    <Compile Include="MarketplaceWebServiceOrdersSample.cs" />
+    <Compile Include="Model\Address.cs" />
+    <Compile Include="Model\BuyerCustomizedInfoDetail.cs" />
+    <Compile Include="Model\BuyerTaxInfo.cs" />
+    <Compile Include="Model\GetOrderRequest.cs" />
+    <Compile Include="Model\GetOrderResponse.cs" />
+    <Compile Include="Model\GetOrderResult.cs" />
+    <Compile Include="Model\GetServiceStatusRequest.cs" />
+    <Compile Include="Model\GetServiceStatusResponse.cs" />
+    <Compile Include="Model\GetServiceStatusResult.cs" />
+    <Compile Include="Model\InvoiceData.cs" />
+    <Compile Include="Model\ListOrderItemsByNextTokenRequest.cs" />
+    <Compile Include="Model\ListOrderItemsByNextTokenResponse.cs" />
+    <Compile Include="Model\ListOrderItemsByNextTokenResult.cs" />
+    <Compile Include="Model\ListOrderItemsRequest.cs" />
+    <Compile Include="Model\ListOrderItemsResponse.cs" />
+    <Compile Include="Model\ListOrderItemsResult.cs" />
+    <Compile Include="Model\ListOrdersByNextTokenRequest.cs" />
+    <Compile Include="Model\ListOrdersByNextTokenResponse.cs" />
+    <Compile Include="Model\ListOrdersByNextTokenResult.cs" />
+    <Compile Include="Model\ListOrdersRequest.cs" />
+    <Compile Include="Model\ListOrdersResult.cs" />
+    <Compile Include="Model\Message.cs" />
+    <Compile Include="Model\Money.cs" />
+    <Compile Include="Model\Order.cs" />
+    <Compile Include="Model\OrderItem.cs" />
+    <Compile Include="Model\PaymentExecutionDetailItem.cs" />
+    <Compile Include="Model\PointsGrantedDetail.cs" />
+    <Compile Include="Model\ProductInfoDetail.cs" />
+    <Compile Include="Model\ResponseMetadata.cs" />
+    <Compile Include="Model\TaxClassification.cs" />
+    <Compile Include="Model\TaxCollection.cs" />
+    <Compile Include="MwsAQCall.cs" />
+    <Compile Include="MWSClientCsRuntime.cs" />
+    <Compile Include="MwsConnection.cs" />
+    <Compile Include="MwsException.cs" />
+    <Compile Include="MwsUtil.cs" />
+    <Compile Include="MwsXmlBuilder.cs" />
+    <Compile Include="MwsXmlReader.cs" />
+    <Compile Include="MwsXmlWriter.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
