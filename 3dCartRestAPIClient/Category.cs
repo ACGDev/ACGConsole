@@ -8,6 +8,7 @@ using System.ComponentModel.DataAnnotations;
 namespace DCartRestAPIClient
 {
     /*
+     * 
     public class Category : IRestAPIType
     {
         #region Category
