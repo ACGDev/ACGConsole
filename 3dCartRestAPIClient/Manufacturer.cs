@@ -7,7 +7,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace DCartRestAPIClient
 {
-
+    //my comment
     public class Manufacturer : IRestAPIType
     {
         
