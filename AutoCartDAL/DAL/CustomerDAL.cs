@@ -23,9 +23,9 @@ namespace AutoCarOperations.DAL
             }
         }
 
-        public static customers FindCustomer(ConfigurationData config, Func<customers,bool> condFunc)
+        public static customers FindCustomer(string connectionString, Func<customers,bool> condFunc)
         {
-            using (var context = new AutoCareDataContext(config.ConnectionString))
+            using (var context = new AutoCareDataContext(connectionString))
             {
                 return context.Customers.FirstOrDefault(condFunc);
             }

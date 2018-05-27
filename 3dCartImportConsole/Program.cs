@@ -100,7 +100,7 @@ namespace _3dCartImportConsole
                 Log.Info("\r\nProcessing JFW Orders. First sync 3DCart orders to get the latest JFW order.");
                 OrderDAL.PlaceOrder(configData, false, true, true,null ,10);
                 //Download order from JFW FTP and place order
-                var customer = CustomerDAL.FindCustomer(configData, customers => customers.billing_firstname == "JFW");
+                var customer = CustomerDAL.FindCustomer(configData.ConnectionString, customers => customers.billing_firstname == "JFW");
                 acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
                 Log.Info(string.Format("  New Invoice no for JFW starting with {0} ", acg_invoicenum + 1));
                 Log.Info("  Downloading JFW Orders from ftp ");
@@ -152,7 +152,7 @@ namespace _3dCartImportConsole
                                             file.FullName, file.Name, file.Extension);
 
                                 // SM: Oct 13: Should we proceed even if error occurs in previous step ?
-                                foreach (var order in jfw_orders.Item1)
+                                foreach (Order order in jfw_orders.Item1)
                                 {
                                     // Push order to 3DCart
                                     Log.Info(string.Format("  Creating 3DCart Order for {0}-{1} ", order.InvoiceNumberPrefix, order.InvoiceNumber));
@@ -903,7 +903,7 @@ namespace _3dCartImportConsole
                         Log.Info(string.Format("  ** Error in processing order {0} \r\n   ", thiserror));
                         error += thiserror;
                     }
-                    var productAndDealerItems = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
+                    var productAndDealerItems = ProductDAL.FindOrderFromSKU(connectionString,order.SKU);
                     if (productAndDealerItems != null && productAndDealerItems.Item1 != null && productAndDealerItems.Item2 !=null)  // Sam  01/05/18
                     {
                         var product = productAndDealerItems.Item1;
