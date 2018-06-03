@@ -16,14 +16,14 @@ namespace AutoCarOperations
     public class RestHelper
     {
         public static List<order_items> orderItems;
-        public static List<T> GetRestAPIRecords<T>(string strRestAPIID, string RestAPIType, string PrivateKey, string Token, string SecureURL, string RecordsGetLimit, long RecordsOffset, string StartDate = "", int LastInvoiceNum = 0)
+        public static List<T> GetRestAPIRecords<T>(string strRestAPIID, string RestAPIType, string PrivateKey, string Token, string SecureURL, string RecordsGetLimit, long RecordsOffset, string StartDate = "")
         {
-            List<T> strRestJSON = GetRestAPIJSON<T>(strRestAPIID, RestAPIType, PrivateKey, Token, SecureURL, RecordsGetLimit, RecordsOffset, StartDate, LastInvoiceNum);
+            List<T> strRestJSON = GetRestAPIJSON<T>(strRestAPIID, RestAPIType, PrivateKey, Token, SecureURL, RecordsGetLimit, RecordsOffset, StartDate);
 
             return strRestJSON;
         }
 
-        private static List<T> GetRestAPIJSON<T>(string strRestAPIClientID, string restAPIClientType, string PrivateKey, string Token, string SecureURL, string RecordsGetLimit, long RecordsOffset, string StartDate = "", int LastInvoiceNum=0)
+        private static List<T> GetRestAPIJSON<T>(string strRestAPIClientID, string restAPIClientType, string PrivateKey, string Token, string SecureURL, string RecordsGetLimit, long RecordsOffset, string StartDate = "")
         {
             RestAPIActions restAPIClientWM = GetRestAPIClient(PrivateKey, Token, SecureURL);
 
@@ -43,13 +43,8 @@ namespace AutoCarOperations
                 restAPIClientWM.RecordsGetLimit = Convert.ToInt32(RecordsGetLimit);
             }
             restAPIClientWM.RecordsOffset = RecordsOffset;
-
-            // commected by Sam as date based search is not working
-            //if (StartDate != string.Empty)
-            //    restAPIClientWM.datestart = StartDate;
-
-            if (LastInvoiceNum != 0)
-                restAPIClientWM.invoicenumberstart = LastInvoiceNum;
+            if (StartDate != string.Empty)
+                restAPIClientWM.datestart = StartDate;
 
             RecordInfo recInf = restAPIClientWM.GetRecords<T>();
 

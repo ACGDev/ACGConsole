@@ -87,7 +87,7 @@ namespace AutoCarOperations.DAL
                                 Console.WriteLine(string.Format("  Creating Order File in folder {0},\r\n    Filename: {1}", filePath, fileName));
                                 File.WriteAllText(strFileNameWithPath, strCsvHeader + "\r\n");
                                 File.AppendAllText(strFileNameWithPath, strOrderLines);
-
+                                Console.WriteLine(strOrderLines);
                                 //todo: create overloaded method
                                 Console.WriteLine(string.Format("  Uplaoding {0} to CK Order ftp site", fileName));
                                 FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, filePath, fileName, WebRequestMethods.Ftp.UploadFile);
@@ -111,13 +111,14 @@ namespace AutoCarOperations.DAL
         /// <returns></returns>
         private static List<orders> SyncOrders(ConfigurationData config, bool fetchDate, int numDaysToSync = 2)
         {
-            var strOrderStart = FetchLastOrderDate(config.ConnectionString, fetchDate, numDaysToSync);
+            int nLastInvoice = 0;
+            var strOrderStart = FetchLastOrderDate(config.ConnectionString, fetchDate, ref nLastInvoice, numDaysToSync);
             Console.WriteLine(string.Format("  Syncing orders from 3DCart starting {0}", strOrderStart));
             List<Order> orders_fromsite = new List<Order>();
             var skip = 0;
             while (true)
             {
-                var records = RestHelper.GetRestAPIRecords<Order>("", "Orders", config.PrivateKey, config.Token, config.Store, "100", skip, strOrderStart);
+                var records = RestHelper.GetRestAPIRecords<Order>("", "Orders", config.PrivateKey, config.Token, config.Store, "100", skip, strOrderStart, nLastInvoice);
                 int counter = records.Count;
                 Console.WriteLine("..........Fetched " + counter + " Order Record..........");
                 orders_fromsite.AddRange(records);
@@ -127,7 +128,7 @@ namespace AutoCarOperations.DAL
                 }
                 skip = 101 + skip;
             }
-            var syncedOrders = Map_n_Add_ExtOrders(config.ConnectionString, strOrderStart, orders_fromsite.Where(i => i.OrderStatusID != 7).ToList());  // Adds and updates orders from external site
+            var syncedOrders = Map_n_Add_ExtOrders(config.ConnectionString, strOrderStart, orders_fromsite.Where(i => i.OrderStatusID != 7 && i.InvoiceNumber>= nLastInvoice).ToList());  // Adds and updates orders from external site
 
             return syncedOrders.Where(I => I.shipcomplete.ToLower() == "pending" && I.order_status == 1).ToList();
 
@@ -442,14 +443,34 @@ namespace AutoCarOperations.DAL
         /// <param name="myConnectionString"></param>
         /// <param name="fetchDate"></param>
         /// <returns></returns>
-        private static string FetchLastOrderDate(string myConnectionString, bool fetchDate, int numDaysToSync = 2)
+        private static string FetchLastOrderDate(string myConnectionString, bool fetchDate, ref int nLastInvoice, int numDaysToSync = 2)
         {
+            MySqlConnection conn;
             string strOrderStart = DateTime.Today.AddDays(-numDaysToSync).ToString("MM/dd/yyyy");
+            string strStartForAPI = DateTime.Today.AddDays(-numDaysToSync).ToString("yyyy-MM-dd hh:mm:ss");
             if (!fetchDate)
             {
+                // added by Sam as Datewise retreival of records are not working.
+                using (conn = new MySqlConnection(myConnectionString))
+                {
+
+                    MySqlCommand cmd = conn.CreateCommand();
+                    // 4: Shipped, 5: Cancelled
+                    cmd.CommandText =
+                        String.Format("select invoicenum from orders where order_status not in (4, 5) and orderdate<='{0}' order by invoicenum desc limit 1", strStartForAPI);
+                    //Command to get query needed value from DataBase
+                    conn.Open();
+                    MySqlDataReader reader = cmd.ExecuteReader();
+
+                    if (reader.Read())
+                    {
+                        nLastInvoice = reader.GetInt32("invoicenum");
+                    }
+                    conn.Close();
+                }
                 return strOrderStart;
             }
-            MySqlConnection conn;
+            
             try
             {
                 using (conn = new MySqlConnection(myConnectionString))
@@ -458,7 +479,7 @@ namespace AutoCarOperations.DAL
                     MySqlCommand cmd = conn.CreateCommand();
                     // 4: Shipped, 5: Cancelled
                     cmd.CommandText =
-                        "select orderdate from orders where order_status not in (4, 5) order by orderdate limit 1";
+                        "select orderdate, invoicenum from orders where order_status not in (4, 5) order by orderdate limit 1";
                     //Command to get query needed value from DataBase
                     conn.Open();
                     MySqlDataReader reader = cmd.ExecuteReader();
@@ -467,6 +488,7 @@ namespace AutoCarOperations.DAL
                     {
                         var result = reader.GetDateTime("orderdate");
                         strOrderStart = result.ToString("MM/dd/yyyy");
+                        nLastInvoice = reader.GetInt32("invoicenum");
 
                     }
                     conn.Close();
@@ -649,7 +671,7 @@ namespace AutoCarOperations.DAL
                     TrimTolength(order.shipcity, 20), TrimTolength(order.shipstate, 10), TrimTolength(order.shipzip, 10), TrimTolength(order.shipcountry, 2));
 
                 // Ship_Phone,Ship_Email,Ship_Service,CK_SKU
-                oText += string.Format(",{0},{1},{2},{3}", TrimTolength(order.shipphone, 15), TrimTolength(order.shipemail, 25), "R02", "");
+                oText += string.Format(",{0},{1},{2},{3}", TrimTolength(order.shipphone, 15), TrimTolength(order.shipemail, 25), "PRIORITY", "");
 
                 if (!string.IsNullOrEmpty(order.internalcomment))
                 {
@@ -677,7 +699,7 @@ namespace AutoCarOperations.DAL
                     {
                         string[] splitData = field.Split(':').Select(I => I.Trim()).ToArray();
                         var index = custom.FindIndex(I => I == splitData[0]);
-                        values[index] = splitData[1];
+                        if (index>=0) values[index] = splitData[1];
                     }
                     // PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment
                     //comment

@@ -14,16 +14,20 @@ namespace AmazonApp
     {
         static void Main(string[] args)
         {
+            // SAM: update customer list fist
+            //CustomerDAL.AddCustomer(config);
+
             MarketplaceWebServiceOrdersConfig config = new MarketplaceWebServiceOrdersConfig();
             config.ServiceURL = ConfigurationData.ServiceURL;
+            
             // Set other client connection configurations here if needed
             // Create the client itself
             MarketplaceWebServiceOrders client = new MarketplaceWebServiceOrdersClient(ConfigurationData.AccessKey, ConfigurationData.SecretKey, ConfigurationData.AppName, ConfigurationData.Version, config);
-            MarketplaceWebServiceOrdersSample sample = new MarketplaceWebServiceOrdersSample(client);
+            MarketplaceWebServiceOrdersSample amazonOrders = new MarketplaceWebServiceOrdersSample(client);
             try
             {
                 IMWSResponse response = null;
-                response = sample.InvokeListOrders();
+                response = amazonOrders.InvokeListOrders();
                 ResponseHeaderMetadata rhmd = response.ResponseHeaderMetadata;
                 Console.WriteLine("RequestId: " + rhmd.RequestId);
                 Console.WriteLine("Timestamp: " + rhmd.Timestamp);
@@ -32,16 +36,18 @@ namespace AmazonApp
 
                 foreach (var order in orderResponse.ListOrdersResult.Orders)
                 {
-                    var orderItemResponse = sample.InvokeListOrderItems(order.AmazonOrderId);
+                    //if (order.OrderStatus.ToLower() != "unshipped")
+                    //    continue;
+                    var orderItemResponse = amazonOrders.InvokeListOrderItems(order.AmazonOrderId);
                     order.OrderItem = orderItemResponse.ListOrderItemsResult.OrderItems;
-                    var customerId = CreateCustomer(order);
+                    var customerId = CreateCustomer(order);  // ** SAM: We should check if the order exists before this. Can set Amaz order no as PO
                     var mappedOrder = MapAmazonOrder(order, customerId, ref invoiceNo);
-                    var orderRes = RestHelper.AddRecord(mappedOrder, "Orders", ConfigurationData.PrivateKey, ConfigurationData.Token,
-                        ConfigurationData.Store);
-                    if (orderRes.Status == ACG.ActionStatus.Failed)
-                    {
-                        //Report as failed
-                    }
+                    ////var orderRes = RestHelper.AddRecord(mappedOrder, "Orders", ConfigurationData.PrivateKey, ConfigurationData.Token,
+                    ////    ConfigurationData.Store);
+                    ////if (orderRes.Status == ACG.ActionStatus.Failed)
+                    ////{
+                    ////    //Report as failed
+                    ////}
                 }
             }
             catch (Exception ex)
@@ -53,6 +59,7 @@ namespace AmazonApp
         public static long CreateCustomer(Order order)
         {
             //check if customer already exist
+            // ** SAM: Need to discuss using Amazon email directly -> as it will send an email to customer automatically from 3DCart
             var customerOld = CustomerDAL.FindCustomer(ConfigurationData.ConnectionString, cus => cus.email == order.BuyerEmail);
             if (customerOld != null)
             {
@@ -63,7 +70,7 @@ namespace AmazonApp
             {
                 Email= order.BuyerEmail,
                 Password= "Amazon"+ Guid.NewGuid().ToString("d").Substring(1, 8),
-                BillingCompany = "Amazon",
+                BillingCompany = "",
                 BillingFirstName= nameSplit[0],
                 BillingLastName= string.Join(" ", nameSplit.Except(new[] { nameSplit[0] })),
                 BillingAddress1= order.ShippingAddress.AddressLine1,
@@ -73,7 +80,7 @@ namespace AmazonApp
                 BillingCity= order.ShippingAddress.City,
                 BillingState =order.ShippingAddress.StateOrRegion,
                 BillingZipCode= order.ShippingAddress.PostalCode,
-                BillingCountry= order.BuyerCounty,
+                BillingCountry= order.ShippingAddress.CountryCode, // order.BuyerCounty
                 BillingPhoneNumber =order.ShippingAddress.Phone,
                 //BillingTaxID= order.BuyerTaxInfo.,todo: Sam to check
                 //ShippingCompany= "Amazon",
@@ -86,13 +93,13 @@ namespace AmazonApp
                 ShippingCity = order.ShippingAddress.City,
                 ShippingState = order.ShippingAddress.StateOrRegion,
                 ShippingZipCode = order.ShippingAddress.PostalCode,
-                ShippingCountry = order.BuyerCounty,
+                ShippingCountry = order.ShippingAddress.CountryCode, // order.BuyerCounty
                 ShippingPhoneNumber = order.ShippingAddress.Phone,
                 //ShippingAddressType= 0,
-                //CustomerGroupID= 0,
+                //CustomerGroupID= 0,  //** SAM: Need to set to Customer Group Amazon from 3D cart (customertype ?)
                 Enabled= true,
                 MailList = false,
-                NonTaxable = false,
+                NonTaxable = true,
                 DisableBillingSameAsShipping = true,
                 //Comments= "string",
                 //AdditionalField1= "string",
@@ -105,7 +112,7 @@ namespace AmazonApp
                 ConfigurationData.Token, ConfigurationData.Store);
             if (recordInfo.Status == ACG.ActionStatus.Failed)
             {
-                //todo: Do Action
+                //todo: Do Action ** SAM: Check that recordinfo.Resultset is null - send error email as in JFW order processing
             }
             return Convert.ToInt32(recordInfo.ResultSet);
         }
@@ -147,7 +154,7 @@ namespace AmazonApp
                                               ? order.ShippingAddress.AddressLine2
                                               : "") + (order.ShippingAddress.IsSetAddressLine3() ? order.ShippingAddress.AddressLine3 :""),
                        ShipmentCity = order.ShippingAddress.City,
-                       ShipmentCountry = order.ShippingAddress.County,
+                       ShipmentCountry = order.ShippingAddress.CountryCode,
                        ShipmentEmail = order.BuyerEmail,
                        ShipmentFirstName = nameSplit[0],
                        ShipmentLastName = string.Join(" ", nameSplit.Except(new []{nameSplit[0]})),
@@ -162,7 +169,18 @@ namespace AmazonApp
 
             foreach (var item in order.OrderItem)
             {
-                var orderItem = ProductDAL.FindOrderFromSKU(ConfigurationData.ConnectionString, item.SellerSKU);
+
+                // ** SAM: Make sure we have AmazonOrderItemID stored in some table for every order item
+
+                // ** SAM: From Amazon, find Manufacturer Part no for this ASIN. Then use that MPN to map our part no.
+                // Search our ASIN table, if the needed, insert this row. Or update.
+                // SAM: It will be better if we can capture the SKU (new) coming back from Amazon - Can put it in ASIN table.
+
+                // OR - simply map ASIN with our ASIN table and get the part no.
+
+                var orderItem = ProductDAL.FindOrderFromSKU(ConfigurationData.ConnectionString, item.SellerSKU); 
+                //** SAM Need to check failure condition that orderItem may be null
+                // *** Also these set of SKU's are new and probably we need a new field in the product table for this.
                 acgOrder.OrderItemList.Add(new ACG.OrderItem
                 {
                     ItemQuantity = Convert.ToDouble(item.QuantityOrdered),
