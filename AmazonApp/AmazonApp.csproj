@@ -131,9 +131,5 @@
       <Name>AutoCarOperations</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="LICENSE.txt" />
-    <Content Include="NOTICE.txt" />
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
