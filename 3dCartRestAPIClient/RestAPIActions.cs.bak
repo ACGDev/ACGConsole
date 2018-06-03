@@ -36,14 +36,12 @@ namespace DCartRestAPIClient
         public long RecordsGetLimit { get; set; }
         public long RecordsOffset { get; set; }
         public string datestart { get; set; }
-        public int invoicenumberstart { get; set; }
 
         public RestAPIActions()
         {
             datestart = "";
             RecordsOffset = 0;
             RecordsGetLimit = 100;
-            invoicenumberstart = 0;
         }
 
         //Creates an instance of HttpClient
@@ -113,10 +111,6 @@ namespace DCartRestAPIClient
                 if (datestart != "")
                 {
                     sTypeWithLimit = sTypeWithLimit + "&datestart=" + datestart;
-                }
-                if (invoicenumberstart != 0)
-                {
-                    sTypeWithLimit = sTypeWithLimit + "&invoicenumberstart=" + invoicenumberstart.ToString();
                 }
 
                 //GET the record(s) by using GetAsync method of HTTPClient and store the response in variable of HttpResponseMessage type

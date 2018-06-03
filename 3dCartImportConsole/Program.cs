@@ -23,7 +23,6 @@ using System.Windows.Forms.ComponentModel.Com2Interop;
 
 namespace _3dCartImportConsole
 {
-    // Test comment
     class Program
     {
         private static int? acg_invoicenum;
@@ -93,9 +92,9 @@ namespace _3dCartImportConsole
             #region ProcessJFWOrderFile
             if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess =="1")
             {
-                MessageBox.Show(string.Format("JFW balance in 2017: {0} - fix if needed", JFW_AR_2017));
+                // MessageBox.Show(string.Format("JFW balance in 2017: {0} - fix if needed", JFW_AR_2017));
                 // Check JFW order total in 2018 so far
-                Double totalWip_Shipped = OrderDAL.FetchTotalOrderAmt(configData.ConnectionString, "2018-01-01", "support@justfeedwebsites.com");
+                //Double totalWip_Shipped = OrderDAL.FetchTotalOrderAmt(configData.ConnectionString, "2018-01-01", "support@justfeedwebsites.com");
 
                 //First Sync orders but DO NOT create orders or upload order files
                 Log.Info("\r\nProcessing JFW Orders. First sync 3DCart orders to get the latest JFW order.");
@@ -103,11 +102,13 @@ namespace _3dCartImportConsole
                 //Download order from JFW FTP and place order
                 var customer = CustomerDAL.FindCustomer(configData.ConnectionString, customers => customers.billing_firstname == "JFW");
                 acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
-                Log.Info(string.Format("  New Invoice no for JFW starting with {0} ", acg_invoicenum + 1));
-                Log.Info("  Downloading JFW Orders from ftp ");
-                FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
+                //STOPPED  Log.Info(string.Format("  New Invoice no for JFW starting with {0} ", acg_invoicenum + 1));
+
+                //STOPPED  Log.Info("  Downloading JFW Orders from ftp ");
+                //STOPPED  FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, incomingOrdersFilePath, "", WebRequestMethods.Ftp.ListDirectory);
+
                 DirectoryInfo dir = new DirectoryInfo(incomingOrdersFilePath);
-                bool bProcessJFWOrder = true;
+                bool bProcessJFWOrder = false;
                 /**
                 if (JFW_AR_2017 + totalWip_Shipped >= JFW_AR_Ceiling && dir.GetFiles("*.txt").Length>0)
                 {
