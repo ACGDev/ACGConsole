@@ -62,7 +62,7 @@ namespace AutoCarOperations.DAL
             }
             Console.WriteLine("..........Finished..........");
         }
-        private static void AddCustomers(string connectionString, List<Customer> customers, List<CustomerGroup> customerGroups)
+        public static void AddCustomers(string connectionString, List<Customer> customers, List<CustomerGroup> customerGroups)
         {
             var customerAndGroup = GetCustomers(customers, customerGroups);
             var customerDB = customerAndGroup.Item1;
@@ -147,7 +147,7 @@ namespace AutoCarOperations.DAL
                     website = "www.autocareguys.com",
                     accountno = "Fake",
                     discount = 0,
-                    customertype = 0,
+                    customertype = customer.CustomerGroupID,
                     last_update = DateTime.Now,
                     lastlogindate = DateTime.Now
                 });

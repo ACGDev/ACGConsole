@@ -230,6 +230,27 @@ namespace AutoCarOperations.DAL
 
                 return Tuple.Create(product, dealerPrice);
             }
-        } 
+        }
+
+        class CKASINS
+        {
+            public string ItemId { get; set; }
+            public string VariantId { get; set; }
+            public int? catalogid { get; set; }
+
+        }
+        public static Tuple<string, string, int?> FindOrderFromASIN(string connectionString, string ASIN)
+        {
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                var response = context.Database.SqlQuery<CKASINS>($"SELECT CA.ItemId,CA.VariantId,P.catalogid FROM CK_ASINS CA LEFT JOIN `3dc_products` P ON P.SKU = CA.SKU_UPC WHERE asin_no='{ASIN}'").ToList();
+                if (response.Count == 0)
+                {
+                    return null;
+                }
+                // var dealerPrice = context.Products.Join((context.CKVaraints.Where(I => I.SKU == sku && I.Blocked.ToLower() == "no").Join(context.ACGDealerItemPrice, C=> C.ItemID, A=> A.ItemID, (variant, price) => price)), i => i.mfgid, j => j.ItemID, (i, j) => j).FirstOrDefault();
+                return Tuple.Create(response[0].ItemId, response[0].VariantId, response[0].catalogid);
+            }
+        }
     }
 }

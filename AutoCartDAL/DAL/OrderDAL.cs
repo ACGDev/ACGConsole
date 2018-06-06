@@ -140,7 +140,7 @@ namespace AutoCarOperations.DAL
         /// <param name="strOrderStart"></param>
         /// <param name="orders_fromsite"></param>
         /// <returns></returns>
-        private static List<orders> Map_n_Add_ExtOrders(string connectionString, string strOrderStart, List<Order> orders_fromsite)
+        public static List<orders> Map_n_Add_ExtOrders(string connectionString, string strOrderStart, List<Order> orders_fromsite)
         {
             var mappedOrders = MapOrders(orders_fromsite, connectionString);
             Console.WriteLine(string.Format("  Total {0} orders to be Added or Updated", mappedOrders.Count));
@@ -288,7 +288,8 @@ namespace AutoCarOperations.DAL
                         itemname = "Fake",
                         recurrent = 0,
                         recurring_order_frequency = 0,
-                        supplierid = 0
+                        supplierid = 0,
+                        channel_order_itemid = item.ChannelOrderItemId
                     });
                 }
             }
@@ -328,7 +329,7 @@ namespace AutoCarOperations.DAL
                 //if (order.OrderStatusID == 7)
                 //    continue;
                 var po_number = order.CustomerComments;
-                if (po_number.ToUpper().Contains("PO ") && order.BillingEmail == "support@justfeedwebsites.com")
+                if (po_number != null && po_number.ToUpper().Contains("PO ") && order.BillingEmail == "support@justfeedwebsites.com")
                 {
                     po_number = po_number.ToUpper().Replace("PO NO", "").Replace("BUYER: 500", "").Trim();
                     po_number = po_number.Replace("BUYER 500", "").Replace("BUYER:500", "");
@@ -391,7 +392,7 @@ namespace AutoCarOperations.DAL
                     orderno = order.InvoiceNumberPrefix.Trim() + order.InvoiceNumber.ToString(),    //SM: inv prefix + inv num - previously "Fake"
                     orderweight = 0,//todo:calculate order from orderitem
                     ostep = "",
-                    po_no = po_number, // order.CustomerComments.Replace("PO NO:", "").Replace("; Buyer: 500",""),
+                    po_no = order.PONo ?? po_number, // order.CustomerComments.Replace("PO NO:", "").Replace("; Buyer: 500",""),
                     paymethodinfo = "",   // SM
                     recurrent_frequency = 0,
                     shipaddress = orderShipMents.ShipmentAddress,

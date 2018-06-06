@@ -36,18 +36,14 @@ namespace AmazonApp
 
                 foreach (var order in orderResponse.ListOrdersResult.Orders)
                 {
+                    order.BuyerEmail = order.BuyerEmail.Replace("marketplace.amazon.com", "AutoCareGuys.com");
                     //if (order.OrderStatus.ToLower() != "unshipped")
                     //    continue;
                     var orderItemResponse = amazonOrders.InvokeListOrderItems(order.AmazonOrderId);
                     order.OrderItem = orderItemResponse.ListOrderItemsResult.OrderItems;
                     var customerId = CreateCustomer(order);  // ** SAM: We should check if the order exists before this. Can set Amaz order no as PO
                     var mappedOrder = MapAmazonOrder(order, customerId, ref invoiceNo);
-                    ////var orderRes = RestHelper.AddRecord(mappedOrder, "Orders", ConfigurationData.PrivateKey, ConfigurationData.Token,
-                    ////    ConfigurationData.Store);
-                    ////if (orderRes.Status == ACG.ActionStatus.Failed)
-                    ////{
-                    ////    //Report as failed
-                    ////}
+
                 }
             }
             catch (Exception ex)
@@ -66,7 +62,7 @@ namespace AmazonApp
                 return customerOld.customer_id;
             }
             var nameSplit = order.ShippingAddress.Name.Split(' ');
-            var customer = new
+            var customer = new ACG.Customer
             {
                 Email= order.BuyerEmail,
                 Password= "Amazon"+ Guid.NewGuid().ToString("d").Substring(1, 8),
@@ -101,20 +97,24 @@ namespace AmazonApp
                 MailList = false,
                 NonTaxable = true,
                 DisableBillingSameAsShipping = true,
+                CustomerGroupID = 10,
                 //Comments= "string",
                 //AdditionalField1= "string",
                 //AdditionalField2= "string",
                 //AdditionalField3= "string",
-                TotalStoreCredit = 0,
-                ResetPassword= true
+                TotalStoreCredit = ""
             };
+
             var recordInfo = RestHelper.AddRecord(customer, "Customers", ConfigurationData.PrivateKey,
                 ConfigurationData.Token, ConfigurationData.Store);
             if (recordInfo.Status == ACG.ActionStatus.Failed)
             {
                 //todo: Do Action ** SAM: Check that recordinfo.Resultset is null - send error email as in JFW order processing
             }
-            return Convert.ToInt32(recordInfo.ResultSet);
+            var customerId = Convert.ToInt32(recordInfo.ResultSet);
+            customer.CustomerID = customerId;
+            CustomerDAL.AddCustomers(ConfigurationData.ConnectionString, new List<ACG.Customer>() { customer }, new List<ACG.CustomerGroup>());
+            return customerId;
         }
         public static ACG.Order MapAmazonOrder(Order order, long customerId, ref int? invoiceNo)
         {
@@ -136,6 +136,7 @@ namespace AmazonApp
                 BillingOnLinePayment = false,
                 BillingPaymentMethodID = "50",
                 UserID = "storeadmin1",
+                PONo = order.AmazonOrderId,
                 CustomerID = customerId,
                 OrderAmount = Convert.ToDouble(order.OrderTotal.Amount),
                 OrderDate = order.PurchaseDate,
@@ -177,16 +178,22 @@ namespace AmazonApp
                 // SAM: It will be better if we can capture the SKU (new) coming back from Amazon - Can put it in ASIN table.
 
                 // OR - simply map ASIN with our ASIN table and get the part no.
-
-                var orderItem = ProductDAL.FindOrderFromSKU(ConfigurationData.ConnectionString, item.SellerSKU); 
+                var orderItem = ProductDAL.FindOrderFromASIN(ConfigurationData.ConnectionString, item.ASIN);
+                if (orderItem == null || orderItem.Item1 == null
+                    || orderItem.Item2 == null || orderItem.Item3 == null)
+                {
+                    //todo: Query 3d cart API if catalogid is null.
+                    continue;
+                }
                 //** SAM Need to check failure condition that orderItem may be null
                 // *** Also these set of SKU's are new and probably we need a new field in the product table for this.
                 acgOrder.OrderItemList.Add(new ACG.OrderItem
                 {
                     ItemQuantity = Convert.ToDouble(item.QuantityOrdered),
                     ItemUnitCost = Convert.ToDouble(item.ItemPrice),
-                    ItemID = orderItem.Item2.ItemID,
-                    CatalogID = orderItem.Item1.catalogid,
+                    ItemID = orderItem.Item1,
+                    CatalogID = orderItem.Item3,
+                    ItemOptions = orderItem.Item2,
                     //ItemDescription = item.
                     //ItemDescription = ,
                     ItemWeight = Convert.ToDouble(item.ProductInfo.NumberOfItems),
@@ -195,6 +202,15 @@ namespace AmazonApp
                     //ResourceCode and Message
                 });
             }
+            var orderRes = RestHelper.AddRecord(acgOrder, "Orders", ConfigurationData.PrivateKey, ConfigurationData.Token,
+                ConfigurationData.Store);
+            if (orderRes.Status == ACG.ActionStatus.Failed)
+            {
+                //Report as failed
+            }
+            var orderId = Convert.ToInt32(orderRes.ResultSet);
+            acgOrder.OrderID = orderId;
+            OrderDAL.Map_n_Add_ExtOrders(ConfigurationData.ConnectionString, "", new List<ACG.Order>() {acgOrder});
             return acgOrder;
         }
     }
