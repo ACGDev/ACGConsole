@@ -172,6 +172,7 @@ namespace DCartRestAPIClient
         public double? ItemUnitStock { get; set; }
         public string ItemOptions { get; set; }
         public string ItemCatalogIDOptions { get; set; }
+        public string ChannelOrderItemId { get; set; }
     }
 
     public class Transaction

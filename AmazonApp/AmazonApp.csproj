@@ -51,12 +51,19 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AbstractMwsObject.cs" />
+    <Compile Include="Attributes\MarketplaceWebServiceAttribute.cs" />
+    <Compile Include="Attributes\MarketplaceWebServiceStreamAttribute.cs" />
+    <Compile Include="Attributes\RequestType.cs" />
+    <Compile Include="Attributes\ResponseType.cs" />
+    <Compile Include="Attributes\StreamType.cs" />
     <Compile Include="IMwsCall.cs" />
     <Compile Include="IMwsObject.cs" />
     <Compile Include="IMwsReader.cs" />
     <Compile Include="IMwsRequestType.cs" />
     <Compile Include="IMwsWriter.cs" />
     <Compile Include="ListOrdersResponse.cs" />
+    <Compile Include="MarketplaceWebService.cs" />
+    <Compile Include="MarketplaceWebServiceException.cs" />
     <Compile Include="MarketplaceWebServiceOrders.cs" />
     <Compile Include="MarketplaceWebServiceOrdersClient.cs" />
     <Compile Include="MarketplaceWebServiceOrdersConfig.cs" />
@@ -65,12 +72,14 @@
     <Compile Include="Model\Address.cs" />
     <Compile Include="Model\BuyerCustomizedInfoDetail.cs" />
     <Compile Include="Model\BuyerTaxInfo.cs" />
+    <Compile Include="Model\FeedSubmissionInfo.cs" />
     <Compile Include="Model\GetOrderRequest.cs" />
     <Compile Include="Model\GetOrderResponse.cs" />
     <Compile Include="Model\GetOrderResult.cs" />
     <Compile Include="Model\GetServiceStatusRequest.cs" />
     <Compile Include="Model\GetServiceStatusResponse.cs" />
     <Compile Include="Model\GetServiceStatusResult.cs" />
+    <Compile Include="Model\IdList.cs" />
     <Compile Include="Model\InvoiceData.cs" />
     <Compile Include="Model\ListOrderItemsByNextTokenRequest.cs" />
     <Compile Include="Model\ListOrderItemsByNextTokenResponse.cs" />
@@ -91,6 +100,10 @@
     <Compile Include="Model\PointsGrantedDetail.cs" />
     <Compile Include="Model\ProductInfoDetail.cs" />
     <Compile Include="Model\ResponseMetadata.cs" />
+    <Compile Include="Model\SubmitFeedRequest.cs" />
+    <Compile Include="Model\SubmitFeedResponse.cs" />
+    <Compile Include="Model\SubmitFeedResult.cs" />
+    <Compile Include="Model\SubmitFeedSample.cs" />
     <Compile Include="Model\TaxClassification.cs" />
     <Compile Include="Model\TaxCollection.cs" />
     <Compile Include="MwsAQCall.cs" />
@@ -117,10 +130,6 @@
       <Project>{bfbc0546-38ec-40fb-a395-e31f87bb3ebe}</Project>
       <Name>AutoCarOperations</Name>
     </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="LICENSE.txt" />
-    <Content Include="NOTICE.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
