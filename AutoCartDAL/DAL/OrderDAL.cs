@@ -671,7 +671,7 @@ namespace AutoCarOperations.DAL
                     TrimTolength(order.shipcity, 20), TrimTolength(order.shipstate, 10), TrimTolength(order.shipzip, 10), TrimTolength(order.shipcountry, 2));
 
                 // Ship_Phone,Ship_Email,Ship_Service,CK_SKU
-                oText += string.Format(",{0},{1},{2},{3}", TrimTolength(order.shipphone, 15), TrimTolength(order.shipemail, 25), "PRIORITY", "");
+                oText += string.Format(",{0},{1},{2},{3}", TrimTolength(order.shipphone, 15), TrimTolength(order.shipemail, 25), "R02", "");
 
                 if (!string.IsNullOrEmpty(order.internalcomment))
                 {
