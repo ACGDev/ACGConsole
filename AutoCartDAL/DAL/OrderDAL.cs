@@ -267,7 +267,7 @@ namespace AutoCarOperations.DAL
                 {
                     order_items.Add(new order_items
                     {
-                        additional_field1 = item.ItemAdditionalField1,
+                        additional_field1 = item.ItemAdditionalField1,  
                         additional_field2 = item.ItemAdditionalField2,
                         additional_field3 = item.ItemAdditionalField3,
                         catalogid = item.CatalogID,
@@ -694,6 +694,8 @@ namespace AutoCarOperations.DAL
                     values[0] = o.Product.mfgid;
                     //CK_Variant
                     values[1] = variant;
+                    // Resource Code, if present
+                    values[2] = Convert.ToString(o.additional_field1);
                     //Qty
                     values[6] = o.numitems.ToString();
                     foreach (var field in splitComment)

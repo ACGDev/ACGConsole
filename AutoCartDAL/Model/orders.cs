@@ -102,7 +102,7 @@ namespace AutoCarOperations.Model
         public int? supplierid { get; set; }
         public double? weight { get; set; }
         public double? optionprice { get; set; }
-        public string additional_field1 { get; set; }
+        public string additional_field1 { get; set; } // Will hold Recource Code
         public string additional_field2 { get; set; }
         public string additional_field3 { get; set; }
         public string itemid { get; set; }

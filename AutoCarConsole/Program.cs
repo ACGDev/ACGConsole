@@ -28,7 +28,7 @@ namespace AutoCarConsole
             ConfigurationData config = GetConfigurationDetails();
             // Uncomment following to get Customer records
               CustomerDAL.AddCustomer(config);
-            // ProductDAL.AddProduct(config);
+             ProductDAL.AddProduct(config);
             //CoverKingDAL.SaveBaseVehicleAppData(config.ConnectionString);
             //CoverKingDAL.SaveItemVariantImages(config.ConnectionString);
             CsvFilebase baseCSBV = new CsvFilebase();

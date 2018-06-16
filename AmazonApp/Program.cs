@@ -37,11 +37,17 @@ namespace AmazonApp
                 foreach (var order in orderResponse.ListOrdersResult.Orders)
                 {
                     order.BuyerEmail = order.BuyerEmail.Replace("marketplace.amazon.com", "AutoCareGuys.com");
-                    //if (order.OrderStatus.ToLower() != "unshipped")
-                    //    continue;
+                    if (order.OrderStatus.ToLower() != "unshipped")
+                        continue;
+
+                    //** SAM: Find if this order already exists (but unshipped)
+                    var existingOrder = OrderDAL.FetchOrders(ConfigurationData.ConnectionString, ord => ord.po_no == order.AmazonOrderId || ord.orderno == order.SellerOrderId);
+                    if (existingOrder.Count >0) continue;
+
+                    // Check if this Amazon order has been already entered
                     var orderItemResponse = amazonOrders.InvokeListOrderItems(order.AmazonOrderId);
                     order.OrderItem = orderItemResponse.ListOrderItemsResult.OrderItems;
-                    var customerId = CreateCustomer(order);  // ** SAM: We should check if the order exists before this. Can set Amaz order no as PO
+                    var customerId = CreateCustomer(order);  
                     var mappedOrder = MapAmazonOrder(order, customerId, ref invoiceNo);
 
                 }
@@ -55,8 +61,7 @@ namespace AmazonApp
         public static long CreateCustomer(Order order)
         {
             //check if customer already exist
-            // ** SAM: Need to discuss using Amazon email directly -> as it will send an email to customer automatically from 3DCart
-            var customerOld = CustomerDAL.FindCustomer(ConfigurationData.ConnectionString, cus => cus.email == order.BuyerEmail);
+            var customerOld = CustomerDAL.FindCustomer(ConfigurationData.ConnectionString, cus => cus.billing_address == order.ShippingAddress.AddressLine1 && cus.billing_zip == order.ShippingAddress.PostalCode);
             if (customerOld != null)
             {
                 return customerOld.customer_id;
@@ -92,12 +97,11 @@ namespace AmazonApp
                 ShippingCountry = order.ShippingAddress.CountryCode, // order.BuyerCounty
                 ShippingPhoneNumber = order.ShippingAddress.Phone,
                 //ShippingAddressType= 0,
-                //CustomerGroupID= 0,  //** SAM: Need to set to Customer Group Amazon from 3D cart (customertype ?)
                 Enabled= true,
                 MailList = false,
                 NonTaxable = true,
                 DisableBillingSameAsShipping = true,
-                CustomerGroupID = 10,
+                CustomerGroupID = 13,  // Amazon
                 //Comments= "string",
                 //AdditionalField1= "string",
                 //AdditionalField2= "string",
@@ -178,11 +182,11 @@ namespace AmazonApp
                 // SAM: It will be better if we can capture the SKU (new) coming back from Amazon - Can put it in ASIN table.
 
                 // OR - simply map ASIN with our ASIN table and get the part no.
-                var orderItem = ProductDAL.FindOrderFromASIN(ConfigurationData.ConnectionString, item.ASIN);
-                if (orderItem == null || orderItem.Item1 == null
-                    || orderItem.Item2 == null || orderItem.Item3 == null)
+                var orderItem = ProductDAL.FindOrderFromASIN(ConfigurationData.ConnectionString, item.ASIN, item.SellerSKU);
+                if (orderItem == null || orderItem.catalogid == null
+                    || orderItem.ItemId == null )
                 {
-                    //todo: Query 3d cart API if catalogid is null.
+                    //todo: SAM: Query 3d cart API if catalogid is null. Map "CK_"+CK_ASIN.ItemId with SKU of 3D Cart
                     continue;
                 }
                 //** SAM Need to check failure condition that orderItem may be null
@@ -191,12 +195,13 @@ namespace AmazonApp
                 {
                     ItemQuantity = Convert.ToDouble(item.QuantityOrdered),
                     ItemUnitCost = Convert.ToDouble(item.ItemPrice),
-                    ItemID = orderItem.Item1,
-                    CatalogID = orderItem.Item3,
-                    ItemOptions = orderItem.Item2,
+                    ItemID = orderItem.ItemId,
+                    CatalogID = orderItem.catalogid,
+                    ItemOptions = orderItem.VariantId,
                     //ItemDescription = item.
                     //ItemDescription = ,
                     ItemWeight = Convert.ToDouble(item.ProductInfo.NumberOfItems),
+                    ItemAdditionalField1 = orderItem.ResourceCode,
                     //
                     //Order_Items Table : Add extra field additionalField4 >
                     //ResourceCode and Message
