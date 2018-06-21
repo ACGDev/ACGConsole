@@ -55,17 +55,23 @@ namespace AutoCarOperations.DAL
                 orderList = SyncOrders(configData, fetchDate, numDaysToSync); // orderlist now contains ONLY new orders
                 Console.WriteLine("  Sync Order complete. ");
             }
+            UploadOrderToCK(configData, prepareFile, uploadFile, orderList);
+        }
+
+        private static void UploadOrderToCK(ConfigurationData configData, bool prepareFile, bool uploadFile, List<orders> orderList)
+        {
             if (prepareFile && orderList.Count > 0)
             {
                 Console.WriteLine(string.Format("\r\nNumber of New Orders to be processed: {0}", orderList.Count));
                 //SM: Why do we need orderList as well as orderListCopy when we are not really changing the original orderList ?
                 var orderListCopy = JsonConvert.DeserializeObject<List<orders>>(JsonConvert.SerializeObject(orderList));
 
-                // SM: No longer called ** var fileDetail = PrepareOrderFile(configData, orderList);
                 string filePath = string.Format("{0}\\{1}",
-                    System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), configData.CKOrderFolder);
-                string strCsvHeader = "PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
-
+                    System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
+                    configData.CKOrderFolder);
+                string strCsvHeader =
+                    "PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
+                // todo: SAM**: If AdditionalField1 exists in order_items then use that as Customized_Code (right after CK_Variant)
                 if (uploadFile)
                 {
                     foreach (var order in orderList)
@@ -75,22 +81,28 @@ namespace AutoCarOperations.DAL
                             // Check for Special Order - Do not upload - send email
                             if (order.cus_comment != null && order.cus_comment.ToLower().Contains("(special)"))
                             {
-                                Console.WriteLine(string.Format("  Order Has to be processed manually: {0}. Sending email to sales", order.orderno));
-                                MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Has to be processed manually", "Order Has to be processed manually. The order no is:" + order.orderno, "sales@autocareguys.com");
+                                Console.WriteLine(string.Format(
+                                    "  Order Has to be processed manually: {0}. Sending email to sales", order.orderno));
+                                MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Has to be processed manually",
+                                    "Order Has to be processed manually. The order no is:" + order.orderno,
+                                    "sales@autocareguys.com");
                                 continue;
                             }
                             string strOrderLines = GenerateOrderLines(order, configData, MandrillMail.SendEmail);
                             if (strOrderLines != string.Empty)
                             {
-                                string fileName = string.Format("{0}-{1}.csv", order.orderno, DateTime.Now.ToString("yyyyMMMdd-HHmm"));
+                                string fileName = string.Format("{0}-{1}.csv", order.orderno,
+                                    DateTime.Now.ToString("yyyyMMMdd-HHmm"));
                                 string strFileNameWithPath = string.Format("{0}\\{1}", filePath, fileName);
-                                Console.WriteLine(string.Format("  Creating Order File in folder {0},\r\n    Filename: {1}", filePath, fileName));
+                                Console.WriteLine(string.Format("  Creating Order File in folder {0},\r\n    Filename: {1}",
+                                    filePath, fileName));
                                 File.WriteAllText(strFileNameWithPath, strCsvHeader + "\r\n");
                                 File.AppendAllText(strFileNameWithPath, strOrderLines);
                                 Console.WriteLine(strOrderLines);
                                 //todo: create overloaded method
                                 Console.WriteLine(string.Format("  Uplaoding {0} to CK Order ftp site", fileName));
-                                FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, filePath, fileName, WebRequestMethods.Ftp.UploadFile);
+                                FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName,
+                                    configData.FTPPassword, filePath, fileName, WebRequestMethods.Ftp.UploadFile);
                                 Console.WriteLine("  ... file successfully uploaded");
                             }
                         }
@@ -312,6 +324,7 @@ namespace AutoCarOperations.DAL
                     thisLocalOrder = context.Orders.FirstOrDefault(i => i.orderno == thisOrderNoFrom3DCart);
                     if (thisLocalOrder != null && thisLocalOrder.order_status == order.OrderStatusID)
                     {
+                        // todo: SAM**: Ignore new orders from Amazon, if any. Also see Amazon App fn MapAmazonOrder for this comment
                         if ( ! (thisLocalOrder.order_status == 1 && thisLocalOrder.shipcomplete.ToLower()=="pending"))
                             continue;
                     }

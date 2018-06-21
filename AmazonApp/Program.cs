@@ -226,6 +226,7 @@ namespace AmazonApp
             var orderId = Convert.ToInt32(orderRes.ResultSet);
             acgOrder.OrderID = orderId;
             OrderDAL.Map_n_Add_ExtOrders(ConfigurationData.ConnectionString, "", new List<ACG.Order>() {acgOrder});
+            // todo: SAM**: Need to prepare and upload ck order file here. Then mark these orders as Submitted in local table
             return acgOrder;
         }
     }
