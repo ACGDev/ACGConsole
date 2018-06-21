@@ -238,11 +238,16 @@ namespace AutoCarOperations.DAL
             
             using (var context = new AutoCareDataContext(connectionString))
             {
+                bool bTryMFGId = false;
                 var response = context.Database.SqlQuery<CKASINS>($"SELECT CA.ItemId,CA.VariantId,P.catalogid,CA.ResourceCode FROM CK_ASINS CA LEFT JOIN `3dc_products` P ON P.SKU = CA.SKU_UPC WHERE asin_no='{ASIN}'").ToList();
-                if (response.Count == 0)
+                if (response.Count == 0) bTryMFGId = true;
+                else if (response[0].ItemId == null || response[0].catalogid == null)
+                    bTryMFGId = true;
+            
+                if (bTryMFGId)
                 {
                     // Sam: Try to get item from manuf_sku if SKU does not map
-                    response = context.Database.SqlQuery<CKASINS>($"SELECT CA.ItemId,CA.VariantId,P.catalogid,CA.ResourceCode FROM CK_ASINS CA LEFT JOIN `3dc_products` P ON P.mfgid = CA.SKU_UPC WHERE asin_no='{ASIN}'").ToList();
+                    response = context.Database.SqlQuery<CKASINS>($"SELECT CA.ItemId,CA.VariantId,P.catalogid,CA.ResourceCode FROM CK_ASINS CA LEFT JOIN `3dc_products` P ON P.mfgid = CA.ItemID WHERE asin_no='{ASIN}'").ToList();
                     if (response.Count == 0)
                         return null;
                 }

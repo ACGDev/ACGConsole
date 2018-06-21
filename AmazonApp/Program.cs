@@ -8,6 +8,7 @@ using AutoCarOperations.DAL;
 using AutoCarOperations.Model;
 using ACG = DCartRestAPIClient;
 
+
 namespace AmazonApp
 {
     class Program
@@ -33,7 +34,7 @@ namespace AmazonApp
                 Console.WriteLine("Timestamp: " + rhmd.Timestamp);
                 var orderResponse = response as ListOrdersResponse;
                 var invoiceNo = OrderDAL.GetMaxInvoiceNum(ConfigurationData.ConnectionString, "ACGA-");
-
+                
                 foreach (var order in orderResponse.ListOrdersResult.Orders)
                 {
                     order.BuyerEmail = order.BuyerEmail.Replace("marketplace.amazon.com", "AutoCareGuys.com");
@@ -123,6 +124,7 @@ namespace AmazonApp
         public static ACG.Order MapAmazonOrder(Order order, long customerId, ref int? invoiceNo)
         {
             var nameSplit = order.ShippingAddress.Name.Split(' ');
+            invoiceNo += 1;
             ACG.Order acgOrder = new ACG.Order()
             {
                 BillingAddress = order.ShippingAddress.AddressLine1,
@@ -134,22 +136,26 @@ namespace AmazonApp
                 BillingFirstName = nameSplit[0],
                 BillingLastName = string.Join(" ", nameSplit.Except(new []{nameSplit[0]})),
                 BillingEmail = order.BuyerEmail,
-                BillingPhoneNumber = order.ShippingAddress.Phone,
+                BillingPhoneNumber = order.ShippingAddress.Phone == null ? "111-111-1111" : order.ShippingAddress.Phone,
                 BillingState = order.ShippingAddress.StateOrRegion,
                 BillingZipCode = order.ShippingAddress.PostalCode,
                 BillingOnLinePayment = false,
                 BillingPaymentMethodID = "50",
+                BillingPaymentMethod = "Purchase Order",
                 UserID = "storeadmin1",
                 PONo = order.AmazonOrderId,
                 CustomerID = customerId,
                 OrderAmount = Convert.ToDouble(order.OrderTotal.Amount),
                 OrderDate = order.PurchaseDate,
                 InvoiceNumberPrefix = "ACGA-",
-                InvoiceNumber = invoiceNo+1,
-                Referer = "AMAZON ORDER",
+                InvoiceNumber = invoiceNo,
+                Referer = "http://www.amazon.com",
                 SalesPerson = "",
                 CardNumber = "-1",
                 CardName = "Amazon Items",
+                OrderStatusID = 1,
+                CustomerComments = order.AmazonOrderId,
+                OrderID = 0,
                 ShipmentList = new List<ACG.Shipment>
                 {
                    new ACG.Shipment()
@@ -163,8 +169,8 @@ namespace AmazonApp
                        ShipmentEmail = order.BuyerEmail,
                        ShipmentFirstName = nameSplit[0],
                        ShipmentLastName = string.Join(" ", nameSplit.Except(new []{nameSplit[0]})),
-                       ShipmentPhone = order.ShippingAddress.Phone,
-                       ShipmentShippedDate = order.LatestShipDate.ToLongDateString(),
+                       ShipmentPhone = order.ShippingAddress.Phone == null ? "111-111-1111" : order.ShippingAddress.Phone,
+                       // SAM: This is tobe shipped By date. we may need a field for this. ShipmentShippedDate = order.LatestShipDate.ToLongDateString(),
                        ShipmentState = order.ShippingAddress.StateOrRegion,
                        ShipmentZipCode = order.ShippingAddress.PostalCode
                    }
@@ -194,25 +200,29 @@ namespace AmazonApp
                 acgOrder.OrderItemList.Add(new ACG.OrderItem
                 {
                     ItemQuantity = Convert.ToDouble(item.QuantityOrdered),
-                    ItemUnitCost = Convert.ToDouble(item.ItemPrice),
+                    ItemUnitPrice = Convert.ToDouble(item.ItemPrice.Amount),
+                    //ItemOptionPrice = Convert.ToDouble(item.ItemPrice.Amount),
                     ItemID = orderItem.ItemId,
                     CatalogID = orderItem.catalogid,
                     ItemOptions = orderItem.VariantId,
-                    //ItemDescription = item.
-                    //ItemDescription = ,
-                    ItemWeight = Convert.ToDouble(item.ProductInfo.NumberOfItems),
-                    ItemAdditionalField1 = orderItem.ResourceCode,
+                    ItemDescription = item.Title,
+                    // ItemWeight = Convert.ToDouble(item.,
+                    ItemAdditionalField1 = orderItem.ResourceCode
                     //
                     //Order_Items Table : Add extra field additionalField4 >
                     //ResourceCode and Message
                 });
+                
             }
+            
+            
             var orderRes = RestHelper.AddRecord(acgOrder, "Orders", ConfigurationData.PrivateKey, ConfigurationData.Token,
                 ConfigurationData.Store);
             if (orderRes.Status == ACG.ActionStatus.Failed)
             {
-                //Report as failed
+                //todo: SAM: Send error email with whole acgOrder object
             }
+            
             var orderId = Convert.ToInt32(orderRes.ResultSet);
             acgOrder.OrderID = orderId;
             OrderDAL.Map_n_Add_ExtOrders(ConfigurationData.ConnectionString, "", new List<ACG.Order>() {acgOrder});

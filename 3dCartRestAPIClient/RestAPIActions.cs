@@ -171,7 +171,14 @@ namespace DCartRestAPIClient
                 //Call ReadAsStringAsync to check the result code and if there is any error message. Store the information in ResponeInfo object.
                 string strResponseJson = response.Content.ReadAsStringAsync().Result;
                 ResponseInfo responeInfoObject = JsonConvert.DeserializeObject<ResponseInfo>(strResponseJson.Substring(1, strResponseJson.Length - 2));
-
+                // SAM: Need to check status of response
+                if (!response.IsSuccessStatusCode)
+                {
+                    recordInfo.Status = ActionStatus.Failed;
+                    recordInfo.Description = response.ReasonPhrase +" : "+ strResponseJson;
+                    Console.WriteLine(String.Format("Cannot create 3D Cart order: Error {0}\r\n", recordInfo.Description));
+                    return recordInfo;
+                }
 
                 //If add is successful, store the ID of newly generated record in 'resultset' property and mark the status as successful, 
                 //else set the status to failed and provide the error code and description through CodeNumber and description property
@@ -183,7 +190,7 @@ namespace DCartRestAPIClient
             {
                 recordInfo.Description = ex.Message;
                 recordInfo.Status = ActionStatus.Failed;
-
+                Console.WriteLine(String.Format("Cannot create 3D Cart order: Error {0}\r\n", recordInfo.Description));
             }
 
             return recordInfo;
