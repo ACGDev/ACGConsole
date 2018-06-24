@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Configuration;
+using System.IO;
 using System.Linq;
 using AutoCarOperations;
 using AutoCarOperations.DAL;
@@ -50,7 +51,6 @@ namespace AmazonApp
                     order.OrderItem = orderItemResponse.ListOrderItemsResult.OrderItems;
                     var customerId = CreateCustomer(order);  
                     var mappedOrder = MapAmazonOrder(order, customerId, ref invoiceNo);
-
                 }
             }
             catch (Exception ex)
@@ -114,7 +114,9 @@ namespace AmazonApp
                 ConfigurationData.Token, ConfigurationData.Store);
             if (recordInfo.Status == ACG.ActionStatus.Failed)
             {
-                //todo: Do Action ** SAM: Check that recordinfo.Resultset is null - send error email as in JFW order processing
+                MandrillMail.SendEmail(ConfigurationData.MandrilAPIKey, "Order Has to be processed manually. ",
+                    "Order Has to be processed manually. ASIN information is not available. The order no is:" + order.AmazonOrderId,
+                    "sales@autocareguys.com");
             }
             var customerId = Convert.ToInt32(recordInfo.ResultSet);
             customer.CustomerID = customerId;
@@ -169,7 +171,7 @@ namespace AmazonApp
                        ShipmentEmail = order.BuyerEmail,
                        ShipmentFirstName = nameSplit[0],
                        ShipmentLastName = string.Join(" ", nameSplit.Except(new []{nameSplit[0]})),
-                       ShipmentPhone = order.ShippingAddress.Phone == null ? "111-111-1111" : order.ShippingAddress.Phone,
+                       ShipmentPhone = order.ShippingAddress.Phone ?? "111-111-1111",
                        // SAM: This is tobe shipped By date. we may need a field for this. ShipmentShippedDate = order.LatestShipDate.ToLongDateString(),
                        ShipmentState = order.ShippingAddress.StateOrRegion,
                        ShipmentZipCode = order.ShippingAddress.PostalCode
@@ -192,6 +194,9 @@ namespace AmazonApp
                 if (orderItem == null || orderItem.catalogid == null
                     || orderItem.ItemId == null )
                 {
+                    MandrillMail.SendEmail(ConfigurationData.MandrilAPIKey, "Order Has to be processed manually. ",
+                        "Order Has to be processed manually. OrderItem ASIN information is null. The order no is:" + order.AmazonOrderId,
+                        "sales@autocareguys.com");
                     //todo: SAM: Query 3d cart API if catalogid is null. Map "CK_"+CK_ASIN.ItemId with SKU of 3D Cart
                     continue;
                 }
@@ -220,13 +225,26 @@ namespace AmazonApp
                 ConfigurationData.Store);
             if (orderRes.Status == ACG.ActionStatus.Failed)
             {
-                //todo: SAM: Send error email with whole acgOrder object
+                MandrillMail.SendEmail(ConfigurationData.MandrilAPIKey, "Order Has to be processed manually",
+                    "Order Has to be processed manually. The order no is:" + order.AmazonOrderId,
+                    "sales@autocareguys.com");
             }
-            
+
             var orderId = Convert.ToInt32(orderRes.ResultSet);
             acgOrder.OrderID = orderId;
-            OrderDAL.Map_n_Add_ExtOrders(ConfigurationData.ConnectionString, "", new List<ACG.Order>() {acgOrder});
-            // todo: SAM**: Need to prepare and upload ck order file here. Then mark these orders as Submitted in local table
+            var orderList = OrderDAL.Map_n_Add_ExtOrders(ConfigurationData.ConnectionString, "", new List<ACG.Order>() { acgOrder });
+            // prepare and upload ck order file.
+            OrderDAL.PlaceOrder(new AutoCarOperations.Model.ConfigurationData()
+            {
+                ConnectionString = ConfigurationData.ConnectionString,
+                CKOrderFolder = ConfigurationData.CKOrderFolder,
+                MandrilAPIKey = ConfigurationData.MandrilAPIKey,
+                FTPAddress = ConfigurationData.FTPAddress,
+                FTPUserName = ConfigurationData.FTPUserName,
+                FTPPassword = ConfigurationData.FTPPassword,
+            }, false, true, true, orderList);
+            //mark the above orders as Submitted in local table
+            OrderDAL.UpdateStatus(ConfigurationData.ConnectionString, orderList);
             return acgOrder;
         }
     }
@@ -246,6 +264,11 @@ namespace AmazonApp
         public static string ConnectionString = ConfigurationManager.ConnectionStrings["mysqlconnection"].ConnectionString;
         internal static string PrivateKey = ConfigurationManager.AppSettings["PrivateKey"];
         internal static string Token = ConfigurationManager.AppSettings["Token"];
+        internal static string FTPAddress = ConfigurationManager.AppSettings["FTPAddress"];
+        internal static string FTPUserName = ConfigurationManager.AppSettings["FTPUserName"];
+        internal static string FTPPassword = ConfigurationManager.AppSettings["FTPPassword"];
         internal static string Store = ConfigurationManager.AppSettings["Store"];
+        internal static string CKOrderFolder = ConfigurationManager.AppSettings["CKOrderFolder"];
+        internal static string MandrilAPIKey = ConfigurationManager.AppSettings["MandrilAPIKey"];
     }
 }

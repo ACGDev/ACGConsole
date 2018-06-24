@@ -308,7 +308,7 @@ namespace _3dCartImportConsole
 
                                         if (statusChanged)
                                         {
-                                            partList.Add(partStatus);
+                                           partList.Add(partStatus);
                                         }
                                         if (partStatus.Status == "Shipped" && o.billemail == "support@justfeedwebsites.com")
                                             jfwShippedList.Add(partStatus);
@@ -351,6 +351,7 @@ namespace _3dCartImportConsole
                             ship.ShipmentPhone = o.shipphone;
                             li.Add(ship);
                         }
+                        
                         //Update Shipment Information
                         var status = RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
                             configData.Store, o.order_id);
