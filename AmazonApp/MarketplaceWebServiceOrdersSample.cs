@@ -48,7 +48,7 @@ namespace AmazonApp
             //DateTime lastUpdatedBefore = new DateTime();
             //request.LastUpdatedBefore = lastUpdatedBefore;
             //List<string> orderStatus = new List<string>();  // ** SAM: Only need to take Orders not shipped or cancelled
-            //request.OrderStatus = orderStatus;  // ** Sam: can put Unshipped filter here.
+            request.OrderStatus = new List<string>{"Unshipped", "PartiallyShipped"}  ;  // ** Sam: can put Unshipped filter here.
             List<string> marketplaceId = new List<string>();
             marketplaceId.Add(ConfigurationData.MarketId1);
             marketplaceId.Add(ConfigurationData.MarketId2);

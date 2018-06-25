@@ -42,8 +42,8 @@ namespace AmazonApp
                         continue;
 
                     //** SAM: Find if this order already exists (but unshipped)
-                    var existingOrder = OrderDAL.FetchOrders(ConfigurationData.ConnectionString, ord => ord.po_no == order.AmazonOrderId || ord.orderno == order.SellerOrderId);
-                    if (existingOrder.Count >0) continue;
+                    var existingOrder = OrderDAL.GetOrderFromPO(ConfigurationData.ConnectionString, order.AmazonOrderId );
+                    if (! (null == existingOrder )) continue;
 
                     // Check if this Amazon order has been already entered
                     var orderItemResponse = amazonOrders.InvokeListOrderItems(order.AmazonOrderId);

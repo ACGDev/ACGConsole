@@ -808,12 +808,11 @@ namespace AutoCarOperations.DAL
             return Tuple.Create(filePath, fileName);
         }
 
-        public static orders GetOrder(string connectionString, Func<orders, bool> condFunc)
-        {
+        public static orders GetOrderFromPO(string connectionString, string poNumber)
+        { 
             using (var context = new AutoCareDataContext(connectionString))
             {
-                return context.Orders.Include(I => I.order_items).Include(I => I.order_shipments)
-                    .FirstOrDefault(condFunc);
+                return context.Orders.Where(ord => ord.po_no == poNumber).FirstOrDefault();
             }
         }
 
