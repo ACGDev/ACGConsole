@@ -62,13 +62,12 @@ namespace AutoCarOperations.DAL
         {
             if (prepareFile && orderList.Count > 0)
             {
-                Console.WriteLine(string.Format("\r\nNumber of New Orders to be processed: {0}", orderList.Count));
+                Console.WriteLine($"\r\nNumber of New Orders to be processed: {orderList.Count}");
                 //SM: Why do we need orderList as well as orderListCopy when we are not really changing the original orderList ?
                 var orderListCopy = JsonConvert.DeserializeObject<List<orders>>(JsonConvert.SerializeObject(orderList));
 
-                string filePath = string.Format("{0}\\{1}",
-                    System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location),
-                    configData.CKOrderFolder);
+                string filePath =
+                    $"{System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)}\\{configData.CKOrderFolder}";
                 string strCsvHeader =
                     "PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
                 // todo: SAM**: If AdditionalField1 exists in order_items then use that as Customized_Code (right after CK_Variant)
@@ -81,8 +80,8 @@ namespace AutoCarOperations.DAL
                             // Check for Special Order - Do not upload - send email
                             if (order.cus_comment != null && order.cus_comment.ToLower().Contains("(special)"))
                             {
-                                Console.WriteLine(string.Format(
-                                    "  Order Has to be processed manually: {0}. Sending email to sales", order.orderno));
+                                Console.WriteLine(
+                                    $"  Order Has to be processed manually: {order.orderno}. Sending email to sales");
                                 MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Has to be processed manually",
                                     "Order Has to be processed manually. The order no is:" + order.orderno,
                                     "sales@autocareguys.com");
@@ -91,16 +90,15 @@ namespace AutoCarOperations.DAL
                             string strOrderLines = GenerateOrderLines(order, configData, MandrillMail.SendEmail);
                             if (strOrderLines != string.Empty)
                             {
-                                string fileName = string.Format("{0}-{1}.csv", order.orderno,
-                                    DateTime.Now.ToString("yyyyMMMdd-HHmm"));
-                                string strFileNameWithPath = string.Format("{0}\\{1}", filePath, fileName);
-                                Console.WriteLine(string.Format("  Creating Order File in folder {0},\r\n    Filename: {1}",
-                                    filePath, fileName));
+                                string fileName = $"{order.orderno}-{DateTime.Now:yyyyMMMdd-HHmm}.csv";
+                                string strFileNameWithPath = $"{filePath}\\{fileName}";
+                                Console.WriteLine(
+                                    $"  Creating Order File in folder {filePath},\r\n    Filename: {fileName}");
                                 File.WriteAllText(strFileNameWithPath, strCsvHeader + "\r\n");
                                 File.AppendAllText(strFileNameWithPath, strOrderLines);
                                 Console.WriteLine(strOrderLines);
                                 //todo: create overloaded method
-                                Console.WriteLine(string.Format("  Uplaoding {0} to CK Order ftp site", fileName));
+                                Console.WriteLine($"  Uplaoding {fileName} to CK Order ftp site");
                                 FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName,
                                     configData.FTPPassword, filePath, fileName, WebRequestMethods.Ftp.UploadFile);
                                 Console.WriteLine("  ... file successfully uploaded");
@@ -108,9 +106,9 @@ namespace AutoCarOperations.DAL
                         }
                     }
                     //Update Order status as Submitted
-                    Console.WriteLine(string.Format("  UpdateStatus: Marking orders as Submitted"));
+                    Console.WriteLine("  UpdateStatus: Marking orders as Submitted");
                     UpdateStatus(configData.ConnectionString, orderListCopy);
-                    Console.WriteLine(string.Format("  UpdateStatus complete"));
+                    Console.WriteLine("  UpdateStatus complete");
                 }
             }
         }
@@ -322,18 +320,26 @@ namespace AutoCarOperations.DAL
                 using (var context = new AutoCareDataContext(connectionString))
                 {
                     thisLocalOrder = context.Orders.FirstOrDefault(i => i.orderno == thisOrderNoFrom3DCart);
-                    if (thisLocalOrder != null && thisLocalOrder.order_status == order.OrderStatusID)
+                    if (thisLocalOrder != null)
                     {
-                        // todo: SAM**: Ignore new orders from Amazon, if any. Also see Amazon App fn MapAmazonOrder for this comment
-                        if ( ! (thisLocalOrder.order_status == 1 && thisLocalOrder.shipcomplete.ToLower()=="pending"))
+                        if (thisLocalOrder.order_status == order.OrderStatusID)
+                        {
+                            // todo: SAM**: Ignore new orders from Amazon, if any. Also see Amazon App fn MapAmazonOrder for this comment
+                            if (!(thisLocalOrder.order_status == 1 && thisLocalOrder.shipcomplete.ToLower() == "pending"))
+                                continue;
+                        }
+                        //Detect AmazonOrder by matching CustomerComments and PONo
+                        //As while saving 3dcart record we are keeping customerid as AmazonOrderId
+                        if (order.CustomerComments == thisLocalOrder.po_no)
+                        {
                             continue;
+                        }
                     }
-                        
                 }
-                if (thisLocalOrder == null)
-                    Console.WriteLine(string.Format(" 3D Cart Order {0}-{1} will be added ", order.InvoiceNumberPrefix,order.InvoiceNumber));
-                else
-                    Console.WriteLine(string.Format(" 3D Cart Order {0}-{1} will be updated ", order.InvoiceNumberPrefix, order.InvoiceNumber));
+                Console.WriteLine(
+                    thisLocalOrder == null
+                        ? $" 3D Cart Order {order.InvoiceNumberPrefix}-{order.InvoiceNumber} will be added "
+                        : $" 3D Cart Order {order.InvoiceNumberPrefix}-{order.InvoiceNumber} will be updated ");
 
                 var orderKeyDict = order.ContinueURL?.Split('&').Select(q => q.Split('='))
                                        .ToDictionary(k => k[0], v => v[1]) ?? new Dictionary<string, string>();
@@ -669,11 +675,11 @@ namespace AutoCarOperations.DAL
 
                     */
 
-                string oText = string.Format("{0},{1},{2}", order.orderno, DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss"),
-                    order.shipcompany.Replace("\"", "&quot;"));
-                oText += string.Format(",{0}", TrimTolength(order.shipfirstname.Trim() + " " + order.shiplastname, 25));
-                oText += string.Format(",{0}", TrimTolength(order.shipaddress, 30));
-                oText += string.Format(",{0}", TrimTolength(order.shipaddress2, 30));
+                string oText =
+                    $"{order.orderno},{DateTime.Now:MM/dd/yyyy HH:mm:ss},{order.shipcompany.Replace("\"", "&quot;")}";
+                oText += $",{TrimTolength(order.shipfirstname.Trim() + " " + order.shiplastname, 25)}";
+                oText += $",{TrimTolength(order.shipaddress, 30)}";
+                oText += $",{TrimTolength(order.shipaddress2, 30)}";
                 // MUST have state. If not, set it same as Country
                 if (order.shipstate.Trim() == string.Empty)
                     order.shipstate = order.shipcountry;
@@ -681,11 +687,11 @@ namespace AutoCarOperations.DAL
                 if (order.shipzip.Trim() == string.Empty)
                     order.shipzip = "0";
 
-                oText += string.Format(",{0},{1},{2},{3}",
-                    TrimTolength(order.shipcity, 20), TrimTolength(order.shipstate, 10), TrimTolength(order.shipzip, 10), TrimTolength(order.shipcountry, 2));
+                oText +=
+                    $",{TrimTolength(order.shipcity, 20)},{TrimTolength(order.shipstate, 10)},{TrimTolength(order.shipzip, 10)},{TrimTolength(order.shipcountry, 2)}";
 
                 // Ship_Phone,Ship_Email,Ship_Service,CK_SKU
-                oText += string.Format(",{0},{1},{2},{3}", TrimTolength(order.shipphone, 15), TrimTolength(order.shipemail, 25), "R02", "");
+                oText += $",{TrimTolength(order.shipphone, 15)},{TrimTolength(order.shipemail, 25)},R02,";
 
                 if (!string.IsNullOrEmpty(order.internalcomment))
                 {
@@ -726,8 +732,8 @@ namespace AutoCarOperations.DAL
                 else
                 {
                     // CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
-                    oText += string.Format(",{0},{1},{2},{3},{4},{5},{6},{7}", o.Product.mfgid, variant, strMasterPakCode, strMasterPakCodeMsg, "", "",
-                        o.numitems, cus_comment);
+                    oText +=
+                        $",{o.Product.mfgid},{variant},{strMasterPakCode},{strMasterPakCodeMsg},,,{o.numitems},{cus_comment}";
                 }
 
                 orderFinal.AppendLine(oText);

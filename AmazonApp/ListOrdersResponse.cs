@@ -40,7 +40,6 @@ namespace AmazonApp
             get;
             set;
         }
-
     }
 
     public class ListOrdersResponse : AbstractMwsObject, IMWSResponse

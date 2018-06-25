@@ -63,6 +63,7 @@
     <Compile Include="IMwsWriter.cs" />
     <Compile Include="ListOrdersResponse.cs" />
     <Compile Include="MarketplaceWebService.cs" />
+    <Compile Include="MarketplaceWebServiceConfig.cs" />
     <Compile Include="MarketplaceWebServiceException.cs" />
     <Compile Include="MarketplaceWebServiceOrders.cs" />
     <Compile Include="MarketplaceWebServiceOrdersClient.cs" />
