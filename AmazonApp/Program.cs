@@ -44,7 +44,7 @@ namespace AmazonApp
 
                     //** SAM: Find if this order already exists (but unshipped)
                     var existingOrder = OrderDAL.GetOrderFromPO(ConfigurationData.ConnectionString, order.AmazonOrderId );
-                    if (! (null == existingOrder )) continue;
+                    if ( null != existingOrder ) continue;
 
                     // Check if this Amazon order has been already entered
                     var orderItemResponse = amazonOrders.InvokeListOrderItems(order.AmazonOrderId);
@@ -55,7 +55,8 @@ namespace AmazonApp
             }
             catch (Exception ex)
             {
-                
+                Console.WriteLine("Error occurred "+ex.Message);
+                Console.ReadKey();
             }
         }
 
@@ -233,8 +234,20 @@ namespace AmazonApp
             var orderId = Convert.ToInt32(orderRes.ResultSet);
             acgOrder.OrderID = orderId;
             var orderList = OrderDAL.Map_n_Add_ExtOrders(ConfigurationData.ConnectionString, "", new List<ACG.Order>() { acgOrder });
-            // prepare and upload ck order file.
-            OrderDAL.PlaceOrder(new AutoCarOperations.Model.ConfigurationData()
+
+            //OrderDAL.PlaceOrder(new AutoCarOperations.Model.ConfigurationData()
+            //{
+            //    ConnectionString = ConfigurationData.ConnectionString,
+            //    CKOrderFolder = ConfigurationData.CKOrderFolder,
+            //    MandrilAPIKey = ConfigurationData.MandrilAPIKey,
+            //    FTPAddress = ConfigurationData.FTPAddress,
+            //    FTPUserName = ConfigurationData.FTPUserName,
+            //    FTPPassword = ConfigurationData.FTPPassword,
+            //}, false, true, true, orderList);
+
+            // SAM: No need to sync orders - just place it to CK
+
+            var autoCarOpConfig = new AutoCarOperations.Model.ConfigurationData()
             {
                 ConnectionString = ConfigurationData.ConnectionString,
                 CKOrderFolder = ConfigurationData.CKOrderFolder,
@@ -242,7 +255,9 @@ namespace AmazonApp
                 FTPAddress = ConfigurationData.FTPAddress,
                 FTPUserName = ConfigurationData.FTPUserName,
                 FTPPassword = ConfigurationData.FTPPassword,
-            }, false, true, true, orderList);
+            };
+
+            OrderDAL.UploadOrderToCK(autoCarOpConfig, true, true, orderList);
             //mark the above orders as Submitted in local table
             OrderDAL.UpdateStatus(ConfigurationData.ConnectionString, orderList);
             return acgOrder;

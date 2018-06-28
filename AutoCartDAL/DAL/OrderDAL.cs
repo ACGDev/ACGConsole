@@ -25,27 +25,6 @@ namespace AutoCarOperations.DAL
         /// <param name="fetchDate"></param>
         /// <param name="prepareFile"></param>
         /// <param name="uploadFile"></param>
-        public static void PlaceOrder_NotUsed(ConfigurationData configData, bool fetchDate = true, bool prepareFile = true, bool uploadFile = true, List<orders> orderList = null)
-        {
-            if (orderList == null)
-            {
-                orderList = SyncOrders(configData, fetchDate); // orderlist now contains ONLY new orders
-            }
-            if (prepareFile && orderList.Count > 0)
-            {
-               //returns Filepath, FileName
-                var orderListCopy = JsonConvert.DeserializeObject<List<orders>>(JsonConvert.SerializeObject(orderList));
-                var fileDetail = PrepareOrderFile(configData, orderList);
-                if (uploadFile)
-                {
-                    //need to create donload stream as ref doesnt allow optional parameter
-                    //todo: create overloaded method
-                    FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName, configData.FTPPassword, fileDetail.Item1, fileDetail.Item2, WebRequestMethods.Ftp.UploadFile);
-                    //Update Order status as Submitted
-                    UpdateStatus(configData.ConnectionString, orderListCopy);
-                }
-            }
-        }
 
         //SM: Oct  ReWritten to upload one order at a time - to avoid holding up all orders for problem in a specific one
         public static void PlaceOrder(ConfigurationData configData, bool fetchDate = true, bool prepareFile = true, bool uploadFile = true, List<orders> orderList = null, int numDaysToSync = 2)
@@ -58,7 +37,7 @@ namespace AutoCarOperations.DAL
             UploadOrderToCK(configData, prepareFile, uploadFile, orderList);
         }
 
-        private static void UploadOrderToCK(ConfigurationData configData, bool prepareFile, bool uploadFile, List<orders> orderList)
+        public static void UploadOrderToCK(ConfigurationData configData, bool prepareFile, bool uploadFile, List<orders> orderList)
         {
             if (prepareFile && orderList.Count > 0)
             {
@@ -589,6 +568,14 @@ namespace AutoCarOperations.DAL
 
             string strMasterPakCode = "";
             string strMasterPakCodeMsg = "";
+            if (String.IsNullOrEmpty(order.shipcompany))
+            {
+                order.shipcompany = Convert.ToString(order.ocompany);
+                if (String.IsNullOrEmpty(order.shipcompany))
+                    order.shipcompany = "";                
+            }
+
+
             if (order.order_items.Count > 1)
             {
                 strMasterPakCode = "MASTERPACK";
@@ -616,38 +603,44 @@ namespace AutoCarOperations.DAL
                     //continue;
                 }
 
-                var orderDescs = o.itemdescription.Split(new[] { ' ', '\r', '\n', ':', ';', '\t' }, StringSplitOptions.RemoveEmptyEntries).Select(I => I.Trim());
+                // SAM: Try to find Variant from description ONLY if it is not present in incoming data
                 var variant = string.Empty;
-                foreach (var desc in orderDescs)
+                if (! String.IsNullOrEmpty(o.options))
                 {
-                    if (desc.ToLower().StartsWith("universal"))
+                    variant = o.options ;
+                }
+                else
+                {
+                    // SAM: Try to get Variant from description
+                    var orderDescs = o.itemdescription.Split(new[] { ' ', '\r', '\n', ':', ';', '\t' }, StringSplitOptions.RemoveEmptyEntries).Select(I => I.Trim());
+
+                    foreach (var desc in orderDescs)
                     {
-                        variant = "universal";
+                        if (desc.ToLower().StartsWith("universal"))
+                        {
+                            variant = "universal";
+                            break;
+                        }
+                        if (!desc.Contains(o.Product.mfgid))
+                        {
+                            continue;
+                        }
+                        variant = GetVariant(o.Product.mfgid, desc);
                         break;
                     }
-                    if (!desc.Contains(o.Product.mfgid))
-                    {
-                        continue;
-                    }
-                    variant = GetVariant(o.Product.mfgid, desc);
-                    break;
-                }
 
-                // SM did not understand this logic. commented. orderItems is not instantiated - throwing exception
-                //if (variant == string.Empty)
-                //{
-                //    orderItems.Add(o);
-                //    continue;
-                //}
-                if (variant == "universal")
-                {
-                    variant = string.Empty;
+                    if (variant == "universal")
+                    {
+                        variant = string.Empty;
+                    }
+
                 }
+                
+                order.shipcompany = Convert.ToString(order.shipcompany);
                 order.shipcompany = order.shipcompany.Trim();
                 if (order.shipcompany.Length > 25)
-                    order.shipcompany = order.shipcompany.Substring(0, 25).Trim();
-
-
+                    order.shipcompany = order.shipcompany.Substring(0, 25).Trim();                    
+                
 
                 // CK_SKU should be blank when Mfg ID and Variant are present.
 
@@ -690,8 +683,13 @@ namespace AutoCarOperations.DAL
                 oText +=
                     $",{TrimTolength(order.shipcity, 20)},{TrimTolength(order.shipstate, 10)},{TrimTolength(order.shipzip, 10)},{TrimTolength(order.shipcountry, 2)}";
 
+                //SAM: June 25, 18:: Avoid sending autocareguys.com pseudo email addresses
+                string shipEmail = TrimTolength(order.shipemail, 25);
+                if (order.shipemail.EndsWith("AutoCareGuys.com"))
+                    shipEmail = "";
+
                 // Ship_Phone,Ship_Email,Ship_Service,CK_SKU
-                oText += $",{TrimTolength(order.shipphone, 15)},{TrimTolength(order.shipemail, 25)},R02,";
+                oText += $",{TrimTolength(order.shipphone, 15)},{shipEmail},R02,";
 
                 if (!string.IsNullOrEmpty(order.internalcomment))
                 {
@@ -717,23 +715,37 @@ namespace AutoCarOperations.DAL
                     values[2] = Convert.ToString(o.additional_field1);
                     //Qty
                     values[6] = o.numitems.ToString();
-                    foreach (var field in splitComment)
+                    if (order.internalcomment != "fake")   // Needed for Amazon orders
                     {
-                        string[] splitData = field.Split(':').Select(I => I.Trim()).ToArray();
-                        var index = custom.FindIndex(I => I == splitData[0]);
-                        if (index>=0) values[index] = splitData[1];
+                        foreach (var field in splitComment)
+                        {
+                            string[] splitData = field.Split(':').Select(I => I.Trim()).ToArray();
+                            var index = custom.FindIndex(I => I == splitData[0]);
+                            if (index >= 0) values[index] = splitData[1];
+                        }
+                        // PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment
+                        //comment
+                        values[7] = cus_comment + (string.IsNullOrEmpty(values[5]) ? "" : " " + values[5]);
+                        values[7] = TrimTolength(values[7], 35);
                     }
-                    // PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment
-                    //comment
-                    values[7] = cus_comment + (string.IsNullOrEmpty(values[5]) ? "" : " " + values[5]);
-                    values[7] = TrimTolength(values[7], 35);
+
                     oText += "," + string.Join(",", values);
                 }
                 else
                 {
                     // CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
-                    oText +=
-                        $",{o.Product.mfgid},{variant},{strMasterPakCode},{strMasterPakCodeMsg},,,{o.numitems},{cus_comment}";
+                    // SAM: Need to take care of resource code here - comes as additional_field1
+                    if (! String.IsNullOrEmpty(o.additional_field1))
+                    {
+                        oText +=
+                            $",{o.Product.mfgid},{variant},{o.additional_field1},,{strMasterPakCode},{strMasterPakCodeMsg},{o.numitems},{cus_comment}";
+                    }
+                    else
+                    {
+                        oText +=
+                            $",{o.Product.mfgid},{variant},{strMasterPakCode},{strMasterPakCodeMsg},,,{o.numitems},{cus_comment}";
+                    }
+                    
                 }
 
                 orderFinal.AppendLine(oText);
@@ -779,40 +791,6 @@ namespace AutoCarOperations.DAL
             return variant;
         }
 
-        // SM: This fn no longer used. Merged with PlaceOrder
-        private static Tuple<string, string> PrepareOrderFile(ConfigurationData configData, List<orders> orders)
-        {
-            string fileName = string.Format("ACG-{0}.csv", DateTime.Now.ToString("yyyyMMMdd-HHmm"));
-            string filePath = string.Format("{0}\\{1}",
-            System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), configData.CKOrderFolder);
-            string strFileNameWithPath = string.Format("{0}\\{1}", filePath, fileName);
-
-            string strCsvHeader = "PO,PO_Date,Ship_Company,Ship_Name,Ship_Addr,Ship_Addr_2,Ship_City,Ship_State,Ship_Zip,Ship_Country,Ship_Phone,Ship_Email,Ship_Service,CK_SKU,CK_Item,CK_Variant,Customized_Code,Customized_Msg,Customized_Code2,Customized_Msg2,Qty,Comment";
-            File.WriteAllText(strFileNameWithPath, strCsvHeader + "\r\n");
-
-            foreach (var order in orders)
-            {
-                // manually modify order if needed
-                //if (order.orderno.Contains("161968"))
-                //    order.orderno += "-6";
-                // RestHelper.Execute(@"http://api.coverking.com/orders/Order_Placement.asmx?op=Place_Orders", config.AuthUserName, config.AuthPassowrd, order);
-                if (order.shipcomplete.ToLower() == "pending" && order.order_status == 1)
-                {
-                    // SM; moved here to avoid getting the email repeatedly
-                    if (order.cus_comment != null && order.cus_comment.ToLower().Contains("(special)"))
-                    {
-                        MandrillMail.SendEmail(configData.MandrilAPIKey, "Order Has to be processed manually", "Order Has to be processed manually. The order no is:" + order.orderno, "sales@autocareguys.com");
-                        continue;
-                    }
-                    string strOrderLines = GenerateOrderLines(order, configData, MandrillMail.SendEmail);
-                    if (strOrderLines != string.Empty)
-                    {
-                        File.AppendAllText(strFileNameWithPath, strOrderLines);
-                    }
-                }
-            }
-            return Tuple.Create(filePath, fileName);
-        }
 
         public static orders GetOrderFromPO(string connectionString, string poNumber)
         { 
