@@ -161,15 +161,12 @@ namespace AmazonApp.Model
             return sb.ToString();
         }
 
-        private ResponseHeaderMetadata responseHeaderMetadata;
+        private ResponseHeaderMetadata2 responseHeaderMetadata;
 
-        public ResponseHeaderMetadata ResponseHeaderMetadata
+        public ResponseHeaderMetadata2 ResponseHeaderMetadata2
         {
           get { return responseHeaderMetadata; }
           set { this.responseHeaderMetadata = value; }
         }
-
-
     }
-
 }

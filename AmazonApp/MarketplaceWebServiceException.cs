@@ -33,7 +33,7 @@ namespace AmazonApp
         private String errorType = null;
         private String requestId = null;
         private String xml = null;
-        private ResponseHeaderMetadata responseHeaderMetadata = null;
+        private ResponseHeaderMetadata2 responseHeaderMetadata = null;
     
 
         /// <summary>
@@ -50,7 +50,7 @@ namespace AmazonApp
         /// <param name="message">Overview of error</param>
         /// <param name="statusCode">HTTP status code for error response</param>
         /// <param name="rhm">Response Header Metadata</param>
-        public MarketplaceWebServiceException(String message, HttpStatusCode statusCode, ResponseHeaderMetadata rhm) : this (message)
+        public MarketplaceWebServiceException(String message, HttpStatusCode statusCode, ResponseHeaderMetadata2 rhm) : this (message)
         {
             this.statusCode = statusCode;
             this.responseHeaderMetadata = rhm;
@@ -95,7 +95,7 @@ namespace AmazonApp
         /// <param name="requestId">Request ID returned by the service</param>
         /// <param name="xml">Compete xml found in response</param>
         /// <param name="rhm">Response Header Metadata</param>
-        public MarketplaceWebServiceException(String message, HttpStatusCode statusCode, String errorCode, String errorType, String requestId, String xml, ResponseHeaderMetadata rhm) : this (message, statusCode, rhm)
+        public MarketplaceWebServiceException(String message, HttpStatusCode statusCode, String errorCode, String errorType, String requestId, String xml, ResponseHeaderMetadata2 rhm) : this (message, statusCode, rhm)
         {
             this.errorCode = errorCode;
             this.errorType = errorType;
@@ -155,7 +155,7 @@ namespace AmazonApp
             get { return this.requestId; }
         }
 
-        public ResponseHeaderMetadata ResponseHeaderMetadata
+        public ResponseHeaderMetadata2 ResponseHeaderMetadata
         {
             get { return this.responseHeaderMetadata; }
         }

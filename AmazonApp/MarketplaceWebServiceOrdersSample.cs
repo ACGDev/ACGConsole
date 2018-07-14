@@ -18,7 +18,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AmazonApp.Helper;
 using AmazonApp.Model;
+using AutoCarOperations.Model;
 
 namespace AmazonApp
 {
@@ -35,9 +37,9 @@ namespace AmazonApp
         {
             // Create a request.
             ListOrdersRequest request = new ListOrdersRequest();
-            string sellerId = ConfigurationData.SellerId;
+            string sellerId = ConfigurationHelper.SellerId;
             request.SellerId = sellerId;
-            string mwsAuthToken = ConfigurationData.MWSToken;
+            string mwsAuthToken = ConfigurationHelper.MWSToken;
             request.MWSAuthToken = mwsAuthToken;        
             DateTime createdAfter = DateTime.Now.AddDays(-14); // ** Sam: should be last 48 hours really
             request.CreatedAfter = createdAfter;
@@ -50,9 +52,9 @@ namespace AmazonApp
             //List<string> orderStatus = new List<string>();  // ** SAM: Only need to take Orders not shipped or cancelled
             //request.OrderStatus = orderStatus;  // ** Sam: can put Unshipped filter here.
             List<string> marketplaceId = new List<string>();
-            marketplaceId.Add(ConfigurationData.MarketId1);
-            marketplaceId.Add(ConfigurationData.MarketId2);
-            marketplaceId.Add(ConfigurationData.MarketId3);
+            marketplaceId.Add(ConfigurationHelper.MarketId1);
+            marketplaceId.Add(ConfigurationHelper.MarketId2);
+            marketplaceId.Add(ConfigurationHelper.MarketId3);
             request.MarketplaceId = marketplaceId;
             //List<string> fulfillmentChannel = new List<string>();
             //request.FulfillmentChannel = fulfillmentChannel;
@@ -72,9 +74,9 @@ namespace AmazonApp
         {
             // Create a request.
             ListOrderItemsRequest request = new ListOrderItemsRequest();
-            string sellerId = ConfigurationData.SellerId;
+            string sellerId = ConfigurationHelper.SellerId;
             request.SellerId = sellerId;
-            string mwsAuthToken = ConfigurationData.MWSToken;
+            string mwsAuthToken = ConfigurationHelper.MWSToken;
             request.MWSAuthToken = mwsAuthToken;
             string amazonOrderId = orderId;
             request.AmazonOrderId = amazonOrderId;

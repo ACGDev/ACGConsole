@@ -1,13 +1,12 @@
-﻿using AmazonApp.Model;
-using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.IO;
-using System.Linq;
+﻿using AmazonApp.Helper;
+using AmazonApp.Model;
 using AutoCarOperations;
 using AutoCarOperations.DAL;
-using AutoCarOperations.Model;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using ACG = DCartRestAPIClient;
+using SubmitFeedSample = AmazonApp.Model.SubmitFeedSample;
 
 
 namespace AmazonApp
@@ -20,12 +19,17 @@ namespace AmazonApp
             //CustomerDAL.AddCustomer(config);
 
             MarketplaceWebServiceOrdersConfig config = new MarketplaceWebServiceOrdersConfig();
-            config.ServiceURL = ConfigurationData.ServiceURL;
+            config.ServiceURL = ConfigurationHelper.ServiceURL;
             
             // Set other client connection configurations here if needed
             // Create the client itself
-            MarketplaceWebServiceOrders client = new MarketplaceWebServiceOrdersClient(ConfigurationData.AccessKey, ConfigurationData.SecretKey, ConfigurationData.AppName, ConfigurationData.Version, config);
+
+            MarketplaceWebServiceOrders client = new MarketplaceWebServiceOrdersClient(ConfigurationHelper.AccessKey, ConfigurationHelper.SecretKey, ConfigurationHelper.AppName, ConfigurationHelper.Version, config);
             MarketplaceWebServiceOrdersSample amazonOrders = new MarketplaceWebServiceOrdersSample(client);
+
+            CreateProduct();
+
+            // Setup the orders service client
             try
             {
                 IMWSResponse response = null;
@@ -34,7 +38,7 @@ namespace AmazonApp
                 Console.WriteLine("RequestId: " + rhmd.RequestId);
                 Console.WriteLine("Timestamp: " + rhmd.Timestamp);
                 var orderResponse = response as ListOrdersResponse;
-                var invoiceNo = OrderDAL.GetMaxInvoiceNum(ConfigurationData.ConnectionString, "ACGA-");
+                var invoiceNo = OrderDAL.GetMaxInvoiceNum(ConfigurationHelper.ConnectionString, "ACGA-");
                 
                 foreach (var order in orderResponse.ListOrdersResult.Orders)
                 {
@@ -43,7 +47,7 @@ namespace AmazonApp
                         continue;
 
                     //** SAM: Find if this order already exists (but unshipped)
-                    var existingOrder = OrderDAL.FetchOrders(ConfigurationData.ConnectionString, ord => ord.po_no == order.AmazonOrderId || ord.orderno == order.SellerOrderId);
+                    var existingOrder = OrderDAL.FetchOrders(ConfigurationHelper.ConnectionString, ord => ord.po_no == order.AmazonOrderId || ord.orderno == order.SellerOrderId);
                     if (existingOrder.Count >0) continue;
 
                     // Check if this Amazon order has been already entered
@@ -59,10 +63,41 @@ namespace AmazonApp
             }
         }
 
+        private static void CreateProduct()
+        {
+            var config2 = new MarketplaceWebServiceConfig();
+            // Set configuration to use US marketplace
+            config2.ServiceURL = ConfigurationHelper.ServiceURL;
+            // Set the HTTP Header for user agent for the application.
+            config2.SetUserAgentHeader(
+                ConfigurationHelper.AppName,
+                ConfigurationHelper.Version,
+                "C#");
+
+            var _AmazonClient = new MarketplaceWebServiceClient(ConfigurationHelper.AccessKey, ConfigurationHelper.SecretKey,
+                config2);
+
+            SubmitFeedRequest request = new SubmitFeedRequest
+            {
+                Merchant = ConfigurationHelper.SellerId,
+                FeedContent = FeedRequestXML.GenerateInventoryDocument(ConfigurationHelper.SellerId, "CSC2S9JP7115",
+                    "B000ZARVCU", "Price", price: 119.99)
+            };
+            // Calculating the MD5 hash value exhausts the stream, and therefore we must either reset the
+            // position, or create another stream for the calculation.
+            request.ContentMD5 = MarketplaceWebServiceClient.CalculateContentMD5(request.FeedContent);
+            request.FeedContent.Position = 0;
+
+            request.FeedType = "_POST_PRODUCT_PRICING_DATA_";
+
+            SubmitFeedSample.InvokeSubmitFeed(_AmazonClient, request);
+            request.FeedContent.Close();
+        }
+
         public static long CreateCustomer(Order order)
         {
             //check if customer already exist
-            var customerOld = CustomerDAL.FindCustomer(ConfigurationData.ConnectionString, cus => cus.billing_address == order.ShippingAddress.AddressLine1 && cus.billing_zip == order.ShippingAddress.PostalCode);
+            var customerOld = CustomerDAL.FindCustomer(ConfigurationHelper.ConnectionString, cus => cus.billing_address == order.ShippingAddress.AddressLine1 && cus.billing_zip == order.ShippingAddress.PostalCode);
             if (customerOld != null)
             {
                 return customerOld.customer_id;
@@ -110,17 +145,17 @@ namespace AmazonApp
                 TotalStoreCredit = ""
             };
 
-            var recordInfo = RestHelper.AddRecord(customer, "Customers", ConfigurationData.PrivateKey,
-                ConfigurationData.Token, ConfigurationData.Store);
+            var recordInfo = RestHelper.AddRecord(customer, "Customers", ConfigurationHelper.PrivateKey,
+                ConfigurationHelper.Token, ConfigurationHelper.Store);
             if (recordInfo.Status == ACG.ActionStatus.Failed)
             {
-                MandrillMail.SendEmail(ConfigurationData.MandrilAPIKey, "Order Has to be processed manually. ",
+                MandrillMail.SendEmail(ConfigurationHelper.MandrilAPIKey, "Order Has to be processed manually. ",
                     "Order Has to be processed manually. ASIN information is not available. The order no is:" + order.AmazonOrderId,
                     "sales@autocareguys.com");
             }
             var customerId = Convert.ToInt32(recordInfo.ResultSet);
             customer.CustomerID = customerId;
-            CustomerDAL.AddCustomers(ConfigurationData.ConnectionString, new List<ACG.Customer>() { customer }, new List<ACG.CustomerGroup>());
+            CustomerDAL.AddCustomers(ConfigurationHelper.ConnectionString, new List<ACG.Customer>() { customer }, new List<ACG.CustomerGroup>());
             return customerId;
         }
         public static ACG.Order MapAmazonOrder(Order order, long customerId, ref int? invoiceNo)
@@ -190,11 +225,11 @@ namespace AmazonApp
                 // SAM: It will be better if we can capture the SKU (new) coming back from Amazon - Can put it in ASIN table.
 
                 // OR - simply map ASIN with our ASIN table and get the part no.
-                var orderItem = ProductDAL.FindOrderFromASIN(ConfigurationData.ConnectionString, item.ASIN, item.SellerSKU);
+                var orderItem = ProductDAL.FindOrderFromASIN(ConfigurationHelper.ConnectionString, item.ASIN, item.SellerSKU);
                 if (orderItem == null || orderItem.catalogid == null
                     || orderItem.ItemId == null )
                 {
-                    MandrillMail.SendEmail(ConfigurationData.MandrilAPIKey, "Order Has to be processed manually. ",
+                    MandrillMail.SendEmail(ConfigurationHelper.MandrilAPIKey, "Order Has to be processed manually. ",
                         "Order Has to be processed manually. OrderItem ASIN information is null. The order no is:" + order.AmazonOrderId,
                         "sales@autocareguys.com");
                     //todo: SAM: Query 3d cart API if catalogid is null. Map "CK_"+CK_ASIN.ItemId with SKU of 3D Cart
@@ -221,54 +256,31 @@ namespace AmazonApp
             }
             
             
-            var orderRes = RestHelper.AddRecord(acgOrder, "Orders", ConfigurationData.PrivateKey, ConfigurationData.Token,
-                ConfigurationData.Store);
+            var orderRes = RestHelper.AddRecord(acgOrder, "Orders", ConfigurationHelper.PrivateKey, ConfigurationHelper.Token,
+                ConfigurationHelper.Store);
             if (orderRes.Status == ACG.ActionStatus.Failed)
             {
-                MandrillMail.SendEmail(ConfigurationData.MandrilAPIKey, "Order Has to be processed manually",
+                MandrillMail.SendEmail(ConfigurationHelper.MandrilAPIKey, "Order Has to be processed manually",
                     "Order Has to be processed manually. The order no is:" + order.AmazonOrderId,
                     "sales@autocareguys.com");
             }
 
             var orderId = Convert.ToInt32(orderRes.ResultSet);
             acgOrder.OrderID = orderId;
-            var orderList = OrderDAL.Map_n_Add_ExtOrders(ConfigurationData.ConnectionString, "", new List<ACG.Order>() { acgOrder });
+            var orderList = OrderDAL.Map_n_Add_ExtOrders(ConfigurationHelper.ConnectionString, "", new List<ACG.Order>() { acgOrder });
             // prepare and upload ck order file.
             OrderDAL.PlaceOrder(new AutoCarOperations.Model.ConfigurationData()
             {
-                ConnectionString = ConfigurationData.ConnectionString,
-                CKOrderFolder = ConfigurationData.CKOrderFolder,
-                MandrilAPIKey = ConfigurationData.MandrilAPIKey,
-                FTPAddress = ConfigurationData.FTPAddress,
-                FTPUserName = ConfigurationData.FTPUserName,
-                FTPPassword = ConfigurationData.FTPPassword,
+                ConnectionString = ConfigurationHelper.ConnectionString,
+                CKOrderFolder = ConfigurationHelper.CKOrderFolder,
+                MandrilAPIKey = ConfigurationHelper.MandrilAPIKey,
+                FTPAddress = ConfigurationHelper.FTPAddress,
+                FTPUserName = ConfigurationHelper.FTPUserName,
+                FTPPassword = ConfigurationHelper.FTPPassword,
             }, false, true, true, orderList);
             //mark the above orders as Submitted in local table
-            OrderDAL.UpdateStatus(ConfigurationData.ConnectionString, orderList);
+            OrderDAL.UpdateStatus(ConfigurationHelper.ConnectionString, orderList);
             return acgOrder;
         }
-    }
-
-    static class ConfigurationData
-    {
-        public static string AccessKey = ConfigurationManager.AppSettings["AccessKey"];
-        public static string SecretKey = ConfigurationManager.AppSettings["SecretKey"];
-        public static string AppName = ConfigurationManager.AppSettings["AppName"];
-        public static string Version = ConfigurationManager.AppSettings["Version"];
-        public static string ServiceURL = ConfigurationManager.AppSettings["ServiceURL"];
-        public static string SellerId = ConfigurationManager.AppSettings["SellerId"];
-        public static string MWSToken = ConfigurationManager.AppSettings["MWSToken"];
-        public static string MarketId1 = ConfigurationManager.AppSettings["MarketId1"];
-        public static string MarketId2 = ConfigurationManager.AppSettings["MarketId2"];
-        public static string MarketId3 = ConfigurationManager.AppSettings["MarketId3"];
-        public static string ConnectionString = ConfigurationManager.ConnectionStrings["mysqlconnection"].ConnectionString;
-        internal static string PrivateKey = ConfigurationManager.AppSettings["PrivateKey"];
-        internal static string Token = ConfigurationManager.AppSettings["Token"];
-        internal static string FTPAddress = ConfigurationManager.AppSettings["FTPAddress"];
-        internal static string FTPUserName = ConfigurationManager.AppSettings["FTPUserName"];
-        internal static string FTPPassword = ConfigurationManager.AppSettings["FTPPassword"];
-        internal static string Store = ConfigurationManager.AppSettings["Store"];
-        internal static string CKOrderFolder = ConfigurationManager.AppSettings["CKOrderFolder"];
-        internal static string MandrilAPIKey = ConfigurationManager.AppSettings["MandrilAPIKey"];
     }
 }

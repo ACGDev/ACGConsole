@@ -1,32 +1,16 @@
-/******************************************************************************* 
- *  Copyright 2009 Amazon Services.
- *  Licensed under the Apache License, Version 2.0 (the "License"); 
- *  
- *  You may not use this file except in compliance with the License. 
- *  You may obtain a copy of the License at: http://aws.amazon.com/apache2.0
- *  This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR 
- *  CONDITIONS OF ANY KIND, either express or implied. See the License for the 
- *  specific language governing permissions and limitations under the License.
- * ***************************************************************************** 
- * 
- *  Marketplace Web Service CSharp Library
- *  API Version: 2009-01-01
- *  Generated: Mon Mar 16 17:31:42 PDT 2009 
- * 
- */
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using AmazonApp.Model;
 
-using System;
-
-namespace AmazonApp.Model
+namespace AmazonApp.Helper
 {
-
-    /// <summary>
-    /// Submit Feed  Samples
-    /// </summary>
     public class SubmitFeedSample
     {
-    
-                                         
+
+
         /// <summary>
         /// Uploads a file for processing together with the necessary
         /// metadata to process the file, such as which type of feed it is.
@@ -39,67 +23,67 @@ namespace AmazonApp.Model
         /// <param name="request">SubmitFeedRequest request</param>
         public static void InvokeSubmitFeed(MarketplaceWebService service, SubmitFeedRequest request)
         {
-            try 
+            try
             {
                 SubmitFeedResponse response = service.SubmitFeed(request);
-                
-                
-                Console.WriteLine ("Service Response");
-                Console.WriteLine ("=============================================================================");
-                Console.WriteLine ();
+
+
+                Console.WriteLine("Service Response");
+                Console.WriteLine("=============================================================================");
+                Console.WriteLine();
 
                 Console.WriteLine("        SubmitFeedResponse");
-                if (response.IsSetSubmitFeedResult()) 
+                if (response.IsSetSubmitFeedResult())
                 {
                     Console.WriteLine("            SubmitFeedResult");
-                    SubmitFeedResult  submitFeedResult = response.SubmitFeedResult;
-                    if (submitFeedResult.IsSetFeedSubmissionInfo()) 
+                    SubmitFeedResult submitFeedResult = response.SubmitFeedResult;
+                    if (submitFeedResult.IsSetFeedSubmissionInfo())
                     {
                         Console.WriteLine("                FeedSubmissionInfo");
-                        FeedSubmissionInfo  feedSubmissionInfo = submitFeedResult.FeedSubmissionInfo;
-                        if (feedSubmissionInfo.IsSetFeedSubmissionId()) 
+                        FeedSubmissionInfo feedSubmissionInfo = submitFeedResult.FeedSubmissionInfo;
+                        if (feedSubmissionInfo.IsSetFeedSubmissionId())
                         {
                             Console.WriteLine("                    FeedSubmissionId");
                             Console.WriteLine("                        {0}", feedSubmissionInfo.FeedSubmissionId);
                         }
-                        if (feedSubmissionInfo.IsSetFeedType()) 
+                        if (feedSubmissionInfo.IsSetFeedType())
                         {
                             Console.WriteLine("                    FeedType");
                             Console.WriteLine("                        {0}", feedSubmissionInfo.FeedType);
                         }
-                        if (feedSubmissionInfo.IsSetSubmittedDate()) 
+                        if (feedSubmissionInfo.IsSetSubmittedDate())
                         {
                             Console.WriteLine("                    SubmittedDate");
                             Console.WriteLine("                        {0}", feedSubmissionInfo.SubmittedDate);
                         }
-                        if (feedSubmissionInfo.IsSetFeedProcessingStatus()) 
+                        if (feedSubmissionInfo.IsSetFeedProcessingStatus())
                         {
                             Console.WriteLine("                    FeedProcessingStatus");
                             Console.WriteLine("                        {0}", feedSubmissionInfo.FeedProcessingStatus);
                         }
-                        if (feedSubmissionInfo.IsSetStartedProcessingDate()) 
+                        if (feedSubmissionInfo.IsSetStartedProcessingDate())
                         {
                             Console.WriteLine("                    StartedProcessingDate");
                             Console.WriteLine("                        {0}", feedSubmissionInfo.StartedProcessingDate);
                         }
-                        if (feedSubmissionInfo.IsSetCompletedProcessingDate()) 
+                        if (feedSubmissionInfo.IsSetCompletedProcessingDate())
                         {
                             Console.WriteLine("                    CompletedProcessingDate");
                             Console.WriteLine("                        {0}", feedSubmissionInfo.CompletedProcessingDate);
                         }
-                    } 
-                } 
-                if (response.IsSetResponseMetadata()) 
+                    }
+                }
+                if (response.IsSetResponseMetadata())
                 {
                     Console.WriteLine("            ResponseMetadata");
-                    ResponseMetadata  responseMetadata = response.ResponseMetadata;
-                    if (responseMetadata.IsSetRequestId()) 
+                    ResponseMetadata responseMetadata = response.ResponseMetadata;
+                    if (responseMetadata.IsSetRequestId())
                     {
                         Console.WriteLine("                RequestId");
                         Console.WriteLine("                    {0}", responseMetadata.RequestId);
                     }
-                } 
-                
+                }
+
                 Console.WriteLine("            ResponseHeaderMetadata");
                 Console.WriteLine("                RequestId");
                 Console.WriteLine("                    " + response.ResponseHeaderMetadata2.RequestId);
@@ -108,8 +92,8 @@ namespace AmazonApp.Model
                 Console.WriteLine("                Timestamp");
                 Console.WriteLine("                    " + response.ResponseHeaderMetadata2.Timestamp);
 
-            } 
-            catch (MarketplaceWebServiceException ex) 
+            }
+            catch (MarketplaceWebServiceException ex)
             {
                 Console.WriteLine("Caught Exception: " + ex.Message);
                 Console.WriteLine("Response Status Code: " + ex.StatusCode);
@@ -120,5 +104,5 @@ namespace AmazonApp.Model
                 Console.WriteLine("ResponseHeaderMetadata: " + ex.ResponseHeaderMetadata);
             }
         }
-                                                                    }
+    }
 }
