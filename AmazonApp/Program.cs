@@ -59,7 +59,8 @@ namespace AmazonApp
             }
             catch (Exception ex)
             {
-                
+                Console.WriteLine("Error occurred "+ex.Message);
+                Console.ReadKey();
             }
         }
 
@@ -267,17 +268,31 @@ namespace AmazonApp
 
             var orderId = Convert.ToInt32(orderRes.ResultSet);
             acgOrder.OrderID = orderId;
-            var orderList = OrderDAL.Map_n_Add_ExtOrders(ConfigurationHelper.ConnectionString, "", new List<ACG.Order>() { acgOrder });
-            // prepare and upload ck order file.
-            OrderDAL.PlaceOrder(new AutoCarOperations.Model.ConfigurationData()
+            var orderList = OrderDAL.Map_n_Add_ExtOrders(ConfigurationData.ConnectionString, "", new List<ACG.Order>() { acgOrder });
+
+            //OrderDAL.PlaceOrder(new AutoCarOperations.Model.ConfigurationData()
+            //{
+            //    ConnectionString = ConfigurationData.ConnectionString,
+            //    CKOrderFolder = ConfigurationData.CKOrderFolder,
+            //    MandrilAPIKey = ConfigurationData.MandrilAPIKey,
+            //    FTPAddress = ConfigurationData.FTPAddress,
+            //    FTPUserName = ConfigurationData.FTPUserName,
+            //    FTPPassword = ConfigurationData.FTPPassword,
+            //}, false, true, true, orderList);
+
+            // SAM: No need to sync orders - just place it to CK
+
+            var autoCarOpConfig = new AutoCarOperations.Model.ConfigurationData()
             {
-                ConnectionString = ConfigurationHelper.ConnectionString,
-                CKOrderFolder = ConfigurationHelper.CKOrderFolder,
-                MandrilAPIKey = ConfigurationHelper.MandrilAPIKey,
-                FTPAddress = ConfigurationHelper.FTPAddress,
-                FTPUserName = ConfigurationHelper.FTPUserName,
-                FTPPassword = ConfigurationHelper.FTPPassword,
-            }, false, true, true, orderList);
+                ConnectionString = ConfigurationData.ConnectionString,
+                CKOrderFolder = ConfigurationData.CKOrderFolder,
+                MandrilAPIKey = ConfigurationData.MandrilAPIKey,
+                FTPAddress = ConfigurationData.FTPAddress,
+                FTPUserName = ConfigurationData.FTPUserName,
+                FTPPassword = ConfigurationData.FTPPassword,
+            };
+
+            OrderDAL.UploadOrderToCK(autoCarOpConfig, true, true, orderList);
             //mark the above orders as Submitted in local table
             OrderDAL.UpdateStatus(ConfigurationHelper.ConnectionString, orderList);
             return acgOrder;
