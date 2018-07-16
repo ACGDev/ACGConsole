@@ -12,6 +12,7 @@ using System.Xml.Linq;
 using DevDefined.OAuth.Utility;
 using Newtonsoft.Json;
 using ACG = DCartRestAPIClient;
+using System.Globalization;
 
 
 namespace AmazonApp
@@ -53,13 +54,16 @@ namespace AmazonApp
 
                     //** SAM: Find if this order already exists (but unshipped)
                     var existingOrder = OrderDAL.FetchOrders(ConfigurationHelper.ConnectionString, ord => ord.po_no == order.AmazonOrderId);
-                    if (existingOrder.Count >0) continue;
+                    if (null != existingOrder) continue;
 
                     // Check if this Amazon order has been already entered
                     var orderItemResponse = amazonOrders.InvokeListOrderItems(order.AmazonOrderId);
                     order.OrderItem = orderItemResponse.ListOrderItemsResult.OrderItems;
                     var customerId = CreateCustomer(order);  
-                    var mappedOrder = MapAmazonOrder(order, customerId, ref invoiceNo);
+                    if (customerId>0)
+                    {
+                        var mappedOrder = MapAmazonOrder(order, customerId, ref invoiceNo);
+                    }
                 }
             }
             catch (Exception ex)
@@ -142,51 +146,6 @@ namespace AmazonApp
                 }
                 File.Delete("feedSubmissionResult1.xml");
 
-            }
-        }
-
-        private static List<FeedModel> GetProducts(string type)
-        {
-            List<FeedModel> liObj = new List<FeedModel>()
-            {
-                new FeedModel
-                {
-                    sku = "CSC2S3NS7074",
-                    asin = "B000ZARVDE",
-                },
-                new FeedModel
-                {
-                    sku = "CSC2S3DG7035",
-                    asin = "B000ZARVDO",
-                },
-                new FeedModel
-                {
-                    sku = "CSC2S1FD7242",
-                    asin = "B000ZARVDY",
-                },
-                new FeedModel
-                {
-                    sku = "CSC2S8KI7001",
-                    asin = "B000ZARVEI",
-                }
-            };
-            foreach (var obj in liObj)
-            {
-                obj.type = type;
-                switch (type)
-                {
-                    case "Price":
-                        obj.price = 119.99;
-                        break;
-                    case "Inventory":
-                        obj.quantity = 20;
-                        obj.fulfillmentLatency = 12;
-                        break;
-                }
-            }
-            return liObj;
-        }
-
         public static long CreateCustomer(Order order)
         {
             //check if customer already exist
@@ -221,9 +180,9 @@ namespace AmazonApp
                                       ? order.ShippingAddress.AddressLine2
                                       : "") + (order.ShippingAddress.IsSetAddressLine3() ? order.ShippingAddress.AddressLine3 : ""),
                 ShippingCity = order.ShippingAddress.City,
-                ShippingState = order.ShippingAddress.StateOrRegion,
+                ShippingState = order.ShippingAddress.StateOrRegion.Trim(),
                 ShippingZipCode = order.ShippingAddress.PostalCode,
-                ShippingCountry = order.ShippingAddress.CountryCode, // order.BuyerCounty
+                ShippingCountry = order.ShippingAddress.CountryCode.ToUpper(), 
                 ShippingPhoneNumber = order.ShippingAddress.Phone,
                 //ShippingAddressType= 0,
                 Enabled= true,
@@ -237,14 +196,20 @@ namespace AmazonApp
                 //AdditionalField3= "string",
                 TotalStoreCredit = ""
             };
+            // check for US States
+            if ((customer.ShippingCountry == "US" || customer.ShippingCountry == "USA") && customer.ShippingState.Length > 2)
+                customer.ShippingState = OrderDAL.GetStateCodeForUS(customer.ShippingState);
+            if ((customer.BillingCountry == "US" || customer.BillingCountry == "USA") && customer.BillingState.Length > 2)
+                customer.BillingState = OrderDAL.GetStateCodeForUS(customer.BillingState);
 
             var recordInfo = RestHelper.AddRecord(customer, "Customers", ConfigurationHelper.PrivateKey,
                 ConfigurationHelper.Token, ConfigurationHelper.Store);
             if (recordInfo.Status == ACG.ActionStatus.Failed)
             {
-                MandrillMail.SendEmail(ConfigurationHelper.MandrilAPIKey, "Order Has to be processed manually. ",
-                    "Order Has to be processed manually. ASIN information is not available. The order no is:" + order.AmazonOrderId,
+                MandrillMail.SendEmail(ConfigurationData.MandrilAPIKey, "Order Has to be processed manually. ",
+                    "Order Has to be processed manually. Could not create customer. The order no is:" + order.AmazonOrderId,
                     "sales@autocareguys.com");
+                return 0;
             }
             var customerId = Convert.ToInt32(recordInfo.ResultSet);
             customer.CustomerID = customerId;
@@ -307,7 +272,10 @@ namespace AmazonApp
                 },
                 OrderItemList = new List<ACG.OrderItem>()
             };
-
+            if (string.IsNullOrEmpty(acgOrder.BillingLastName))
+                acgOrder.BillingLastName = acgOrder.BillingFirstName;
+            if (string.IsNullOrEmpty(acgOrder.ShipmentList[0].ShipmentLastName))
+                acgOrder.ShipmentList[0].ShipmentLastName = acgOrder.ShipmentList[0].ShipmentFirstName;
             foreach (var item in order.OrderItem)
             {
 
@@ -353,9 +321,12 @@ namespace AmazonApp
                 ConfigurationHelper.Store);
             if (orderRes.Status == ACG.ActionStatus.Failed)
             {
-                MandrillMail.SendEmail(ConfigurationHelper.MandrilAPIKey, "Order Has to be processed manually",
-                    "Order Has to be processed manually. The order no is:" + order.AmazonOrderId,
+                MandrillMail.SendEmail(ConfigurationData.MandrilAPIKey, "Order Has to be processed manually",
+                    "Order Has to be processed manually. The order no is:" + order.AmazonOrderId+ Environment.NewLine +
+                    "Error: "+ orderRes.Description,
                     "sales@autocareguys.com");
+                return null;
+               
             }
 
             var orderId = Convert.ToInt32(orderRes.ResultSet);
