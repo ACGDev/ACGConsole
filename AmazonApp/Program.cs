@@ -8,6 +8,7 @@ using AutoCarOperations;
 using AutoCarOperations.DAL;
 using AutoCarOperations.Model;
 using ACG = DCartRestAPIClient;
+using System.Globalization;
 
 
 namespace AmazonApp
@@ -50,7 +51,11 @@ namespace AmazonApp
                     var orderItemResponse = amazonOrders.InvokeListOrderItems(order.AmazonOrderId);
                     order.OrderItem = orderItemResponse.ListOrderItemsResult.OrderItems;
                     var customerId = CreateCustomer(order);  
-                    var mappedOrder = MapAmazonOrder(order, customerId, ref invoiceNo);
+                    if (customerId>0)
+                    {
+                        var mappedOrder = MapAmazonOrder(order, customerId, ref invoiceNo);
+                    }
+                        
                 }
             }
             catch (Exception ex)
@@ -59,6 +64,7 @@ namespace AmazonApp
                 Console.ReadKey();
             }
         }
+
 
         public static long CreateCustomer(Order order)
         {
@@ -94,9 +100,9 @@ namespace AmazonApp
                                       ? order.ShippingAddress.AddressLine2
                                       : "") + (order.ShippingAddress.IsSetAddressLine3() ? order.ShippingAddress.AddressLine3 : ""),
                 ShippingCity = order.ShippingAddress.City,
-                ShippingState = order.ShippingAddress.StateOrRegion,
+                ShippingState = order.ShippingAddress.StateOrRegion.Trim(),
                 ShippingZipCode = order.ShippingAddress.PostalCode,
-                ShippingCountry = order.ShippingAddress.CountryCode, // order.BuyerCounty
+                ShippingCountry = order.ShippingAddress.CountryCode.ToUpper(), 
                 ShippingPhoneNumber = order.ShippingAddress.Phone,
                 //ShippingAddressType= 0,
                 Enabled= true,
@@ -110,14 +116,20 @@ namespace AmazonApp
                 //AdditionalField3= "string",
                 TotalStoreCredit = ""
             };
+            // check for US States
+            if ((customer.ShippingCountry == "US" || customer.ShippingCountry == "USA") && customer.ShippingState.Length > 2)
+                customer.ShippingState = OrderDAL.GetStateCodeForUS(customer.ShippingState);
+            if ((customer.BillingCountry == "US" || customer.BillingCountry == "USA") && customer.BillingState.Length > 2)
+                customer.BillingState = OrderDAL.GetStateCodeForUS(customer.BillingState);
 
             var recordInfo = RestHelper.AddRecord(customer, "Customers", ConfigurationData.PrivateKey,
                 ConfigurationData.Token, ConfigurationData.Store);
             if (recordInfo.Status == ACG.ActionStatus.Failed)
             {
                 MandrillMail.SendEmail(ConfigurationData.MandrilAPIKey, "Order Has to be processed manually. ",
-                    "Order Has to be processed manually. ASIN information is not available. The order no is:" + order.AmazonOrderId,
+                    "Order Has to be processed manually. Could not create customer. The order no is:" + order.AmazonOrderId,
                     "sales@autocareguys.com");
+                return 0;
             }
             var customerId = Convert.ToInt32(recordInfo.ResultSet);
             customer.CustomerID = customerId;
@@ -180,7 +192,10 @@ namespace AmazonApp
                 },
                 OrderItemList = new List<ACG.OrderItem>()
             };
-
+            if (string.IsNullOrEmpty(acgOrder.BillingLastName))
+                acgOrder.BillingLastName = acgOrder.BillingFirstName;
+            if (string.IsNullOrEmpty(acgOrder.ShipmentList[0].ShipmentLastName))
+                acgOrder.ShipmentList[0].ShipmentLastName = acgOrder.ShipmentList[0].ShipmentFirstName;
             foreach (var item in order.OrderItem)
             {
 
@@ -227,8 +242,11 @@ namespace AmazonApp
             if (orderRes.Status == ACG.ActionStatus.Failed)
             {
                 MandrillMail.SendEmail(ConfigurationData.MandrilAPIKey, "Order Has to be processed manually",
-                    "Order Has to be processed manually. The order no is:" + order.AmazonOrderId,
+                    "Order Has to be processed manually. The order no is:" + order.AmazonOrderId+ Environment.NewLine +
+                    "Error: "+ orderRes.Description,
                     "sales@autocareguys.com");
+                return null;
+               
             }
 
             var orderId = Convert.ToInt32(orderRes.ResultSet);

@@ -552,6 +552,78 @@ namespace AutoCarOperations.DAL
 
             return outputStr;
         }
+        // Gets 2 char state codes from long ones for US
+        public static string GetStateCodeForUS(string inState)
+        {
+            TextInfo tiState = new CultureInfo("en-US", false).TextInfo;
+            string stateTitleCase = tiState.ToTitleCase(inState.ToLower());
+            string[,] arrState = new string[,]
+            {
+                {"Alabama", "AL"},
+                {"Alaska", "AK"},
+                {"Arizona", "AZ"},
+                {"Arkansas", "AR"},
+                {"Armed Forces America", "AA"},
+                {"Armed Forces Europe", "AE"},
+                {"Armed Forces Pacific", "AP"},
+                {"California", "CA"},
+                {"Colorado", "CO"},
+                {"Connecticut", "CT"},
+                {"Delaware", "DE"},
+                {"District of Columbia", "DC"},
+                {"Florida", "FL"},
+                {"Georgia", "GA"},
+                {"Hawaii", "HI"},
+                {"Idaho", "ID"},
+                {"Illinois", "IL"},
+                {"Indiana", "IN"},
+                {"Iowa", "IA"},
+                {"Kansas", "KS"},
+                {"Kentucky", "KY"},
+                {"Louisiana", "LA"},
+                {"Maine", "ME"},
+                {"Maryland", "MD"},
+                {"Massachusetts", "MA"},
+                {"Michigan", "MI"},
+                {"Minnesota", "MN"},
+                {"Mississippi", "MS"},
+                {"Missouri", "MO"},
+                {"Montana", "MT"},
+                {"Nebraska", "NE"},
+                {"Nevada", "NV"},
+                {"New Hampshire", "NH"},
+                {"New Jersey", "NJ"},
+                {"New Mexico", "NM"},
+                {"New York", "NY"},
+                {"North Carolina", "NC"},
+                {"North Dakota", "ND"},
+                {"Ohio", "OH"},
+                {"Oklahoma", "OK"},
+                {"Oregon", "OR"},
+                {"Pennsylvania", "PA"},
+                {"Rhode Island", "RI"},
+                {"South Carolina", "SC"},
+                {"South Dakota", "SD"},
+                {"Tennessee", "TN"},
+                {"Texas", "TX"},
+                {"Utah", "UT"},
+                {"Vermont", "VT"},
+                {"Virginia", "VA"},
+                {"Washington", "WA"},
+                {"West Virginia", "WV"},
+                {"Wisconsin", "WI"},
+                {"Wyoming", "WY"}
+            };
+            string outState = inState;
+            for (int i = 0; i < arrState.Length / 2; i++)
+            {
+                if (arrState[i, 0] == stateTitleCase)
+                {
+                    outState = arrState[i, 1];
+                }
+            }
+            return outState;  // if no match - just return the original state
+        }
         /// <summary>
         /// 
         /// </summary>
@@ -680,6 +752,9 @@ namespace AutoCarOperations.DAL
                 if (order.shipzip.Trim() == string.Empty)
                     order.shipzip = "0";
 
+                if ((order.shipcountry == "US" || order.shipcountry == "USA") && order.shipstate.Length > 2)
+                    order.shipstate = GetStateCodeForUS(order.shipstate);
+
                 oText +=
                     $",{TrimTolength(order.shipcity, 20)},{TrimTolength(order.shipstate, 10)},{TrimTolength(order.shipzip, 10)},{TrimTolength(order.shipcountry, 2)}";
 
@@ -689,7 +764,10 @@ namespace AutoCarOperations.DAL
                     shipEmail = "";
 
                 // Ship_Phone,Ship_Email,Ship_Service,CK_SKU
-                oText += $",{TrimTolength(order.shipphone, 15)},{shipEmail},R02,";
+                if (o.Product.mfgid.StartsWith("CSS") || o.Product.mfgid.StartsWith("CDC"))
+                    oText += $",{TrimTolength(order.shipphone, 15)},{shipEmail},WC,";
+                else
+                    oText += $",{TrimTolength(order.shipphone, 15)},{shipEmail},R02,";
 
                 if (!string.IsNullOrEmpty(order.internalcomment))
                 {
