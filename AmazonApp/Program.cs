@@ -84,9 +84,10 @@ namespace AmazonApp
                 ConfigurationHelper.Version,
                 "C#");
 
-            var _AmazonClient = new MarketplaceWebServiceClient(ConfigurationHelper.AccessKey, ConfigurationHelper.SecretKey,
+            var _AmazonClient = new MarketplaceWebServiceClient(ConfigurationHelper.AccessKey,
+                ConfigurationHelper.SecretKey,
                 config2);
-            Dictionary<string,string> types = new Dictionary<string, string>
+            Dictionary<string, string> types = new Dictionary<string, string>
             {
                 {"Product", "_POST_PRODUCT_DATA_"},
                 {"Price", "_POST_PRODUCT_PRICING_DATA_"},
@@ -94,11 +95,6 @@ namespace AmazonApp
             };
             foreach (var type in types)
             {
-                //keep this for temporary
-                if (type.Key != "Inventory")
-                {
-                    continue;
-                }
                 var liObj = GetProducts(type.Key);
                 SubmitFeedRequest request = new SubmitFeedRequest
                 {
@@ -112,16 +108,17 @@ namespace AmazonApp
 
                 request.FeedType = type.Value;
 
-                //var subResp = FeedSample.InvokeSubmitFeed(_AmazonClient, request);
-                //request.FeedContent.Close();
+                var subResp = FeedSample.InvokeSubmitFeed(_AmazonClient, request);
+                request.FeedContent.Close();
                 var feedReq = new GetFeedSubmissionResultRequest()
                 {
                     Merchant = ConfigurationHelper.SellerId,
-                    FeedSubmissionId = "50154017727",//subResp.SubmitFeedResult.FeedSubmissionInfo.FeedSubmissionId,//"50148017726",
+                    FeedSubmissionId = subResp.SubmitFeedResult.FeedSubmissionInfo.FeedSubmissionId,//"50148017726",
                     FeedSubmissionResult = File.Open("feedSubmissionResult1.xml", FileMode.OpenOrCreate,
                         FileAccess.ReadWrite)
                 };
                 Thread.Sleep(10000);
+                //need to handle error else the loop will be infinite
                 while (true)
                 {
                     var getResultResp = FeedSample.InvokeGetFeedSubmissionResult(_AmazonClient, feedReq);
@@ -145,7 +142,49 @@ namespace AmazonApp
                     }
                 }
                 File.Delete("feedSubmissionResult1.xml");
-
+            }
+        }
+        private static List<FeedModel> GetProducts(string type)
+        {
+            List<FeedModel> liObj = new List<FeedModel>()
+            {
+                new FeedModel
+                {
+                    sku = "CSC2S3NS7074",
+                    asin = "B000ZARVDE",
+                },
+                new FeedModel
+                {
+                    sku = "CSC2S3DG7035",
+                    asin = "B000ZARVDO",
+                },
+                new FeedModel
+                {
+                    sku = "CSC2S1FD7242",
+                    asin = "B000ZARVDY",
+                },
+                new FeedModel
+                {
+                    sku = "CSC2S8KI7001",
+                    asin = "B000ZARVEI",
+                }
+            };
+            foreach (var obj in liObj)
+            {
+                obj.type = type;
+                switch (type)
+                {
+                    case "Price":
+                        obj.price = 119.99;
+                        break;
+                    case "Inventory":
+                        obj.quantity = 20;
+                        obj.fulfillmentLatency = 12;
+                        break;
+                }
+            }
+            return liObj;
+        }
         public static long CreateCustomer(Order order)
         {
             //check if customer already exist
@@ -206,7 +245,7 @@ namespace AmazonApp
                 ConfigurationHelper.Token, ConfigurationHelper.Store);
             if (recordInfo.Status == ACG.ActionStatus.Failed)
             {
-                MandrillMail.SendEmail(ConfigurationData.MandrilAPIKey, "Order Has to be processed manually. ",
+                MandrillMail.SendEmail(ConfigurationHelper.MandrilAPIKey, "Order Has to be processed manually. ",
                     "Order Has to be processed manually. Could not create customer. The order no is:" + order.AmazonOrderId,
                     "sales@autocareguys.com");
                 return 0;
@@ -321,12 +360,11 @@ namespace AmazonApp
                 ConfigurationHelper.Store);
             if (orderRes.Status == ACG.ActionStatus.Failed)
             {
-                MandrillMail.SendEmail(ConfigurationData.MandrilAPIKey, "Order Has to be processed manually",
+                MandrillMail.SendEmail(ConfigurationHelper.MandrilAPIKey, "Order Has to be processed manually",
                     "Order Has to be processed manually. The order no is:" + order.AmazonOrderId+ Environment.NewLine +
                     "Error: "+ orderRes.Description,
                     "sales@autocareguys.com");
                 return null;
-               
             }
 
             var orderId = Convert.ToInt32(orderRes.ResultSet);
