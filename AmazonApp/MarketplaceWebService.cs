@@ -40,5 +40,16 @@ namespace AmazonApp
         ///   
         /// </remarks>
         SubmitFeedResponse SubmitFeed(SubmitFeedRequest request);
+
+        /// <summary>
+        /// Get Feed Submission Result 
+        /// </summary>
+        /// <param name="request">Get Feed Submission Result  request</param>
+        /// <returns>Get Feed Submission Result  Response from the service</returns>
+        /// <remarks>
+        /// retrieves the feed processing report
+        ///   
+        /// </remarks>
+        GetFeedSubmissionResultResponse GetFeedSubmissionResult(GetFeedSubmissionResultRequest request);
     }
 }

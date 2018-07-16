@@ -4,9 +4,14 @@ using AutoCarOperations;
 using AutoCarOperations.DAL;
 using System;
 using System.Collections.Generic;
+using System.Dynamic;
+using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Xml.Linq;
+using DevDefined.OAuth.Utility;
+using Newtonsoft.Json;
 using ACG = DCartRestAPIClient;
-using SubmitFeedSample = AmazonApp.Model.SubmitFeedSample;
 
 
 namespace AmazonApp
@@ -47,7 +52,7 @@ namespace AmazonApp
                         continue;
 
                     //** SAM: Find if this order already exists (but unshipped)
-                    var existingOrder = OrderDAL.FetchOrders(ConfigurationHelper.ConnectionString, ord => ord.po_no == order.AmazonOrderId || ord.orderno == order.SellerOrderId);
+                    var existingOrder = OrderDAL.FetchOrders(ConfigurationHelper.ConnectionString, ord => ord.po_no == order.AmazonOrderId);
                     if (existingOrder.Count >0) continue;
 
                     // Check if this Amazon order has been already entered
@@ -77,22 +82,109 @@ namespace AmazonApp
 
             var _AmazonClient = new MarketplaceWebServiceClient(ConfigurationHelper.AccessKey, ConfigurationHelper.SecretKey,
                 config2);
-
-            SubmitFeedRequest request = new SubmitFeedRequest
+            Dictionary<string,string> types = new Dictionary<string, string>
             {
-                Merchant = ConfigurationHelper.SellerId,
-                FeedContent = FeedRequestXML.GenerateInventoryDocument(ConfigurationHelper.SellerId, "CSC2S9JP7115",
-                    "B000ZARVCU", "Price", price: 119.99)
+                {"Product", "_POST_PRODUCT_DATA_"},
+                {"Price", "_POST_PRODUCT_PRICING_DATA_"},
+                {"Inventory", "_POST_INVENTORY_AVAILABILITY_DATA_"},
             };
-            // Calculating the MD5 hash value exhausts the stream, and therefore we must either reset the
-            // position, or create another stream for the calculation.
-            request.ContentMD5 = MarketplaceWebServiceClient.CalculateContentMD5(request.FeedContent);
-            request.FeedContent.Position = 0;
+            foreach (var type in types)
+            {
+                //keep this for temporary
+                if (type.Key != "Inventory")
+                {
+                    continue;
+                }
+                var liObj = GetProducts(type.Key);
+                SubmitFeedRequest request = new SubmitFeedRequest
+                {
+                    Merchant = ConfigurationHelper.SellerId,
+                    FeedContent = FeedRequestXML.GenerateInventoryDocument(ConfigurationHelper.AppName, liObj)
+                };
+                // Calculating the MD5 hash value exhausts the stream, and therefore we must either reset the
+                // position, or create another stream for the calculation.
+                request.ContentMD5 = MarketplaceWebServiceClient.CalculateContentMD5(request.FeedContent);
+                request.FeedContent.Position = 0;
 
-            request.FeedType = "_POST_PRODUCT_PRICING_DATA_";
+                request.FeedType = type.Value;
 
-            SubmitFeedSample.InvokeSubmitFeed(_AmazonClient, request);
-            request.FeedContent.Close();
+                //var subResp = FeedSample.InvokeSubmitFeed(_AmazonClient, request);
+                //request.FeedContent.Close();
+                var feedReq = new GetFeedSubmissionResultRequest()
+                {
+                    Merchant = ConfigurationHelper.SellerId,
+                    FeedSubmissionId = "50154017727",//subResp.SubmitFeedResult.FeedSubmissionInfo.FeedSubmissionId,//"50148017726",
+                    FeedSubmissionResult = File.Open("feedSubmissionResult1.xml", FileMode.OpenOrCreate,
+                        FileAccess.ReadWrite)
+                };
+                Thread.Sleep(10000);
+                while (true)
+                {
+                    var getResultResp = FeedSample.InvokeGetFeedSubmissionResult(_AmazonClient, feedReq);
+                    if (getResultResp != null)
+                    {
+                        using (var stream = feedReq.FeedSubmissionResult)
+                        {
+                            XDocument doc = XDocument.Parse(stream.ReadToEnd()); //or XDocument.Load(path)
+                            string jsonText = JsonConvert.SerializeXNode(doc);
+                            dynamic dyn = JsonConvert.DeserializeObject<ExpandoObject>(jsonText);
+                            dynamic processingSummary = dyn.AmazonEnvelope.Message.ProcessingReport.ProcessingSummary;
+                            if (processingSummary.MessagesProcessed == processingSummary.MessagesSuccessful)
+                            {
+                                break;
+                            }
+                            //else
+                            //{
+                            //    //send email with failed sku info
+                            //}
+                        }
+                    }
+                }
+                File.Delete("feedSubmissionResult1.xml");
+
+            }
+        }
+
+        private static List<FeedModel> GetProducts(string type)
+        {
+            List<FeedModel> liObj = new List<FeedModel>()
+            {
+                new FeedModel
+                {
+                    sku = "CSC2S3NS7074",
+                    asin = "B000ZARVDE",
+                },
+                new FeedModel
+                {
+                    sku = "CSC2S3DG7035",
+                    asin = "B000ZARVDO",
+                },
+                new FeedModel
+                {
+                    sku = "CSC2S1FD7242",
+                    asin = "B000ZARVDY",
+                },
+                new FeedModel
+                {
+                    sku = "CSC2S8KI7001",
+                    asin = "B000ZARVEI",
+                }
+            };
+            foreach (var obj in liObj)
+            {
+                obj.type = type;
+                switch (type)
+                {
+                    case "Price":
+                        obj.price = 119.99;
+                        break;
+                    case "Inventory":
+                        obj.quantity = 20;
+                        obj.fulfillmentLatency = 12;
+                        break;
+                }
+            }
+            return liObj;
         }
 
         public static long CreateCustomer(Order order)
@@ -268,28 +360,17 @@ namespace AmazonApp
 
             var orderId = Convert.ToInt32(orderRes.ResultSet);
             acgOrder.OrderID = orderId;
-            var orderList = OrderDAL.Map_n_Add_ExtOrders(ConfigurationData.ConnectionString, "", new List<ACG.Order>() { acgOrder });
-
-            //OrderDAL.PlaceOrder(new AutoCarOperations.Model.ConfigurationData()
-            //{
-            //    ConnectionString = ConfigurationData.ConnectionString,
-            //    CKOrderFolder = ConfigurationData.CKOrderFolder,
-            //    MandrilAPIKey = ConfigurationData.MandrilAPIKey,
-            //    FTPAddress = ConfigurationData.FTPAddress,
-            //    FTPUserName = ConfigurationData.FTPUserName,
-            //    FTPPassword = ConfigurationData.FTPPassword,
-            //}, false, true, true, orderList);
-
+            var orderList = OrderDAL.Map_n_Add_ExtOrders(ConfigurationHelper.ConnectionString, "", new List<ACG.Order>() { acgOrder });
             // SAM: No need to sync orders - just place it to CK
 
             var autoCarOpConfig = new AutoCarOperations.Model.ConfigurationData()
             {
-                ConnectionString = ConfigurationData.ConnectionString,
-                CKOrderFolder = ConfigurationData.CKOrderFolder,
-                MandrilAPIKey = ConfigurationData.MandrilAPIKey,
-                FTPAddress = ConfigurationData.FTPAddress,
-                FTPUserName = ConfigurationData.FTPUserName,
-                FTPPassword = ConfigurationData.FTPPassword,
+                ConnectionString = ConfigurationHelper.ConnectionString,
+                CKOrderFolder = ConfigurationHelper.CKOrderFolder,
+                MandrilAPIKey = ConfigurationHelper.MandrilAPIKey,
+                FTPAddress = ConfigurationHelper.FTPAddress,
+                FTPUserName = ConfigurationHelper.FTPUserName,
+                FTPPassword = ConfigurationHelper.FTPPassword,
             };
 
             OrderDAL.UploadOrderToCK(autoCarOpConfig, true, true, orderList);

@@ -7,9 +7,70 @@ using AmazonApp.Model;
 
 namespace AmazonApp.Helper
 {
-    public class SubmitFeedSample
+    public class FeedSample
     {
 
+        /// <summary>
+        /// retrieves the feed processing report
+        /// 
+        /// </summary>
+        /// <param name="service">Instance of MarketplaceWebService service</param>
+        /// <param name="request">GetFeedSubmissionResultRequest request</param>
+        public static GetFeedSubmissionResultResponse InvokeGetFeedSubmissionResult(MarketplaceWebService service, GetFeedSubmissionResultRequest request)
+        {
+            try
+            {
+                GetFeedSubmissionResultResponse response = service.GetFeedSubmissionResult(request);
+
+                string re = response.ToXML();
+                Console.WriteLine("Service Response");
+                Console.WriteLine("=============================================================================");
+                Console.WriteLine();
+
+                Console.WriteLine("        GetFeedSubmissionResultResponse");
+                if (response.IsSetGetFeedSubmissionResultResult())
+                {
+                    Console.WriteLine("            GetFeedSubmissionResult");
+                    GetFeedSubmissionResultResult getFeedSubmissionResultResult = response.GetFeedSubmissionResultResult;
+                    if (getFeedSubmissionResultResult.IsSetContentMD5())
+                    {
+                        Console.WriteLine("                ContentMD5");
+                        Console.WriteLine("                    {0}", getFeedSubmissionResultResult.ContentMD5);
+                    }
+                }
+
+                if (response.IsSetResponseMetadata())
+                {
+                    Console.WriteLine("            ResponseMetadata");
+                    ResponseMetadata responseMetadata = response.ResponseMetadata;
+                    if (responseMetadata.IsSetRequestId())
+                    {
+                        Console.WriteLine("                RequestId");
+                        Console.WriteLine("                    {0}", responseMetadata.RequestId);
+                    }
+                }
+
+                Console.WriteLine("            ResponseHeaderMetadata");
+                Console.WriteLine("                RequestId");
+                Console.WriteLine("                    " + response.ResponseHeaderMetadata2.RequestId);
+                Console.WriteLine("                ResponseContext");
+                Console.WriteLine("                    " + response.ResponseHeaderMetadata2.ResponseContext);
+                Console.WriteLine("                Timestamp");
+                Console.WriteLine("                    " + response.ResponseHeaderMetadata2.Timestamp);
+                return response;
+            }
+            catch (MarketplaceWebServiceException ex)
+            {
+                Console.WriteLine("Caught Exception: " + ex.Message);
+                Console.WriteLine("Response Status Code: " + ex.StatusCode);
+                Console.WriteLine("Error Code: " + ex.ErrorCode);
+                Console.WriteLine("Error Type: " + ex.ErrorType);
+                Console.WriteLine("Request ID: " + ex.RequestId);
+                Console.WriteLine("XML: " + ex.XML);
+                Console.WriteLine("ResponseHeaderMetadata: " + ex.ResponseHeaderMetadata);
+                return null;
+            }
+        }
 
         /// <summary>
         /// Uploads a file for processing together with the necessary
@@ -21,7 +82,7 @@ namespace AmazonApp.Helper
         /// </summary>
         /// <param name="service">Instance of MarketplaceWebService service</param>
         /// <param name="request">SubmitFeedRequest request</param>
-        public static void InvokeSubmitFeed(MarketplaceWebService service, SubmitFeedRequest request)
+        public static SubmitFeedResponse InvokeSubmitFeed(MarketplaceWebService service, SubmitFeedRequest request)
         {
             try
             {
@@ -69,7 +130,8 @@ namespace AmazonApp.Helper
                         if (feedSubmissionInfo.IsSetCompletedProcessingDate())
                         {
                             Console.WriteLine("                    CompletedProcessingDate");
-                            Console.WriteLine("                        {0}", feedSubmissionInfo.CompletedProcessingDate);
+                            Console.WriteLine("                        {0}",
+                                feedSubmissionInfo.CompletedProcessingDate);
                         }
                     }
                 }
@@ -91,7 +153,7 @@ namespace AmazonApp.Helper
                 Console.WriteLine("                    " + response.ResponseHeaderMetadata2.ResponseContext);
                 Console.WriteLine("                Timestamp");
                 Console.WriteLine("                    " + response.ResponseHeaderMetadata2.Timestamp);
-
+                return response;
             }
             catch (MarketplaceWebServiceException ex)
             {
@@ -103,6 +165,7 @@ namespace AmazonApp.Helper
                 Console.WriteLine("XML: " + ex.XML);
                 Console.WriteLine("ResponseHeaderMetadata: " + ex.ResponseHeaderMetadata);
             }
+            return null;
         }
     }
 }

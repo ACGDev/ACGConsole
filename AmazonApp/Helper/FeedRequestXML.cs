@@ -18,7 +18,7 @@ namespace AmazonApp.Helper
             return stream;
         }
 
-        internal static Stream GenerateInventoryDocument(string merchantID, string sku, string asin, string type, int quantity = 0, int fulfillmentLatency = 0, double price = 0)
+        internal static Stream GenerateInventoryDocument(string merchantID, List<FeedModel> messages)
         {
             MemoryStream myDocument = new MemoryStream();
             StringBuilder myString = new StringBuilder();
@@ -30,35 +30,43 @@ namespace AmazonApp.Helper
             myString.AppendLine("<DocumentVersion>1.01</DocumentVersion>");
             myString.AppendLine("<MerchantIdentifier>" + merchantID + "</MerchantIdentifier>");
             myString.AppendLine("</Header>");
-            myString.AppendLine($"<MessageType>{type}</MessageType>");
-            if (type == "Product")
+            int i = 0;
+            foreach (var m in messages)
             {
-                myString.AppendLine("<PurgeAndReplace>false</PurgeAndReplace>");
+                if (i == 0)
+                {
+                    myString.AppendLine($"<MessageType>{m.type}</MessageType>");
+                    if (m.type == "Product")
+                    {
+                        myString.AppendLine("<PurgeAndReplace>false</PurgeAndReplace>");
+                    }
+                }
+                myString.AppendLine("<Message>");
+                myString.AppendLine($"<MessageID>{i+1}</MessageID>");
+                myString.AppendLine("<OperationType>Update</OperationType>");
+                myString.AppendLine($"<{m.type}>");
+                myString.AppendLine("<SKU>" + m.sku + "</SKU>");
+                switch (m.type)
+                {
+                    case "Product":
+                        myString.AppendLine("<StandardProductID>");
+                        myString.AppendLine("<Type>ASIN</Type>");
+                        myString.AppendLine("<Value>" + m.asin + "</Value>");
+                        myString.AppendLine($"</StandardProductID>");
+                        myString.AppendLine($"<LaunchDate>{DateTime.Now:yyyy-MM-ddT00:00:01}</LaunchDate>");
+                        break;
+                    case "Inventory":
+                        myString.AppendLine($"<Quantity>{m.quantity}</Quantity>");
+                        myString.AppendLine($"<FulfillmentLatency>{m.fulfillmentLatency}</FulfillmentLatency>");
+                        break;
+                    default:
+                        myString.AppendLine($"<StandardPrice currency=\"USD\">{m.price}</StandardPrice>");
+                        break;
+                }
+                myString.AppendLine($"</{m.type}>");
+                myString.AppendLine("</Message>");
+                i++;
             }
-            myString.AppendLine("<Message>");
-            myString.AppendLine("<MessageID>1</MessageID>");
-            myString.AppendLine("<OperationType>Update</OperationType>");
-            myString.AppendLine($"<{type}>");
-            myString.AppendLine("<SKU>" + sku + "</SKU>");
-            if (type == "Product")
-            {
-                myString.AppendLine("<StandardProductID>");
-                myString.AppendLine("<Type>ASIN</Type>");
-                myString.AppendLine("<Value>" + asin + "</Value>");
-                myString.AppendLine($"</StandardProductID>");
-                myString.AppendLine($"<LaunchDate>2018-07-13T00:00:01</LaunchDate>");
-            }
-            else if (type == "Inventory")
-            {
-                myString.AppendLine($"<Quantity>{quantity}</Quantity>");
-                myString.AppendLine($"<FulfillmentLatency>{fulfillmentLatency}</FulfillmentLatency>");
-            }
-            else
-            {
-                myString.AppendLine($"<StandardPrice currency=\"USD\">{price}</StandardPrice>");
-            }
-            myString.AppendLine($"</{type}>");
-            myString.AppendLine("</Message>");
             myString.AppendLine("</AmazonEnvelope>");
             string newString = myString.ToString();
             int length = newString.Length;

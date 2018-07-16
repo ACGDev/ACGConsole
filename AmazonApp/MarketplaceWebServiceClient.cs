@@ -166,7 +166,20 @@ namespace AmazonApp
         {
             return Invoke<SubmitFeedResponse, SubmitFeedRequest>(ConvertSubmitFeed(request), request);
         }
-        
+        /// <summary>
+        /// Get Feed Submission Result 
+        /// </summary>
+        /// <param name="request">Get Feed Submission Result  request</param>
+        /// <returns>Get Feed Submission Result  Response from the service</returns>
+        /// <remarks>
+        /// retrieves the feed processing report
+        /// 
+        /// </remarks>
+        public GetFeedSubmissionResultResponse GetFeedSubmissionResult(GetFeedSubmissionResultRequest request)
+        {
+            return Invoke<GetFeedSubmissionResultResponse, GetFeedSubmissionResultRequest>(ConvertGetFeedSubmissionResult(request), request);
+        }
+
         // Private API ------------------------------------------------------------//
 
         private HttpWebRequest ConfigureWebRequest(String queryParameters, ContentType contentType)
@@ -319,7 +332,6 @@ namespace AmazonApp
                         }
                         else
                         {
-
                             StreamReader reader = new StreamReader(httpResponse.GetResponseStream(), Encoding.UTF8);
                             responseBody = reader.ReadToEnd();
                             XmlSerializer serlizer = new XmlSerializer(typeof(T));
@@ -544,7 +556,6 @@ namespace AmazonApp
             string expectedContentMD5 = CalculateContentMD5(receiverStream);
 
             receiverStream.Position = 0;
-
             if (receivedContentMD5 != expectedContentMD5)
             {
                 throw new MarketplaceWebServiceException(
@@ -831,6 +842,33 @@ namespace AmazonApp
             }
 
             return utcTime.ToString("yyyy-MM-dd\\THH:mm:ss.fff\\Z", CultureInfo.InvariantCulture);
+        }
+        /**
+         * Convert GetFeedSubmissionResultRequest to name value pairs
+         */
+        private IDictionary<String, String> ConvertGetFeedSubmissionResult(GetFeedSubmissionResultRequest request)
+        {
+
+            IDictionary<String, String> parameters = new Dictionary<String, String>();
+            parameters.Add("Action", "GetFeedSubmissionResult");
+            if (request.IsSetMarketplace())
+            {
+                parameters.Add("Marketplace", request.Marketplace);
+            }
+            if (request.IsSetMerchant())
+            {
+                parameters.Add("Merchant", request.Merchant);
+            }
+            if (request.IsSetMWSAuthToken())
+            {
+                parameters.Add("MWSAuthToken", request.MWSAuthToken);
+            }
+            if (request.IsSetFeedSubmissionId())
+            {
+                parameters.Add("FeedSubmissionId", request.FeedSubmissionId);
+            }
+
+            return parameters;
         }
 
         /**
