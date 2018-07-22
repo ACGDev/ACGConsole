@@ -33,7 +33,7 @@ namespace AmazonApp
             MarketplaceWebServiceOrders client = new MarketplaceWebServiceOrdersClient(ConfigurationHelper.AccessKey, ConfigurationHelper.SecretKey, ConfigurationHelper.AppName, ConfigurationHelper.Version, config);
             MarketplaceWebServiceOrdersSample amazonOrders = new MarketplaceWebServiceOrdersSample(client);
 
-            CreateProduct();
+            //CreateProduct();
 
             // Setup the orders service client
             try
@@ -52,11 +52,16 @@ namespace AmazonApp
                     if (order.OrderStatus.ToLower() != "unshipped")
                         continue;
 
+                    Console.WriteLine("Checking Unshipped Amazon order :" + order.AmazonOrderId);
                     //** SAM: Find if this order already exists (but unshipped)
                     var existingOrder = OrderDAL.FetchOrders(ConfigurationHelper.ConnectionString, ord => ord.po_no == order.AmazonOrderId);
-                    if (null != existingOrder) continue;
+                    if (existingOrder.Count >0)
+                    {
+                        Console.WriteLine("  Order exists " + existingOrder[0].orderno);
+                        continue;
+                    }
 
-                    // Check if this Amazon order has been already entered
+                    // Add order
                     var orderItemResponse = amazonOrders.InvokeListOrderItems(order.AmazonOrderId);
                     order.OrderItem = orderItemResponse.ListOrderItemsResult.OrderItems;
                     var customerId = CreateCustomer(order);  
@@ -371,7 +376,7 @@ namespace AmazonApp
             acgOrder.OrderID = orderId;
             var orderList = OrderDAL.Map_n_Add_ExtOrders(ConfigurationHelper.ConnectionString, "", new List<ACG.Order>() { acgOrder });
             // SAM: No need to sync orders - just place it to CK
-
+             
             var autoCarOpConfig = new AutoCarOperations.Model.ConfigurationData()
             {
                 ConnectionString = ConfigurationHelper.ConnectionString,
@@ -381,9 +386,15 @@ namespace AmazonApp
                 FTPUserName = ConfigurationHelper.FTPUserName,
                 FTPPassword = ConfigurationHelper.FTPPassword,
             };
-
-            OrderDAL.UploadOrderToCK(autoCarOpConfig, true, true, orderList);
-            //mark the above orders as Submitted in local table
+            if (order.OrderItem[0].ASIN != "B00JFEU78W" && order.OrderItem.Count==1)   // Avoid uploading Drawstring bag orders
+            {
+                OrderDAL.UploadOrderToCK(autoCarOpConfig, true, true, orderList);
+                //mark the above orders as Submitted in local table
+            }
+            else
+            {
+                Console.WriteLine(string.Format("Drawstring Bag, M4I98, ASIN B00JFEU78W - handle manually"));
+            }
             OrderDAL.UpdateStatus(ConfigurationHelper.ConnectionString, orderList);
             return acgOrder;
         }
