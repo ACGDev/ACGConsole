@@ -27,7 +27,12 @@ namespace AutoCarOperations.Model
         public string _3dCartFTPPassword { get; set; }
         public string CKOrderFolder { get; set; }
         public string NewJFWOrderStatusID { get; set; }
-
-
+        public string AccessKey { get; set; }
+        public string SecretKey { get; set; }
+        public string Version { get; set; }
+        public string AppName { get; set; }
+        public string ServiceURL { get; set; }
+        public string SellerId { get; set; }
+        public string MWSToken { get; set; }
     }
 }

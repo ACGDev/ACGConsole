@@ -20,6 +20,8 @@ using _3dCartImportConsole.Helper;
 using Order = DCartRestAPIClient.Order;
 using System.Windows.Forms;
 using System.Windows.Forms.ComponentModel.Com2Interop;
+using AmazonApp;
+using AmazonApp.Helper;
 
 namespace _3dCartImportConsole
 {
@@ -262,7 +264,7 @@ namespace _3dCartImportConsole
                         // var ss = client.CustomSet1(o.orderno, configData.AuthUserName);
                         //SM: First check if this order no was changed in CK
                         string thisOrderNoInCK = o.orderno;
-                        if (changedOrders.Count>0)
+                        if (changedOrders != null && changedOrders.Count>0)
                         {
                             foreach (var chOrd in changedOrders)
                             {
@@ -553,6 +555,22 @@ namespace _3dCartImportConsole
             #endregion
         }
 
+        static void SubmitAmazonOrderStatus(ConfigurationData configData)
+        {
+            var config = new MarketplaceWebServiceConfig();
+            // Set configuration to use US marketplace
+            config.ServiceURL = configData.ServiceURL;
+            // Set the HTTP Header for user agent for the application.
+            config.SetUserAgentHeader(
+                configData.AppName,
+                configData.Version,
+                "C#");
+
+            var amazonClient = new MarketplaceWebServiceClient(configData.AccessKey,
+                configData.SecretKey,
+                config);
+
+        }
         static List<List<TempCKVariant>> GetDataTableFromCsv(string path, bool isFirstRowHeader)
         {
             string header = isFirstRowHeader ? "Yes" : "No";
@@ -961,6 +979,13 @@ namespace _3dCartImportConsole
         {
             return new ConfigurationData
             {
+                AccessKey = ConfigurationManager.AppSettings["AccessKey"],
+                SecretKey = ConfigurationManager.AppSettings["SecretKey"],
+                AppName = ConfigurationManager.AppSettings["AppName"],
+                Version = ConfigurationManager.AppSettings["Version"],
+                ServiceURL = ConfigurationManager.AppSettings["ServiceURL"],
+                SellerId = ConfigurationManager.AppSettings["SellerId"],
+                MWSToken = ConfigurationManager.AppSettings["MWSToken"],
                 ConnectionString = ConfigurationManager.ConnectionStrings["mysqlconnection"].ConnectionString,
                 PrivateKey = ConfigurationManager.AppSettings["PrivateKey"],
                 Store = ConfigurationManager.AppSettings["Store"],

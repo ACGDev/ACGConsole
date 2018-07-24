@@ -84,7 +84,7 @@ namespace AmazonApp
                 ConfigurationHelper.Version,
                 "C#");
 
-            var _AmazonClient = new MarketplaceWebServiceClient(ConfigurationHelper.AccessKey,
+            var amazonClient = new MarketplaceWebServiceClient(ConfigurationHelper.AccessKey,
                 ConfigurationHelper.SecretKey,
                 config2);
             Dictionary<string, string> types = new Dictionary<string, string>
@@ -108,7 +108,7 @@ namespace AmazonApp
 
                 request.FeedType = type.Value;
 
-                var subResp = FeedSample.InvokeSubmitFeed(_AmazonClient, request);
+                var subResp = FeedSample.InvokeSubmitFeed(amazonClient, request);
                 request.FeedContent.Close();
                 var feedReq = new GetFeedSubmissionResultRequest()
                 {
@@ -121,7 +121,7 @@ namespace AmazonApp
                 //need to handle error else the loop will be infinite
                 while (true)
                 {
-                    var getResultResp = FeedSample.InvokeGetFeedSubmissionResult(_AmazonClient, feedReq);
+                    var getResultResp = FeedSample.InvokeGetFeedSubmissionResult(amazonClient, feedReq);
                     if (getResultResp != null)
                     {
                         using (var stream = feedReq.FeedSubmissionResult)
@@ -347,7 +347,8 @@ namespace AmazonApp
                     ItemOptions = orderItem.VariantId,
                     ItemDescription = item.Title,
                     // ItemWeight = Convert.ToDouble(item.,
-                    ItemAdditionalField1 = orderItem.ResourceCode
+                    ItemAdditionalField1 = orderItem.ResourceCode,
+                    ChannelOrderItemId = item.OrderItemId,
                     //
                     //Order_Items Table : Add extra field additionalField4 >
                     //ResourceCode and Message

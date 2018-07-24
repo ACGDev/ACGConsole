@@ -122,6 +122,10 @@
       <Project>{c2c92607-5ca5-42f1-a6f0-1caa315d3d2c}</Project>
       <Name>3dCartRestAPIClient</Name>
     </ProjectReference>
+    <ProjectReference Include="..\AmazonApp\AmazonApp.csproj">
+      <Project>{eee1d916-58b7-433f-a06c-c7d56fbf8511}</Project>
+      <Name>AmazonApp</Name>
+    </ProjectReference>
     <ProjectReference Include="..\AutoCartDAL\AutoCarOperations.csproj">
       <Project>{bfbc0546-38ec-40fb-a395-e31f87bb3ebe}</Project>
       <Name>AutoCarOperations</Name>
