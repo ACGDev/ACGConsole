@@ -98,7 +98,7 @@ namespace AutoCarOperations.DAL
         /// <param name="config"></param>
         /// <param name="fetchDate"></param>
         /// <returns></returns>
-        private static List<orders> SyncOrders(ConfigurationData config, bool fetchDate, int numDaysToSync = 2)
+        private static List<orders> SyncOrders(ConfigurationData config, bool fetchDate, int numDaysToSync = 20)
         {
             int nLastInvoice = 0;
             var strOrderStart = FetchLastOrderDate(config.ConnectionString, fetchDate, ref nLastInvoice, numDaysToSync);
@@ -296,6 +296,7 @@ namespace AutoCarOperations.DAL
             {
                 string thisOrderNoFrom3DCart = order.InvoiceNumberPrefix.Trim() + order.InvoiceNumber.ToString();
                 orders thisLocalOrder;
+                bool bIsAmazonOrder = false;
                 using (var context = new AutoCareDataContext(connectionString))
                 {
                     thisLocalOrder = context.Orders.FirstOrDefault(i => i.orderno == thisOrderNoFrom3DCart);
@@ -307,110 +308,119 @@ namespace AutoCarOperations.DAL
                             if (!(thisLocalOrder.order_status == 1 && thisLocalOrder.shipcomplete.ToLower() == "pending"))
                                 continue;
                         }
-                        //Detect AmazonOrder by matching CustomerComments and PONo
-                        //As while saving 3dcart record we are keeping customerid as AmazonOrderId
-                        if (order.CustomerComments == thisLocalOrder.po_no)
+                        //Detect AmazonOrder 
+                        if (order.Referer.Contains("Amazon"))
                         {
-                            continue;
+                            bIsAmazonOrder = true;
                         }
                     }
                 }
-                Console.WriteLine(
-                    thisLocalOrder == null
-                        ? $" 3D Cart Order {order.InvoiceNumberPrefix}-{order.InvoiceNumber} will be added "
-                        : $" 3D Cart Order {order.InvoiceNumberPrefix}-{order.InvoiceNumber} will be updated ");
 
-                var orderKeyDict = order.ContinueURL?.Split('&').Select(q => q.Split('='))
-                                       .ToDictionary(k => k[0], v => v[1]) ?? new Dictionary<string, string>();
-                var orderShipMents = order.ShipmentList[0];
-                //Not needed any more 
-                //if (order.OrderStatusID == 7)
-                //    continue;
-                var po_number = order.CustomerComments;
-                if (po_number != null && po_number.ToUpper().Contains("PO ") && order.BillingEmail == "support@justfeedwebsites.com")
+                orders thisOrder = new orders();
+                //TODO: Sam Jul 23: If Amazon order, read from Amazon to see if this order has shipped. 
+                // If so, update detail records info, order status and shipcomplete values 
+                if (!bIsAmazonOrder)
                 {
-                    po_number = po_number.ToUpper().Replace("PO NO", "").Replace("BUYER: 500", "").Trim();
-                    po_number = po_number.Replace("BUYER 500", "").Replace("BUYER:500", "");
-                    po_number = po_number.Replace(":", "").Replace(";", "").Replace(",", "").Trim();
+                    Console.WriteLine(
+                        thisLocalOrder == null
+                            ? $" 3D Cart Order {order.InvoiceNumberPrefix}-{order.InvoiceNumber} will be added "
+                            : $" 3D Cart Order {order.InvoiceNumberPrefix}-{order.InvoiceNumber} will be updated ");
+
+                    var orderKeyDict = order.ContinueURL?.Split('&').Select(q => q.Split('='))
+                                           .ToDictionary(k => k[0], v => v[1]) ?? new Dictionary<string, string>();
+                    var orderShipMents = order.ShipmentList[0];
+
+                    var po_number = order.CustomerComments;
+                    //if (po_number != null && po_number.ToUpper().Contains("PO ") && order.BillingEmail == "support@justfeedwebsites.com")
+                    //{
+                    //    po_number = po_number.ToUpper().Replace("PO NO", "").Replace("BUYER: 500", "").Trim();
+                    //    po_number = po_number.Replace("BUYER 500", "").Replace("BUYER:500", "");
+                    //    po_number = po_number.Replace(":", "").Replace(";", "").Replace(",", "").Trim();
+                    //}
+
+                    thisOrder = new orders
+                    {
+                        discount = order.OrderDiscount,
+                        last_update = order.LastUpdate,
+                        affiliate_commission = order.AffiliateCommission,
+                        billaddress = order.BillingAddress,
+                        billaddress2 = order.BillingAddress2,
+                        billcity = order.BillingCity,
+                        billcountry = order.BillingCountry,
+                        billemail = order.BillingEmail,
+                        billfirstname = order.BillingFirstName,
+                        billlastname = order.BillingLastName,
+                        billphone = order.BillingPhoneNumber,
+                        billstate = order.BillingState,
+                        billzip = order.BillingZipCode,
+                        cus_comment = order.CustomerComments,
+                        customerid = order.CustomerID,
+                        internalcomment = order.InternalComments,
+                        invoicenum = order.InvoiceNumber,
+                        invoicenum_prefix = order.InvoiceNumberPrefix,
+                        ip = order.IP,
+                        last_order = order.LastUpdate,
+                        ocompany = order.BillingCompany,
+                        order_id = order.OrderID.Value,
+                        order_status = order.OrderStatusID,
+                        orderamount = order.OrderAmount,
+                        orderdate = order.OrderDate,
+                        ordertax2 = order.SalesTax2,
+                        ordertax3 = order.SalesTax3,
+                        referer = order.Referer,
+                        parent_orderid = order.OrderID,
+                        paymethod = order.BillingPaymentMethod,
+                        salesperson = order.SalesPerson,
+                        salestax = order.SalesTax,
+                        userid = order.UserID,
+                        affiliate_approved = 0,
+                        affiliate_approvedreason = "",
+                        affiliate_id = 0,
+                        ccauthorization = "",
+                        coupon = "",
+                        coupondiscount = 0,
+                        coupondiscountdual = 0,
+                        date_started = DateTime.Now,
+                        errors = "Fake",
+                        giftamountused = 0,
+                        giftamountuseddual = 0,
+                        giftcertificate = "",
+                        isrecurrent = 0,
+                        last_auto_email = 0,
+                        next_order = DateTime.Now,
+                        ohandling = 0,
+                        orderboxes = 0,
+                        orderkey = orderKeyDict.ContainsKey("orderkey") ? orderKeyDict["orderkey"] : null,//can found from ContinueURL
+                        orderno = order.InvoiceNumberPrefix.Trim() + order.InvoiceNumber.ToString(),    //SM: inv prefix + inv num - previously "Fake"
+                        orderweight = 0,//todo:calculate order from orderitem
+                        ostep = "",
+                        po_no = order.PONo ?? po_number, // order.CustomerComments.Replace("PO NO:", "").Replace("; Buyer: 500",""),
+                        paymethodinfo = "",   // SM
+                        recurrent_frequency = 0,
+                        shipaddress = orderShipMents.ShipmentAddress,
+                        shipaddress2 = orderShipMents.ShipmentAddress2,
+                        shipcity = orderShipMents.ShipmentCity,
+                        shipcompany = orderShipMents.ShipmentCompany,
+                        shipcomplete = "Pending",
+                        shipcost = orderShipMents.ShipmentCost,
+                        shipcountry = orderShipMents.ShipmentCountry,
+                        shipemail = orderShipMents.ShipmentEmail,
+                        shipfirstname = orderShipMents.ShipmentFirstName,
+                        shiplastname = orderShipMents.ShipmentLastName,
+                        shipmethodid = orderShipMents.ShipmentMethodID,
+                        shipphone = orderShipMents.ShipmentPhone,
+                        shipstate = orderShipMents.ShipmentState,
+                        shipzip = orderShipMents.ShipmentZipCode,
+                        status = (int)order.OrderStatusID,   // SM
+                        order_items = GetOrderItems(order.OrderID, order.OrderItemList),
+                        order_shipments = GetOrderShipments(order.OrderID, order.ShipmentList)
+                    };
                 }
-
-                orders thisOrder = new orders
+                else
                 {
-                    discount = order.OrderDiscount,
-                    last_update = order.LastUpdate,
-                    affiliate_commission = order.AffiliateCommission,
-                    billaddress = order.BillingAddress,
-                    billaddress2 = order.BillingAddress2,
-                    billcity = order.BillingCity,
-                    billcountry = order.BillingCountry,
-                    billemail = order.BillingEmail,
-                    billfirstname = order.BillingFirstName,
-                    billlastname = order.BillingLastName,
-                    billphone = order.BillingPhoneNumber,
-                    billstate = order.BillingState,
-                    billzip = order.BillingZipCode,
-                    cus_comment = order.CustomerComments,
-                    customerid = order.CustomerID,
-                    internalcomment = order.InternalComments,
-                    invoicenum = order.InvoiceNumber,
-                    invoicenum_prefix = order.InvoiceNumberPrefix,
-                    ip = order.IP,
-                    last_order = order.LastUpdate,
-                    ocompany = order.BillingCompany,
-                    order_id = order.OrderID.Value,
-                    order_status = order.OrderStatusID,
-                    orderamount = order.OrderAmount,
-                    orderdate = order.OrderDate,
-                    ordertax2 = order.SalesTax2,
-                    ordertax3 = order.SalesTax3,
-                    referer = order.Referer,
-                    parent_orderid = order.OrderID,
-                    paymethod = order.BillingPaymentMethod,
-                    salesperson = order.SalesPerson,
-                    salestax = order.SalesTax,
-                    userid = order.UserID,
-                    affiliate_approved = 0,
-                    affiliate_approvedreason = "",
-                    affiliate_id = 0,
-                    ccauthorization = "",
-                    coupon = "",
-                    coupondiscount = 0,
-                    coupondiscountdual = 0,
-                    date_started = DateTime.Now,
-                    errors = "Fake",
-                    giftamountused = 0,
-                    giftamountuseddual = 0,
-                    giftcertificate = "",
-                    isrecurrent = 0,
-                    last_auto_email = 0,
-                    next_order = DateTime.Now,
-                    ohandling = 0,
-                    orderboxes = 0,
-                    orderkey = orderKeyDict.ContainsKey("orderkey") ? orderKeyDict["orderkey"] : null,//can found from ContinueURL
-                    orderno = order.InvoiceNumberPrefix.Trim() + order.InvoiceNumber.ToString(),    //SM: inv prefix + inv num - previously "Fake"
-                    orderweight = 0,//todo:calculate order from orderitem
-                    ostep = "",
-                    po_no = order.PONo ?? po_number, // order.CustomerComments.Replace("PO NO:", "").Replace("; Buyer: 500",""),
-                    paymethodinfo = "",   // SM
-                    recurrent_frequency = 0,
-                    shipaddress = orderShipMents.ShipmentAddress,
-                    shipaddress2 = orderShipMents.ShipmentAddress2,
-                    shipcity = orderShipMents.ShipmentCity,
-                    shipcompany = orderShipMents.ShipmentCompany,
-                    shipcomplete = "Pending",
-                    shipcost = orderShipMents.ShipmentCost,
-                    shipcountry = orderShipMents.ShipmentCountry,
-                    shipemail = orderShipMents.ShipmentEmail,
-                    shipfirstname = orderShipMents.ShipmentFirstName,
-                    shiplastname = orderShipMents.ShipmentLastName,
-                    shipmethodid = orderShipMents.ShipmentMethodID,
-                    shipphone = orderShipMents.ShipmentPhone,
-                    shipstate = orderShipMents.ShipmentState,
-                    shipzip = orderShipMents.ShipmentZipCode,
-                    status = (int)order.OrderStatusID,   // SM
-                    order_items = GetOrderItems(order.OrderID, order.OrderItemList),
-                    order_shipments = GetOrderShipments(order.OrderID, order.ShipmentList)
-                };
+                    // Amazon order. Need to check if order has shipped / cancelled etc. 
+
+                }
                 // SM: check for shipment status in detailed records
                 if (order.OrderStatusID == 5)  // cancelled
                     thisOrder.shipcomplete = "Cancelled";

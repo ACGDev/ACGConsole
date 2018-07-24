@@ -26,7 +26,7 @@ namespace _3dCartImportConsole
     class Program
     {
         private static int? acg_invoicenum;
-        public static int numDaysToSync = 2;
+        public static int numDaysToSync = 20;
         static void Main(string[] args)
         {
             var SegmentToProcess = string.Empty;  // 1: Import JFW orders, 2: PlaceOrder, 3: UpdateOrderStatus from CK API, ALL: All

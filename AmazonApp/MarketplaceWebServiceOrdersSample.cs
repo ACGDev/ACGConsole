@@ -41,7 +41,7 @@ namespace AmazonApp
             request.SellerId = sellerId;
             string mwsAuthToken = ConfigurationHelper.MWSToken;
             request.MWSAuthToken = mwsAuthToken;        
-            DateTime createdAfter = DateTime.Now.AddDays(-14); // ** Sam: should be last 48 hours really
+            DateTime createdAfter = DateTime.Now.AddDays(-3); // ** Sam: should be last 48 hours really
             request.CreatedAfter = createdAfter;
             //DateTime createdBefore = DateTime.Now.AddDays(-1);
             //request.CreatedBefore = createdBefore;
@@ -49,8 +49,8 @@ namespace AmazonApp
             //request.LastUpdatedAfter = lastUpdatedAfter;
             //DateTime lastUpdatedBefore = new DateTime();
             //request.LastUpdatedBefore = lastUpdatedBefore;
-            //List<string> orderStatus = new List<string>();  // ** SAM: Only need to take Orders not shipped or cancelled
-            request.OrderStatus = new List<string>{"Unshipped", "PartiallyShipped"}  ;  // ** Sam: can put Unshipped filter here.
+            
+            request.OrderStatus = new List<string>{"Unshipped", "PartiallyShipped"}  ; 
             List<string> marketplaceId = new List<string>();
             marketplaceId.Add(ConfigurationHelper.MarketId1);
             marketplaceId.Add(ConfigurationHelper.MarketId2);
