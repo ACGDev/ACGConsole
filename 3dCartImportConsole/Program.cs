@@ -22,6 +22,8 @@ using System.Windows.Forms;
 using System.Windows.Forms.ComponentModel.Com2Interop;
 using AmazonApp;
 using AmazonApp.Helper;
+using AmazonApp.Model;
+using OrderItem = DCartRestAPIClient.OrderItem;
 
 namespace _3dCartImportConsole
 {
@@ -52,7 +54,6 @@ namespace _3dCartImportConsole
                 Log.Info(" ACGOrderProcessing 3: Update Order status from CK and create/upload JFW Tracking info ");
                 return;
             }
-            
             ConfigurationData configData = GetConfigurationDetails();
             string filePath =
                 Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
@@ -100,7 +101,7 @@ namespace _3dCartImportConsole
 
                 //First Sync orders but DO NOT create orders or upload order files
                 Log.Info("\r\nProcessing JFW Orders. First sync 3DCart orders to get the latest JFW order.");
-                OrderDAL.PlaceOrder(configData, false, true, true,null ,10);
+                OrderDAL.PlaceOrder(configData, false, true, true,null ,10, SubmitAmazonOrderStatus);
                 //Download order from JFW FTP and place order
                 var customer = CustomerDAL.FindCustomer(configData.ConnectionString, customers => customers.billing_firstname == "JFW");
                 acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
@@ -216,7 +217,7 @@ namespace _3dCartImportConsole
                 Log.Info("\r\n*** Fetching 3D Cart Order and Creating CK Orders");
                 // Get ONLY new orders, create order file and upload
                 
-                OrderDAL.PlaceOrder(configData, false, true, true, null, numDaysToSync);
+                OrderDAL.PlaceOrder(configData, false, true, true, null, numDaysToSync, SubmitAmazonOrderStatus);
             }
             #endregion
 
@@ -555,6 +556,28 @@ namespace _3dCartImportConsole
             #endregion
         }
 
+        static string SubmitAmazonOrderStatus(string orderId)
+        {
+            var configData = GetConfigurationDetails();
+            MarketplaceWebServiceOrdersConfig config =
+                new MarketplaceWebServiceOrdersConfig {ServiceURL = configData.ServiceURL};
+
+            // Set other client connection configurations here if needed
+            // Create the client itself
+
+            MarketplaceWebServiceOrders client = new MarketplaceWebServiceOrdersClient(configData.AccessKey, configData.SecretKey, configData.AppName, configData.Version, config);
+            MarketplaceWebServiceOrdersSample amazonOrders = new MarketplaceWebServiceOrdersSample(client);
+            try
+            {
+                IMWSResponse response = amazonOrders.InvokeGetOrder(orderId);
+                var orderResponse = response as GetOrderResponse;
+                return orderResponse.GetOrderResult.Orders[0].OrderStatus;
+            }
+            catch (Exception e)
+            {
+                return String.Empty;
+            }
+        }
         static void SubmitAmazonOrderStatus(ConfigurationData configData)
         {
             var config = new MarketplaceWebServiceConfig();

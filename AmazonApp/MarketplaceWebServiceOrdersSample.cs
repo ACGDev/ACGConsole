@@ -82,5 +82,16 @@ namespace AmazonApp
             request.AmazonOrderId = amazonOrderId;
             return this.client.ListOrderItems(request);
         }
+        public GetOrderResponse InvokeGetOrder(string orderId)
+        {
+            // Create a request.
+            GetOrderRequest request = new GetOrderRequest();
+            string sellerId = ConfigurationHelper.SellerId;
+            request.SellerId = sellerId;
+            string mwsAuthToken = ConfigurationHelper.MWSToken;
+            request.MWSAuthToken = mwsAuthToken;
+            request.AmazonOrderId = new List<string> {orderId};
+            return this.client.GetOrder(request);
+        }
     }
 }
