@@ -41,7 +41,7 @@ namespace AmazonApp
             request.SellerId = sellerId;
             string mwsAuthToken = ConfigurationHelper.MWSToken;
             request.MWSAuthToken = mwsAuthToken;        
-            DateTime createdAfter = DateTime.Now.AddDays(-3); // ** Sam: should be last 48 hours really
+            DateTime createdAfter = DateTime.Now.AddDays(-1); // ** Sam: should be last 48 hours really
             request.CreatedAfter = createdAfter;
             //DateTime createdBefore = DateTime.Now.AddDays(-1);
             //request.CreatedBefore = createdBefore;

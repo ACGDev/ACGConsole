@@ -33,7 +33,7 @@ namespace AmazonApp
             MarketplaceWebServiceOrders client = new MarketplaceWebServiceOrdersClient(ConfigurationHelper.AccessKey, ConfigurationHelper.SecretKey, ConfigurationHelper.AppName, ConfigurationHelper.Version, config);
             MarketplaceWebServiceOrdersSample amazonOrders = new MarketplaceWebServiceOrdersSample(client);
 
-            //CreateProduct();
+            CreateProduct();
 
             // Setup the orders service client
             try
@@ -148,6 +148,70 @@ namespace AmazonApp
                 }
                 File.Delete("feedSubmissionResult1.xml");
             }
+        }
+        private static void SendAmazonFeed(KeyValuePair<string, string> type, List<FeedModel> liObj)
+        {
+            var config2 = new MarketplaceWebServiceConfig();
+            // Set configuration to use US marketplace
+            config2.ServiceURL = ConfigurationHelper.ServiceURL;
+            // Set the HTTP Header for user agent for the application.
+            config2.SetUserAgentHeader(
+                ConfigurationHelper.AppName,
+                ConfigurationHelper.Version,
+                "C#");
+
+            var amazonClient = new MarketplaceWebServiceClient(ConfigurationHelper.AccessKey,
+                ConfigurationHelper.SecretKey,
+                config2);
+
+            SubmitFeedRequest request = new SubmitFeedRequest
+            {
+                Merchant = ConfigurationHelper.SellerId,
+                FeedContent = FeedRequestXML.GenerateInventoryDocument(ConfigurationHelper.AppName, liObj)
+            };
+            // Calculating the MD5 hash value exhausts the stream, and therefore we must either reset the
+            // position, or create another stream for the calculation.
+            request.ContentMD5 = MarketplaceWebServiceClient.CalculateContentMD5(request.FeedContent);
+            request.FeedContent.Position = 0;
+
+            request.FeedType = type.Value;
+
+            var subResp = FeedSample.InvokeSubmitFeed(amazonClient, request);
+            request.FeedContent.Close();
+            var feedReq = new GetFeedSubmissionResultRequest()
+            {
+                Merchant = ConfigurationHelper.SellerId,
+                FeedSubmissionId = subResp.SubmitFeedResult.FeedSubmissionInfo.FeedSubmissionId,//"50148017726",
+                FeedSubmissionResult = File.Open("feedSubmissionResult1.xml", FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite)
+            };
+            Thread.Sleep(10000);
+            //need to handle error else the loop will be infinite
+            while (true)
+            {
+                var getResultResp = FeedSample.InvokeGetFeedSubmissionResult(amazonClient, feedReq);
+                if (getResultResp != null)
+                {
+                    using (var stream = feedReq.FeedSubmissionResult)
+                    {
+                        XDocument doc = XDocument.Parse(stream.ReadToEnd()); //or XDocument.Load(path)
+                        string jsonText = JsonConvert.SerializeXNode(doc);
+                        dynamic dyn = JsonConvert.DeserializeObject<ExpandoObject>(jsonText);
+                        dynamic processingSummary = dyn.AmazonEnvelope.Message.ProcessingReport.ProcessingSummary;
+                        if (processingSummary.MessagesProcessed == processingSummary.MessagesSuccessful)
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            //send email with failed sku info
+                            Console.WriteLine("\n*** Feed Submission failed. Error: {0} ", jsonText);
+                        }
+                    }
+                }
+            }
+            File.Delete("feedSubmissionResult1.xml");
+            
         }
         private static List<FeedModel> GetProducts(string type)
         {
@@ -345,7 +409,7 @@ namespace AmazonApp
                 acgOrder.OrderItemList.Add(new ACG.OrderItem
                 {
                     ItemQuantity = Convert.ToDouble(item.QuantityOrdered),
-                    ItemUnitPrice = Convert.ToDouble(item.ItemPrice.Amount),
+                    ItemUnitPrice = Convert.ToDouble(item.ItemPrice.Amount) / Convert.ToDouble(item.QuantityOrdered),
                     //ItemOptionPrice = Convert.ToDouble(item.ItemPrice.Amount),
                     ItemID = orderItem.ItemId,
                     CatalogID = orderItem.catalogid,
@@ -387,15 +451,15 @@ namespace AmazonApp
                 FTPUserName = ConfigurationHelper.FTPUserName,
                 FTPPassword = ConfigurationHelper.FTPPassword,
             };
-            if (order.OrderItem[0].ASIN != "B00JFEU78W" && order.OrderItem.Count==1)   // Avoid uploading Drawstring bag orders
-            {
-                OrderDAL.UploadOrderToCK(autoCarOpConfig, true, true, orderList);
-                //mark the above orders as Submitted in local table
-            }
-            else
+            if (order.OrderItem[0].ASIN == "B00JFEU78W" && order.OrderItem.Count==1)   // Avoid uploading Drawstring bag orders
             {
                 Console.WriteLine(string.Format("Drawstring Bag, M4I98, ASIN B00JFEU78W - handle manually"));
             }
+            else
+            {
+                OrderDAL.UploadOrderToCK(autoCarOpConfig, true, true, orderList);
+            }
+            //mark the above orders as Submitted in local table
             OrderDAL.UpdateStatus(ConfigurationHelper.ConnectionString, orderList);
             return acgOrder;
         }

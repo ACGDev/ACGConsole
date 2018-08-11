@@ -78,11 +78,24 @@ namespace AutoCarOperations.DAL
                                 File.WriteAllText(strFileNameWithPath, strCsvHeader + "\r\n");
                                 File.AppendAllText(strFileNameWithPath, strOrderLines);
                                 Console.WriteLine(strOrderLines);
-                                //todo: create overloaded method
-                                Console.WriteLine($"  Uplaoding {fileName} to CK Order ftp site");
-                                FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName,
-                                    configData.FTPPassword, filePath, fileName, WebRequestMethods.Ftp.UploadFile);
-                                Console.WriteLine("  ... file successfully uploaded");
+                                // If Masterpack - Do not upload - instead email to Van
+                                if (strOrderLines.Contains("MASTERPACK"))
+                                {
+                                    Console.WriteLine(
+                                    $"  Order Has to be processed manually: {order.orderno}. Sending email to Van and Sales");
+                                    MandrillMail.SendEmail(configData.MandrilAPIKey, "Please process this PO manually",
+                                        strOrderLines,
+                                        "sales@autocareguys.com");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"  Uplaoding {fileName} to CK Order ftp site");
+                                    FTPHandler.DownloadOrUploadOrDeleteFile(configData.FTPAddress, configData.FTPUserName,
+                                        configData.FTPPassword, filePath, fileName, WebRequestMethods.Ftp.UploadFile);
+                                    Console.WriteLine("  ... file successfully uploaded");
+                                }
+
+
                             }
                         }
                     }
@@ -199,6 +212,9 @@ namespace AutoCarOperations.DAL
         /// <param name="db_orders"></param>
         public static void UpdateStatus(string connectionString, List<orders> db_orders, string shipStatus = "Submitted", int status = 1)
         {
+
+            /**SAM Aug 5, 2018 - Does not update shipped record. Rahul to check **/
+            /**
             using (var context = new AutoCareDataContext(connectionString))
             {
                 foreach (var order in db_orders)
@@ -215,9 +231,34 @@ namespace AutoCarOperations.DAL
                     currentorder.status = status;  //SM
                     currentorder.order_status = status;  // SM
                     context.Entry(currentorder).Property(I => I.shipcomplete).IsModified = true;
+                    context.Orders.AddOrUpdate(currentorder);
+                    
                 }
                 context.SaveChanges();
             }
+            **/
+
+            
+            StringBuilder sb = new StringBuilder();
+            foreach (var order in db_orders)
+            {
+                if (order.shipcomplete == shipStatus && order.order_status == status)
+                    continue;
+                sb.AppendFormat(
+                    "update orders set shipcomplete='{0}', status={1}, order_status={1} where orderno='{2}';",
+                    shipStatus, status, order.orderno);
+            }
+
+            using (MySqlConnection conn = new MySqlConnection(connectionString))
+            {
+                MySqlCommand cmd = conn.CreateCommand();
+                cmd.CommandText = sb.ToString();
+                conn.Open();
+                cmd.ExecuteNonQuery();
+                conn.Close();
+            }
+
+
         }
         /// <summary>
         /// 
@@ -786,8 +827,8 @@ namespace AutoCarOperations.DAL
                 if (order.shipemail.EndsWith("AutoCareGuys.com"))
                     shipEmail = "";
 
-                // Ship_Phone,Ship_Email,Ship_Service,CK_SKU
-                if (o.Product.mfgid.StartsWith("CSS") || o.Product.mfgid.StartsWith("CDC"))
+                // Ship_Phone,Ship_Email,Ship_Service,CK_SKU  *** Jul 26, 18: took out CDC WC: || o.Product.mfgid.StartsWith("CDC")
+                if (o.Product.mfgid.StartsWith("CSS") )
                     oText += $",{TrimTolength(order.shipphone, 15)},{shipEmail},WC,";
                 else
                     oText += $",{TrimTolength(order.shipphone, 15)},{shipEmail},R02,";
@@ -816,6 +857,14 @@ namespace AutoCarOperations.DAL
                     values[2] = Convert.ToString(o.additional_field1);
                     //Qty
                     values[6] = o.numitems.ToString();
+                    // handle multiple Qty
+                    if (o.numitems>1)
+                    {
+                        strMasterPakCode = "MASTERPACK";
+                        strMasterPakCodeMsg = "Please Masterpack all items";
+                    }
+                    
+
                     if (order.internalcomment != "fake")   // Needed for Amazon orders
                     {
                         foreach (var field in splitComment)
@@ -930,31 +979,38 @@ namespace AutoCarOperations.DAL
         ref int totalItemsShipped, ref DateTime? lastShipDate)
         {
             bool orderStatusChanged = false;
+            
             using (var context = new AutoCareDataContext(connectionString))
             {
                 // Update order details according to CK status
-                order_item_details order_det = context.OrderItemDetails.FirstOrDefault(I => I.order_no == orderNo && I.production_slno == serialNo);
+                order_item_details order_det2 = context.OrderItemDetails.FirstOrDefault(I => I.order_no == orderNo && I.production_slno == serialNo);
+                order_item_details order_det = null;
 
-                if (order_det == null || order_det.status != status)
+                if (order_det2 == null || order_det2.status != status)
                 {
                     orderStatusChanged = true; 
                 }
-                if (order_det != null)
+                if (order_det2 != null)
                 {
-                    Console.WriteLine(string.Format("   Existing Order Details record "));
-                    order_det.production_slno = serialNo;
-                    order_det.status = status;
-                    order_det.status_datetime = DateTime.Now;
-                    order_det.ship_agent = shipAgent;
-                    order_det.ship_service_code = shipServiceCode;
-                    order_det.tracking_no = trackingNo;
-                    order_det.tracking_link = trackingLink;
-                    order_det.mfg_item_id = mfgItemID;
-                    order_det.sku = mfgItemID.TrimEnd() + variantID.TrimEnd();
-                    // SM: take care of Ship date
-                    if (order_det.ship_date == null && status == "Shipped")
-                        order_det.ship_date = order_det.status_datetime;
-                    context.OrderItemDetails.AddOrUpdate(order_det);
+                    if (orderStatusChanged)
+                    {
+                        Console.WriteLine(string.Format("   Existing Order Details record "));
+                        order_det =  JsonConvert.DeserializeObject<order_item_details>(JsonConvert.SerializeObject(order_det2));
+                        order_det.production_slno = serialNo;
+                        order_det.status = status;
+                        order_det.status_datetime = DateTime.Now;
+                        order_det.ship_agent = shipAgent;
+                        order_det.ship_service_code = shipServiceCode;
+                        order_det.tracking_no = trackingNo;
+                        order_det.tracking_link = trackingLink;
+                        order_det.mfg_item_id = mfgItemID;
+                        order_det.sku = mfgItemID.TrimEnd() + variantID.TrimEnd();
+                        // SM: take care of Ship date
+                        if (order_det.ship_date == null && status == "Shipped")
+                            order_det.ship_date = order_det.status_datetime;
+
+                        context.OrderItemDetails.AddOrUpdate(order_det);                      
+                    }
                 }
                 else
                 {

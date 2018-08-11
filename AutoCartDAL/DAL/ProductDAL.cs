@@ -83,6 +83,23 @@ namespace AutoCarOperations.DAL
                 if (!DateTime.TryParse(product.LastUpdate.ToString(), out upd_dt))
                     upd_dt = DateTime.Now;
 
+                /** Sam changed July 2018 - to get Categories - only the last level */
+                string thisCategory = null;
+                if (product.CategoryList.Count > 0)
+                {
+                    thisCategory = product.CategoryList[0].CategoryName;
+                    foreach (var cat in product.CategoryList)
+                    {
+                        if (cat.CategoryName == "_Test_Hidden")
+                        {
+                            thisCategory = "_Test_Hidden";
+                            break;
+                        }
+                            
+                    }
+                }
+                   
+
                 dbProducts.Add(new products
                 {
                     SKU = product.SKUInfo.SKU,
@@ -92,7 +109,7 @@ namespace AutoCarOperations.DAL
                     //accessories =  null,
                     listing_displaytype = null,
                     //backorder_message = product.BackOrderMessage,
-                    categoriesaaa = null,
+                    categoriesaaa = thisCategory,
                     categoryspecial = product.CategorySpecial,//changed int to boolean
                     cost = product.SKUInfo.Cost,
                     date_created = Convert.ToDateTime(product.DateCreated).ToString("yyyy-MM-ddTHH:mm:ss"),
@@ -239,7 +256,7 @@ namespace AutoCarOperations.DAL
             using (var context = new AutoCareDataContext(connectionString))
             {
                 bool bTryMFGId = false;
-                var response = context.Database.SqlQuery<CKASINS>($"SELECT CA.ItemId,CA.VariantId,P.catalogid,CA.ResourceCode FROM CK_ASINS CA LEFT JOIN `3dc_products` P ON P.SKU = CA.SKU_UPC WHERE asin_no='{ASIN}'").ToList();
+                var response = context.Database.SqlQuery<CKASINS>($"SELECT CA.ItemId,CA.VariantId,P.catalogid,CA.ResourceCode FROM CK_ASINS CA LEFT JOIN `3dc_products` P ON P.SKU = CA.SKU_UPC and not (P.categoriesaaa is null or P.categoriesaaa='_Test_Hidden') WHERE asin_no='{ASIN}'").ToList();
                 if (response.Count == 0) bTryMFGId = true;
                 else if (response[0].ItemId == null || response[0].catalogid == null)
                     bTryMFGId = true;
@@ -247,7 +264,7 @@ namespace AutoCarOperations.DAL
                 if (bTryMFGId)
                 {
                     // Sam: Try to get item from manuf_sku if SKU does not map
-                    response = context.Database.SqlQuery<CKASINS>($"SELECT CA.ItemId,CA.VariantId,P.catalogid,CA.ResourceCode FROM CK_ASINS CA LEFT JOIN `3dc_products` P ON P.mfgid = CA.ItemID WHERE asin_no='{ASIN}'").ToList();
+                    response = context.Database.SqlQuery<CKASINS>($"SELECT CA.ItemId,CA.VariantId,P.catalogid,CA.ResourceCode FROM CK_ASINS CA LEFT JOIN `3dc_products` P ON P.mfgid = CA.ItemID and not (P.categoriesaaa is null or P.categoriesaaa='_Test_Hidden')  WHERE asin_no='{ASIN}'").ToList();
                     if (response.Count == 0)
                         return null;
                 }

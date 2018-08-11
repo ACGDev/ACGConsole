@@ -344,6 +344,9 @@ namespace _3dCartImportConsole
                         List<Shipment> li = new List<Shipment>();
                         foreach (var ship in records)
                         {
+                            if (ship.ShipmentOrderStatus ==4)   // Already marked as shipped in 3DCart
+                                continue;
+
                             ship.ShipmentID = 0;
                             //SM: This is STATE not Status ** ship.ShipmentState = "Shipped";
                             ship.ShipmentOrderStatus = 4;
@@ -356,8 +359,12 @@ namespace _3dCartImportConsole
                         }
                         
                         //Update Shipment Information
-                        var status = RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
+                        if (li.Count > 0)
+                        {
+                            var status = RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
                             configData.Store, o.order_id);
+                        }
+                        
                     }
                 }
                 // SM ** handle JFW stuff here 
@@ -424,6 +431,8 @@ namespace _3dCartImportConsole
                         //if we know the status value then we need to check with that
                         if (order.shipcomplete.ToLower() != "shipped")
                         {
+                            /** Sam ** This section is commented temporarily. Need to fix Mandrill template etc and send **/
+                            /**
                             if (! String.IsNullOrEmpty(order.shipemail))
                             {
                                 MandrillMail.SendEmailWithTemplate(configData.MandrilAPIKey,
@@ -454,6 +463,7 @@ namespace _3dCartImportConsole
                                         OrderList = orderList
                                     });
                             }
+                        **/
 
                         }
                     }
