@@ -13,6 +13,7 @@ using DevDefined.OAuth.Utility;
 using Newtonsoft.Json;
 using ACG = DCartRestAPIClient;
 using System.Globalization;
+using AutoCarOperations.Model;
 
 
 namespace AmazonApp
@@ -100,7 +101,7 @@ namespace AmazonApp
             };
             foreach (var type in types)
             {
-                var liObj = GetProducts(type.Key);
+                var liObj = GetProducts(ConfigurationHelper.ConnectionString);
                 SubmitFeedRequest request = new SubmitFeedRequest
                 {
                     Merchant = ConfigurationHelper.SellerId,
@@ -213,46 +214,48 @@ namespace AmazonApp
             File.Delete("feedSubmissionResult1.xml");
             
         }
-        private static List<FeedModel> GetProducts(string type)
+        private static List<FeedModel> GetProducts(string connectionString)
         {
-            List<FeedModel> liObj = new List<FeedModel>()
-            {
-                new FeedModel
-                {
-                    sku = "CSC2S3NS7074",
-                    asin = "B000ZARVDE",
-                },
-                new FeedModel
-                {
-                    sku = "CSC2S3DG7035",
-                    asin = "B000ZARVDO",
-                },
-                new FeedModel
-                {
-                    sku = "CSC2S1FD7242",
-                    asin = "B000ZARVDY",
-                },
-                new FeedModel
-                {
-                    sku = "CSC2S8KI7001",
-                    asin = "B000ZARVEI",
-                }
-            };
-            foreach (var obj in liObj)
-            {
-                obj.type = type;
-                switch (type)
-                {
-                    case "Price":
-                        obj.price = 119.99;
-                        break;
-                    case "Inventory":
-                        obj.quantity = 20;
-                        obj.fulfillmentLatency = 12;
-                        break;
-                }
-            }
-            return liObj;
+            List<FeedModel> liK = ProductDAL.GetFeedModel(connectionString);
+            return liK;
+            //List<FeedModel> liObj = new List<FeedModel>()
+            //{
+            //    new FeedModel
+            //    {
+            //        sku = "CSC2S3NS7074",
+            //        asin = "B000ZARVDE",
+            //    },
+            //    new FeedModel
+            //    {
+            //        sku = "CSC2S3DG7035",
+            //        asin = "B000ZARVDO",
+            //    },
+            //    new FeedModel
+            //    {
+            //        sku = "CSC2S1FD7242",
+            //        asin = "B000ZARVDY",
+            //    },
+            //    new FeedModel
+            //    {
+            //        sku = "CSC2S8KI7001",
+            //        asin = "B000ZARVEI",
+            //    }
+            //};
+            //foreach (var obj in liObj)
+            //{
+            //    obj.type = type;
+            //    switch (type)
+            //    {
+            //        case "Price":
+            //            obj.price = 119.99;
+            //            break;
+            //        case "Inventory":
+            //            obj.quantity = 20;
+            //            obj.fulfillmentLatency = 12;
+            //            break;
+            //    }
+            //}
+            //return liObj;
         }
         public static long CreateCustomer(Order order)
         {

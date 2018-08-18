@@ -24,6 +24,19 @@ namespace AutoCarOperations.DAL
                 return context.Products.ToList();
             }
         }
+
+        public static List<FeedModel> GetFeedModel(string connectionString)
+        {
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                List<FeedModel> li = context.Database.SqlQuery<FeedModel>(
+                    @"select ASIN,HandlingTime,a.SalePrice,InventoryQty,New_SKU SKU from Channel_Sales_Helper a 
+                      join CK_ASINS b on a.ProductPriceCat=b.ProductPriceCat and a.ASIN = b.asin_no 
+                      where  a.ASIN <> '' and a.`UpdateInventoryOrHandling`=1;").ToList();
+
+                return li;
+            }
+        }
         public static void UpdateProduct(ConfigurationData config, int qbId, string sku)
         {
             using (var context = new AutoCareDataContext(config.ConnectionString))

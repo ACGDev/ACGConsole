@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using AutoCarOperations.Model;
 
 namespace AmazonApp.Helper
 {
@@ -51,16 +52,16 @@ namespace AmazonApp.Helper
                     case "Product":
                         myString.AppendLine("<StandardProductID>");
                         myString.AppendLine("<Type>ASIN</Type>");
-                        myString.AppendLine("<Value>" + m.asin + "</Value>");
+                        myString.AppendLine("<Value>" + m.ASIN + "</Value>");
                         myString.AppendLine($"</StandardProductID>");
                         myString.AppendLine($"<LaunchDate>{DateTime.Now:yyyy-MM-ddT00:00:01}</LaunchDate>");
                         break;
                     case "Inventory":
-                        myString.AppendLine($"<Quantity>{m.quantity}</Quantity>");
-                        myString.AppendLine($"<FulfillmentLatency>{m.fulfillmentLatency}</FulfillmentLatency>");
+                        myString.AppendLine($"<Quantity>{m.InventoryQty}</Quantity>");
+                        myString.AppendLine($"<FulfillmentLatency>{m.HandlingTime}</FulfillmentLatency>");
                         break;
                     default:
-                        myString.AppendLine($"<StandardPrice currency=\"USD\">{m.price}</StandardPrice>");
+                        myString.AppendLine($"<StandardPrice currency=\"USD\">{m.SalePrice}</StandardPrice>");
                         break;
                 }
                 myString.AppendLine($"</{m.type}>");

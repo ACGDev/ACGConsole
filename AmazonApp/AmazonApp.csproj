@@ -63,7 +63,6 @@
     <Compile Include="Attributes\ResponseType.cs" />
     <Compile Include="Attributes\StreamType.cs" />
     <Compile Include="Helper\ConfigurationData.cs" />
-    <Compile Include="Helper\FeedModel.cs" />
     <Compile Include="Helper\FeedRequestXML.cs" />
     <Compile Include="Helper\SubmitFeedSample.cs" />
     <Compile Include="IMwsCall.cs" />
