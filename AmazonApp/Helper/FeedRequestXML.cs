@@ -19,7 +19,7 @@ namespace AmazonApp.Helper
             return stream;
         }
 
-        internal static Stream GenerateInventoryDocument(string merchantID, List<FeedModel> messages)
+        internal static Stream GenerateInventoryDocument(string merchantID, List<FeedModel> messages, string type)
         {
             MemoryStream myDocument = new MemoryStream();
             StringBuilder myString = new StringBuilder();
@@ -36,8 +36,8 @@ namespace AmazonApp.Helper
             {
                 if (i == 0)
                 {
-                    myString.AppendLine($"<MessageType>{m.type}</MessageType>");
-                    if (m.type == "Product")
+                    myString.AppendLine($"<MessageType>{type}</MessageType>");
+                    if (type == "Product")
                     {
                         myString.AppendLine("<PurgeAndReplace>false</PurgeAndReplace>");
                     }
@@ -45,9 +45,9 @@ namespace AmazonApp.Helper
                 myString.AppendLine("<Message>");
                 myString.AppendLine($"<MessageID>{i+1}</MessageID>");
                 myString.AppendLine("<OperationType>Update</OperationType>");
-                myString.AppendLine($"<{m.type}>");
+                myString.AppendLine($"<{type}>");
                 myString.AppendLine("<SKU>" + m.sku + "</SKU>");
-                switch (m.type)
+                switch (type)
                 {
                     case "Product":
                         myString.AppendLine("<StandardProductID>");
@@ -64,7 +64,7 @@ namespace AmazonApp.Helper
                         myString.AppendLine($"<StandardPrice currency=\"USD\">{m.SalePrice}</StandardPrice>");
                         break;
                 }
-                myString.AppendLine($"</{m.type}>");
+                myString.AppendLine($"</{type}>");
                 myString.AppendLine("</Message>");
                 i++;
             }

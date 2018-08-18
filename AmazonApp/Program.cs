@@ -101,53 +101,8 @@ namespace AmazonApp
             };
             foreach (var type in types)
             {
-                var liObj = GetProducts(ConfigurationHelper.ConnectionString);
-                SubmitFeedRequest request = new SubmitFeedRequest
-                {
-                    Merchant = ConfigurationHelper.SellerId,
-                    FeedContent = FeedRequestXML.GenerateInventoryDocument(ConfigurationHelper.AppName, liObj)
-                };
-                // Calculating the MD5 hash value exhausts the stream, and therefore we must either reset the
-                // position, or create another stream for the calculation.
-                request.ContentMD5 = MarketplaceWebServiceClient.CalculateContentMD5(request.FeedContent);
-                request.FeedContent.Position = 0;
-
-                request.FeedType = type.Value;
-
-                var subResp = FeedSample.InvokeSubmitFeed(amazonClient, request);
-                request.FeedContent.Close();
-                var feedReq = new GetFeedSubmissionResultRequest()
-                {
-                    Merchant = ConfigurationHelper.SellerId,
-                    FeedSubmissionId = subResp.SubmitFeedResult.FeedSubmissionInfo.FeedSubmissionId,//"50148017726",
-                    FeedSubmissionResult = File.Open("feedSubmissionResult1.xml", FileMode.OpenOrCreate,
-                        FileAccess.ReadWrite)
-                };
-                Thread.Sleep(10000);
-                //need to handle error else the loop will be infinite
-                while (true)
-                {
-                    var getResultResp = FeedSample.InvokeGetFeedSubmissionResult(amazonClient, feedReq);
-                    if (getResultResp != null)
-                    {
-                        using (var stream = feedReq.FeedSubmissionResult)
-                        {
-                            XDocument doc = XDocument.Parse(stream.ReadToEnd()); //or XDocument.Load(path)
-                            string jsonText = JsonConvert.SerializeXNode(doc);
-                            dynamic dyn = JsonConvert.DeserializeObject<ExpandoObject>(jsonText);
-                            dynamic processingSummary = dyn.AmazonEnvelope.Message.ProcessingReport.ProcessingSummary;
-                            if (processingSummary.MessagesProcessed == processingSummary.MessagesSuccessful)
-                            {
-                                break;
-                            }
-                            //else
-                            //{
-                            //    //send email with failed sku info
-                            //}
-                        }
-                    }
-                }
-                File.Delete("feedSubmissionResult1.xml");
+                var liObj = ProductDAL.GetFeedModel(ConfigurationHelper.ConnectionString);
+                SendAmazonFeed(type, liObj);
             }
         }
         private static void SendAmazonFeed(KeyValuePair<string, string> type, List<FeedModel> liObj)
@@ -168,7 +123,7 @@ namespace AmazonApp
             SubmitFeedRequest request = new SubmitFeedRequest
             {
                 Merchant = ConfigurationHelper.SellerId,
-                FeedContent = FeedRequestXML.GenerateInventoryDocument(ConfigurationHelper.AppName, liObj)
+                FeedContent = FeedRequestXML.GenerateInventoryDocument(ConfigurationHelper.AppName, liObj, type.Key)
             };
             // Calculating the MD5 hash value exhausts the stream, and therefore we must either reset the
             // position, or create another stream for the calculation.
@@ -213,49 +168,6 @@ namespace AmazonApp
             }
             File.Delete("feedSubmissionResult1.xml");
             
-        }
-        private static List<FeedModel> GetProducts(string connectionString)
-        {
-            List<FeedModel> liK = ProductDAL.GetFeedModel(connectionString);
-            return liK;
-            //List<FeedModel> liObj = new List<FeedModel>()
-            //{
-            //    new FeedModel
-            //    {
-            //        sku = "CSC2S3NS7074",
-            //        asin = "B000ZARVDE",
-            //    },
-            //    new FeedModel
-            //    {
-            //        sku = "CSC2S3DG7035",
-            //        asin = "B000ZARVDO",
-            //    },
-            //    new FeedModel
-            //    {
-            //        sku = "CSC2S1FD7242",
-            //        asin = "B000ZARVDY",
-            //    },
-            //    new FeedModel
-            //    {
-            //        sku = "CSC2S8KI7001",
-            //        asin = "B000ZARVEI",
-            //    }
-            //};
-            //foreach (var obj in liObj)
-            //{
-            //    obj.type = type;
-            //    switch (type)
-            //    {
-            //        case "Price":
-            //            obj.price = 119.99;
-            //            break;
-            //        case "Inventory":
-            //            obj.quantity = 20;
-            //            obj.fulfillmentLatency = 12;
-            //            break;
-            //    }
-            //}
-            //return liObj;
         }
         public static long CreateCustomer(Order order)
         {
