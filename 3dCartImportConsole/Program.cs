@@ -46,7 +46,7 @@ namespace _3dCartImportConsole
                     numDaysToSync = Convert.ToInt16(args[1]);
             }
 
-            if (String.IsNullOrEmpty(SegmentToProcess ) )
+            if (String.IsNullOrEmpty(SegmentToProcess))
             {
                 Log.Info("Usage: ");
                 Log.Info(" ACGOrderProcessing 1  := Process JFW Orders ");
@@ -93,7 +93,7 @@ namespace _3dCartImportConsole
             #endregion
 
             #region ProcessJFWOrderFile
-            if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess =="1")
+            if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess == "1")
             {
                 // MessageBox.Show(string.Format("JFW balance in 2017: {0} - fix if needed", JFW_AR_2017));
                 // Check JFW order total in 2018 so far
@@ -101,7 +101,7 @@ namespace _3dCartImportConsole
 
                 //First Sync orders but DO NOT create orders or upload order files
                 Log.Info("\r\nProcessing JFW Orders. First sync 3DCart orders to get the latest JFW order.");
-                OrderDAL.PlaceOrder(configData, false, true, true,null ,10, SubmitAmazonOrderStatus);
+                OrderDAL.PlaceOrder(configData, false, true, true, null, 10);
                 //Download order from JFW FTP and place order
                 var customer = CustomerDAL.FindCustomer(configData.ConnectionString, customers => customers.billing_firstname == "JFW");
                 acg_invoicenum = OrderDAL.GetMaxInvoiceNum(configData.ConnectionString, "ACGA-");
@@ -134,7 +134,7 @@ namespace _3dCartImportConsole
                 **/
 
                 if (bProcessJFWOrder)
-                { 
+                {
                     foreach (var file in dir.GetFiles("*.txt"))
                     {
                         try
@@ -216,23 +216,26 @@ namespace _3dCartImportConsole
             {
                 Log.Info("\r\n*** Fetching 3D Cart Order and Creating CK Orders");
                 // Get ONLY new orders, create order file and upload
-                
-                OrderDAL.PlaceOrder(configData, false, true, true, null, numDaysToSync, SubmitAmazonOrderStatus);
+
+                OrderDAL.PlaceOrder(configData, false, true, true, null, numDaysToSync);
             }
             #endregion
 
             #region UpdateStatusUsingCKStatusAPI
             if (SegmentToProcess.ToUpper() == "ALL" || SegmentToProcess == "3")
             {
+                var amazonOrders = GetAmazonOrders(configData);
+                var manualAmazonOrderStatus = GetAmazonOrdersStatusFromExcel();
+
                 Log.Info("\r\n*** Fetching CK Order Status, Update JFW tracking and send Shipping Emails");
-                var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.order_status == 1);
+                var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.order_status == 1 || ord.shipcomplete != "Shipped");
                 // var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.orderdate >= DateTime.Parse("10/01/2017") && (ord.order_status ==1 || ord.order_status == 4) );
 
                 Log.Info(String.Format("\r\n*** Number of Open Orders {0} ", orders.Count));
 
                 // SM: Read Changed_ACGOrderNo.txt for substituted order numbers in CK
                 String currentAppPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
-                String changedOrderFileName = System.IO.Path.GetDirectoryName(currentAppPath)+ "\\Changed_ACGOrderNo.txt" ;
+                String changedOrderFileName = System.IO.Path.GetDirectoryName(currentAppPath) + "\\Changed_ACGOrderNo.txt";
                 Log.Info(String.Format("\r\n*** Reading Changed Order file {0} ", changedOrderFileName));
                 string textAll = File.ReadAllText(changedOrderFileName);
                 string[] lines = textAll.Split(new string[] { Environment.NewLine, "\n" }, StringSplitOptions.None);
@@ -242,7 +245,7 @@ namespace _3dCartImportConsole
                     if (thisLine.StartsWith("//") || thisLine.Trim().Length == 0)
                         continue;
                     var segments = thisLine.Split(',');
-                    if (segments.Length==2)
+                    if (segments.Length == 2)
                     {
                         ChangedOrderNumbers c = new ChangedOrderNumbers();
                         c.ACG_OrderNo = segments[0].Trim();
@@ -250,12 +253,13 @@ namespace _3dCartImportConsole
                         changedOrders.Add(c);
                     }
                 }
-                
-                CKOrderStatus.Order_StatusSoapClient client = new Order_StatusSoapClient();
+
+                Order_StatusSoapClient client = new Order_StatusSoapClient();
                 Orders_response Response = new Orders_response();
+                List<KeyValuePair<DateTime, Parts>> amazonPartList = new List<KeyValuePair<DateTime, Parts>>();
                 List<Parts> partList = new List<Parts>();
                 List<orders> shippedOrderList = new List<orders>();
-                List<Parts>jfwShippedList = new List<Parts>();
+                List<Parts> jfwShippedList = new List<Parts>();
                 //todo:group 5 orders
                 foreach (var o in orders)
                 {
@@ -265,7 +269,7 @@ namespace _3dCartImportConsole
                         // var ss = client.CustomSet1(o.orderno, configData.AuthUserName);
                         //SM: First check if this order no was changed in CK
                         string thisOrderNoInCK = o.orderno;
-                        if (changedOrders != null && changedOrders.Count>0)
+                        if (changedOrders != null && changedOrders.Count > 0)
                         {
                             foreach (var chOrd in changedOrders)
                             {
@@ -302,6 +306,17 @@ namespace _3dCartImportConsole
                                     //SM: Ignore cancelled status from CK API. This may be because the order was temporarily cancelled.
                                     if (partStatus.Status.ToLower() != "cancelled")
                                     {
+                                        var shippedDate = SetPartStatus(partStatus, manualAmazonOrderStatus, o.po_no);
+                                        //todo: map o.pono with amazonorderno, if exists then add into amazonPartList
+                                        //todo: if shipping_agent_used is WC then look in excel data
+                                        if (amazonOrders.Any() && amazonOrders.Exists(I => I.AmazonOrderId == o.po_no))
+                                        {
+                                            if (partStatus.Status.ToLower() != "shipped")
+                                            {
+                                                amazonPartList.Add(new KeyValuePair<DateTime, Parts>(shippedDate, partStatus));
+                                            }
+                                        }
+
                                         sequenceNo += 1;
                                         bool statusChanged = OrderDAL.UpdateOrderDetail(configData.ConnectionString, o.orderno, partStatus.Serial_No,
                                             partStatus.Status, partStatus.Shipping_agent_used,
@@ -311,7 +326,7 @@ namespace _3dCartImportConsole
 
                                         if (statusChanged)
                                         {
-                                           partList.Add(partStatus);
+                                            partList.Add(partStatus);
                                         }
                                         if (partStatus.Status == "Shipped" && o.billemail == "support@justfeedwebsites.com")
                                             jfwShippedList.Add(partStatus);
@@ -344,27 +359,27 @@ namespace _3dCartImportConsole
                         List<Shipment> li = new List<Shipment>();
                         foreach (var ship in records)
                         {
-                            if (ship.ShipmentOrderStatus ==4)   // Already marked as shipped in 3DCart
+                            if (ship.ShipmentOrderStatus == 4)   // Already marked as shipped in 3DCart
                                 continue;
 
                             ship.ShipmentID = 0;
                             //SM: This is STATE not Status ** ship.ShipmentState = "Shipped";
                             ship.ShipmentOrderStatus = 4;
                             if (o.last_update != null)
-                               ship.ShipmentShippedDate =  Convert.ToDateTime(o.last_update.ToString()).ToShortDateString();
+                                ship.ShipmentShippedDate = Convert.ToDateTime(o.last_update.ToString()).ToShortDateString();
 
                             // Try with this: ship.ShipmentTrackingCode... also  ship.ShipmentNumber
                             ship.ShipmentPhone = o.shipphone;
                             li.Add(ship);
                         }
-                        
+
                         //Update Shipment Information
                         if (li.Count > 0)
                         {
                             var status = RestHelper.UpdateShipmentRecord(li, "Orders", configData.PrivateKey, configData.Token,
                             configData.Store, o.order_id);
                         }
-                        
+
                     }
                 }
                 // SM ** handle JFW stuff here 
@@ -407,7 +422,10 @@ namespace _3dCartImportConsole
                     FTPHandler.DownloadOrUploadOrDeleteFile(configData.JFWFTPAddress, configData.JFWFTPUserName, configData.JFWFTPPassword, JFWTrackingFilePath, "\\Tracking\\" + jfwFilename, WebRequestMethods.Ftp.UploadFile);
 
                 }
-
+                if (amazonPartList.Count > 0)
+                {
+                    
+                }
                 List<orders> orderwithdetails = null;
                 //Send Email to users
                 if (partList.Any())
@@ -425,7 +443,7 @@ namespace _3dCartImportConsole
                                 TRACKINGNO = item.tracking_no,
                                 SKU = item.sku,
                                 DESCRIPTION = item.description,
-                                SHIPDATE = item.status == "Shipped" ? item.status_datetime.Value.ToString("dd-MMM-yyyy"): ""
+                                SHIPDATE = item.status == "Shipped" ? item.status_datetime.Value.ToString("dd-MMM-yyyy") : ""
                             });
                         }
                         //if we know the status value then we need to check with that
@@ -566,44 +584,89 @@ namespace _3dCartImportConsole
             #endregion
         }
 
-        static string SubmitAmazonOrderStatus(string orderId)
+        private static DateTime SetPartStatus(Parts partStatus, List<AmazonExcel> manualAmazonOrderStatus, string poNo)
         {
-            var configData = GetConfigurationDetails();
-            MarketplaceWebServiceOrdersConfig config =
-                new MarketplaceWebServiceOrdersConfig {ServiceURL = configData.ServiceURL};
+            DateTime now = DateTime.Now;
+            if (partStatus.Shipping_agent_used == "WC")
+            {
+                var manualEntryData =
+                    manualAmazonOrderStatus.FirstOrDefault(
+                        I => I.AmazonOrder == poNo);
+                if (manualEntryData != null)
+                {
+                    partStatus.Shipping_agent_used = manualEntryData.ShipAgent;
+                    partStatus.Shipping_agent_service_used =
+                        manualEntryData.ShipService;
+                    partStatus.Package_No = manualEntryData.TrackingNo;
+                    now = manualEntryData.StatusDate ?? DateTime.Now;
+                }
+            }
+            return now;
+        }
 
+        class AmazonExcel
+        {
+            public DateTime OrderDate { get; set; }
+            public string AmazonOrder { get; set; }
+            public string ACGOrder { get; set; }
+            public string CKOrderNo { get; set; }
+            public string ShipAgent { get; set; }
+            public string ShipService { get; set; }
+            public string TrackingNo { get; set; }
+            public string UpdateAmazon { get; set; }
+            public DateTime? ShipBy { get; set; }
+            public DateTime? StatusDate { get; set; }
+        }
+        private static List<AmazonExcel> GetAmazonOrdersStatusFromExcel()
+        {
+            String currentAppPath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            String fileName = "AmazonOpenOrders.csv";
+            Log.Info(String.Format("\r\n*** Reading Amazon Manual Order status file {0} ", fileName));
+            string sql = @"SELECT * FROM [" + fileName + "]";
+            List<AmazonExcel> li = new List<AmazonExcel>();
+            using (OleDbConnection connection = new OleDbConnection(
+                @"Provider=Microsoft.Jet.OLEDB.4.0;Data Source=" + currentAppPath +
+                ";Extended Properties=\"TEXT;HDR=Yes\""))
+            {
+                connection.Open();
+                using (OleDbCommand command = new OleDbCommand(sql, connection))
+                using (OleDbDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        li.Add(new AmazonExcel
+                        {
+                            OrderDate = Convert.ToDateTime(reader[0]),
+                            ACGOrder = Convert.ToString(reader[5]),
+                            AmazonOrder = Convert.ToString(reader[1]),
+                            ShipBy = reader[2] != DBNull.Value ? Convert.ToDateTime(reader[2]) : (DateTime?)null,
+                            CKOrderNo = Convert.ToString(reader[6]),
+                            ShipAgent = Convert.ToString(reader[7]),
+                            ShipService = Convert.ToString(reader[8]),
+                            TrackingNo = Convert.ToString(reader[9]),
+                            StatusDate = reader[10] != DBNull.Value ? Convert.ToDateTime(reader["Status Date"]) : (DateTime?)null,
+                            UpdateAmazon = Convert.ToString(reader[11])
+                        });
+                    }
+                }
+            }
+            return li;
+        }
+
+        private static List<AmazonApp.Model.Order> GetAmazonOrders(ConfigurationData configData)
+        {
+            MarketplaceWebServiceOrdersConfig config = new MarketplaceWebServiceOrdersConfig();
+            config.ServiceURL = configData.ServiceURL;
             // Set other client connection configurations here if needed
             // Create the client itself
 
-            MarketplaceWebServiceOrders client = new MarketplaceWebServiceOrdersClient(configData.AccessKey, configData.SecretKey, configData.AppName, configData.Version, config);
-            MarketplaceWebServiceOrdersSample amazonOrders = new MarketplaceWebServiceOrdersSample(client);
-            try
-            {
-                IMWSResponse response = amazonOrders.InvokeGetOrder(orderId);
-                var orderResponse = response as GetOrderResponse;
-                return orderResponse.GetOrderResult.Orders[0].OrderStatus;
-            }
-            catch (Exception e)
-            {
-                return String.Empty;
-            }
+            MarketplaceWebServiceOrders amazonClient = new MarketplaceWebServiceOrdersClient(configData.AccessKey,
+                configData.SecretKey, configData.AppName, configData.Version, config);
+            MarketplaceWebServiceOrdersSample amazonOrders = new MarketplaceWebServiceOrdersSample(amazonClient);
+            var amazonResponse = amazonOrders.InvokeListOrders();
+            return amazonResponse.ListOrdersResult.Orders;
         }
-        static void SubmitAmazonOrderStatus(ConfigurationData configData)
-        {
-            var config = new MarketplaceWebServiceConfig();
-            // Set configuration to use US marketplace
-            config.ServiceURL = configData.ServiceURL;
-            // Set the HTTP Header for user agent for the application.
-            config.SetUserAgentHeader(
-                configData.AppName,
-                configData.Version,
-                "C#");
 
-            var amazonClient = new MarketplaceWebServiceClient(configData.AccessKey,
-                configData.SecretKey,
-                config);
-
-        }
         static List<List<TempCKVariant>> GetDataTableFromCsv(string path, bool isFirstRowHeader)
         {
             string header = isFirstRowHeader ? "Yes" : "No";
@@ -689,7 +752,7 @@ namespace _3dCartImportConsole
             for (int i = 0; i < lines.Length; i++)
             {
                 // Ignore header line, blank lines, and lines starting with "End"
-                if (i > 0 && !String.IsNullOrWhiteSpace(lines[i]) && !(lines[i].ToLower().StartsWith("end")) )
+                if (i > 0 && !String.IsNullOrWhiteSpace(lines[i]) && !(lines[i].ToLower().StartsWith("end")))
                 {
                     int noOfItems = 0;
                     string tempError = "";
@@ -705,8 +768,8 @@ namespace _3dCartImportConsole
                         error += Environment.NewLine + tempError;
                         break;   // exit out of processing more lines.
                     }
-                        
-                    
+
+
                     if (string.IsNullOrEmpty(tempError))
                     {
                         orderSer = jfw_order_map.Item1;
@@ -716,7 +779,7 @@ namespace _3dCartImportConsole
                         error += Environment.NewLine + tempError;
 
                     jfw_order_list.Add(jfw_order_map.Item2);
-                    
+
                 }
             }
             return Tuple.Create(orderList, jfw_order_list);
@@ -749,7 +812,7 @@ namespace _3dCartImportConsole
             string[] splitHeader = header.Replace("\"", "").Split(',').Select(I => I.Trim()).ToArray();
             string[] splitText = text.Replace("\"", "").Split(',').Select(I => I.Trim()).ToArray();
             // SM: handle tab separated lines
-            if (splitHeader.Length<2)
+            if (splitHeader.Length < 2)
             {
                 splitHeader = header.Replace("\"", "").Split('\t').Select(I => I.Trim()).ToArray();
                 splitText = text.Replace("\"", "").Split('\t').Select(I => I.Trim()).ToArray();
@@ -777,26 +840,28 @@ namespace _3dCartImportConsole
             }
 
             // Sep 7, Sam: take both formats - emailed or downloaded
-            for (int i = 0; i< length; i++)
+            for (int i = 0; i < length; i++)
             {
                 string variant = string.Empty;
                 switch (splitHeader[i].ToUpper())
                 {
-                    case "PO": case "PO_NUMBER":
+                    case "PO":
+                    case "PO_NUMBER":
                         jfwOrder.PO = splitText[i];
                         order.PONo = jfwOrder.PO;
                         break;
                     case "PO_DATE":
                         jfwOrder.PO_Date = Convert.ToDateTime(splitText[i]);
                         break;
-                    case "CK_SKU":  case "SKU":
+                    case "CK_SKU":
+                    case "SKU":
                         jfwOrder.CK_SKU = splitText[i];
                         order.SKU = jfwOrder.CK_SKU;
                         if ((order.SKU.IndexOf("cdc", StringComparison.OrdinalIgnoreCase) >= 0) || (order.SKU.IndexOf("crd", StringComparison.OrdinalIgnoreCase) >= 0))
                         {
                             ship.ShipmentCost = 5;
                         }
-						/** SM: Check if this is needed any more 
+                        /** SM: Check if this is needed any more 
                         //var ckVariant = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
                         //if (ckVariant != null)
                         //{
@@ -911,7 +976,7 @@ namespace _3dCartImportConsole
                         {
                             order.InternalComments = Environment.NewLine;
                         }
-                        if (! String.IsNullOrEmpty(jfwOrder.Customized_Msg))
+                        if (!String.IsNullOrEmpty(jfwOrder.Customized_Msg))
                             order.InternalComments = "Customized_Msg: " + jfwOrder.Customized_Msg;
                         break;
                     case "CUSTOMIZED_CODE2":
@@ -941,32 +1006,32 @@ namespace _3dCartImportConsole
                 }
                 if (i == (length - 1))
                 {
-      //              if (!string.IsNullOrEmpty(orderItem.ItemID) && orderItem.CatalogID != null)
-      //              {
-      //                  // SM: To check. Should not need catalogid -> it is a string
-						//order.SKU = orderItem.ItemID + orderItem.CatalogID;
-      //              }
+                    //              if (!string.IsNullOrEmpty(orderItem.ItemID) && orderItem.CatalogID != null)
+                    //              {
+                    //                  // SM: To check. Should not need catalogid -> it is a string
+                    //order.SKU = orderItem.ItemID + orderItem.CatalogID;
+                    //              }
                     if (string.IsNullOrEmpty(order.SKU))
                     {
                         if (!string.IsNullOrEmpty(error))
                         {
                             error = error + Environment.NewLine;
                         }
-                        string thiserror = string.Format("Product does not exist in the system: \r\n  SKU:{0}, JFW PO No {1},  PO date: {2}, Ship to: {3} \r\n" ,
+                        string thiserror = string.Format("Product does not exist in the system: \r\n  SKU:{0}, JFW PO No {1},  PO date: {2}, Ship to: {3} \r\n",
                             order.SKU, jfwOrder.PO, jfwOrder.PO_Date, jfwOrder.Ship_Name);
                         Log.Info(string.Format("  ** Error in processing order {0} \r\n   ", thiserror));
                         error += thiserror;
                     }
-                    var productAndDealerItems = ProductDAL.FindOrderFromSKU(connectionString,order.SKU);
-                    if (productAndDealerItems != null && productAndDealerItems.Item1 != null && productAndDealerItems.Item2 !=null)  // Sam  01/05/18
+                    var productAndDealerItems = ProductDAL.FindOrderFromSKU(connectionString, order.SKU);
+                    if (productAndDealerItems != null && productAndDealerItems.Item1 != null && productAndDealerItems.Item2 != null)  // Sam  01/05/18
                     {
                         var product = productAndDealerItems.Item1;
                         var dealerPrice = productAndDealerItems.Item2;
                         orderItem.ItemID = product.SKU;  //  Sam 01/05/18
                         //order.SKU = ckVariant.SKU;
-                        orderItem.ItemOptionPrice = Math.Round(dealerPrice.CostToDealer,2) ;
-                        ship.ShipmentCost = dealerPrice.ShipCost ;
-                        
+                        orderItem.ItemOptionPrice = Math.Round(dealerPrice.CostToDealer, 2);
+                        ship.ShipmentCost = dealerPrice.ShipCost;
+
                         orderItem.CatalogID = product.catalogid;
                         orderItem.ItemDescription = product.description;
                     }
@@ -990,12 +1055,12 @@ namespace _3dCartImportConsole
                     order.ShipmentList.Add(ship);
 
                     // SM: fix problem when qty > 2
-                    for (var iCount=2; iCount <= noOfItems; iCount++)
+                    for (var iCount = 2; iCount <= noOfItems; iCount++)
                     {
                         order.OrderItemList.Add(orderItem);
                         // order.ShipmentList.Add(ship);
                     }
-                    
+
                     /** Not needed
                     if (noOfItems > 1)
                     {
@@ -1054,7 +1119,7 @@ namespace _3dCartImportConsole
                     order_tracking tracking = new order_tracking();
                     if (i >= 1)
                     {
-                        string[] splitHeader = lines[0].Split(new []{'\t'}).Select(I => I.Trim()).ToArray();
+                        string[] splitHeader = lines[0].Split(new[] { '\t' }).Select(I => I.Trim()).ToArray();
                         if (splitHeader.Length <= 1)
                         {
                             splitHeader = lines[0].Split(',').Select(I => I.Replace("\"", "").Trim()).ToArray();
@@ -1064,9 +1129,9 @@ namespace _3dCartImportConsole
                         // and send an email. Changed StringSplitOptions.RemoveEmptyEntries to None
                         if (splitText.Length <= 1)
                         {
-                            splitText = lines[i].Split(new string[]{"\",\""}, StringSplitOptions.None).Select(I => I.Replace("\"", "").Trim()).ToArray();
+                            splitText = lines[i].Split(new string[] { "\",\"" }, StringSplitOptions.None).Select(I => I.Replace("\"", "").Trim()).ToArray();
                         }
-                        for (int j =0; j<splitHeader.Length;j++)
+                        for (int j = 0; j < splitHeader.Length; j++)
                         {
                             switch (splitHeader[j])
                             {
@@ -1083,7 +1148,7 @@ namespace _3dCartImportConsole
                                     tracking.SKU = splitText[j];
                                     break;
                                 case "Ship Address":
-                                    tracking.ship_address= splitText[j];
+                                    tracking.ship_address = splitText[j];
                                     break;
                                 case "ShipDate":
                                     tracking.ship_date = Convert.ToDateTime(splitText[j]);

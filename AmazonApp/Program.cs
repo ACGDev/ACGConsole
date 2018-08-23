@@ -81,18 +81,6 @@ namespace AmazonApp
 
         private static void CreateProduct()
         {
-            var config2 = new MarketplaceWebServiceConfig();
-            // Set configuration to use US marketplace
-            config2.ServiceURL = ConfigurationHelper.ServiceURL;
-            // Set the HTTP Header for user agent for the application.
-            config2.SetUserAgentHeader(
-                ConfigurationHelper.AppName,
-                ConfigurationHelper.Version,
-                "C#");
-
-            var amazonClient = new MarketplaceWebServiceClient(ConfigurationHelper.AccessKey,
-                ConfigurationHelper.SecretKey,
-                config2);
             Dictionary<string, string> types = new Dictionary<string, string>
             {
                 {"Product", "_POST_PRODUCT_DATA_"},

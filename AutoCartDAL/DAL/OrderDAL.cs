@@ -27,13 +27,12 @@ namespace AutoCarOperations.DAL
         /// <param name="uploadFile"></param>
         /// <param name="orderList"></param>
         /// <param name="numDaysToSync"></param>
-        /// <param name="submitAmazonStatus"></param>
         //SM: Oct  ReWritten to upload one order at a time - to avoid holding up all orders for problem in a specific one
-        public static void PlaceOrder(ConfigurationData configData, bool fetchDate = true, bool prepareFile = true, bool uploadFile = true, List<orders> orderList = null, int numDaysToSync = 2, Func<string, string> submitAmazonStatus = null)
+        public static void PlaceOrder(ConfigurationData configData, bool fetchDate = true, bool prepareFile = true, bool uploadFile = true, List<orders> orderList = null, int numDaysToSync = 2)
         {
             if (orderList == null)
             {
-                orderList = SyncOrders(configData, fetchDate, numDaysToSync, submitAmazonStatus); // orderlist now contains ONLY new orders
+                orderList = SyncOrders(configData, fetchDate, numDaysToSync); // orderlist now contains ONLY new orders
                 Console.WriteLine("  Sync Order complete. ");
             }
             UploadOrderToCK(configData, prepareFile, uploadFile, orderList);
@@ -113,9 +112,8 @@ namespace AutoCarOperations.DAL
         /// <param name="config"></param>
         /// <param name="fetchDate"></param>
         /// <param name="numDaysToSync"></param>
-        /// <param name="submitAmazonStatus"></param>
         /// <returns></returns>
-        private static List<orders> SyncOrders(ConfigurationData config, bool fetchDate, int numDaysToSync = 20, Func<string, string> submitAmazonStatus = null)
+        private static List<orders> SyncOrders(ConfigurationData config, bool fetchDate, int numDaysToSync = 20)
         {
             int nLastInvoice = 0;
             var strOrderStart = FetchLastOrderDate(config.ConnectionString, fetchDate, ref nLastInvoice, numDaysToSync);
@@ -134,7 +132,7 @@ namespace AutoCarOperations.DAL
                 }
                 skip = 101 + skip;
             }
-            var syncedOrders = Map_n_Add_ExtOrders(config.ConnectionString, strOrderStart, orders_fromsite.Where(i => i.OrderStatusID != 7 && i.InvoiceNumber>= nLastInvoice).ToList(), submitAmazonStatus);  // Adds and updates orders from external site
+            var syncedOrders = Map_n_Add_ExtOrders(config.ConnectionString, strOrderStart, orders_fromsite.Where(i => i.OrderStatusID != 7 && i.InvoiceNumber>= nLastInvoice).ToList());  // Adds and updates orders from external site
 
             return syncedOrders.Where(I => I.shipcomplete.ToLower() == "pending" && I.order_status == 1).ToList();
 
@@ -146,11 +144,10 @@ namespace AutoCarOperations.DAL
         /// <param name="connectionString"></param>
         /// <param name="strOrderStart"></param>
         /// <param name="orders_fromsite"></param>
-        /// <param name="submitAmazonStatus"></param>
         /// <returns></returns>
-        public static List<orders> Map_n_Add_ExtOrders(string connectionString, string strOrderStart, List<Order> orders_fromsite, Func<string, string> submitAmazonStatus = null)
+        public static List<orders> Map_n_Add_ExtOrders(string connectionString, string strOrderStart, List<Order> orders_fromsite)
         {
-            var mappedOrders = MapOrders(orders_fromsite, connectionString, submitAmazonStatus);
+            var mappedOrders = MapOrders(orders_fromsite, connectionString);
             Console.WriteLine(string.Format("  Total {0} orders to be Added or Updated", mappedOrders.Count));
             using (var context = new AutoCareDataContext(connectionString))
             {
@@ -337,9 +334,8 @@ namespace AutoCarOperations.DAL
         /// </summary>
         /// <param name="ordersToMap"></param>
         /// <param name="connectionString"></param>
-        /// <param name="submitAmazonStatus"></param>
         /// <returns></returns>
-        public static List<orders> MapOrders(List<Order> ordersToMap, string connectionString, Func<string, string> submitAmazonStatus = null)
+        public static List<orders> MapOrders(List<Order> ordersToMap, string connectionString)
         {
             List<orders> mappedOrders = new List<orders>();
             foreach (var order in ordersToMap)
@@ -465,15 +461,6 @@ namespace AutoCarOperations.DAL
                         order_items = GetOrderItems(order.OrderID, order.OrderItemList),
                         order_shipments = GetOrderShipments(order.OrderID, order.ShipmentList)
                     };
-                }
-                else
-                {
-                    if (submitAmazonStatus != null)
-                    {
-                        var status = submitAmazonStatus(order.PONo);
-                        UpdateStatus(connectionString, new List<orders>{ thisLocalOrder }, status);
-                    }
-                    // Amazon order. Need to check if order has shipped / cancelled etc. 
                 }
                 // SM: check for shipment status in detailed records
                 if (order.OrderStatusID == 5)  // cancelled
@@ -1075,7 +1062,7 @@ namespace AutoCarOperations.DAL
                     context.OrderItemDetails.Add(order_det);                  
                 }
                 // SM - get values back to calling fn
-                if (order_det.status == "Shipped")
+                if (order_det != null && order_det.status == "Shipped")
                 {
                     totalItemsShipped++;
                     if (order_det.ship_date > lastShipDate)
