@@ -61,7 +61,7 @@ namespace AmazonApp.Helper
                         myString.AppendLine($"<FulfillmentLatency>{m.HandlingTime}</FulfillmentLatency>");
                         break;
                     default:
-                        myString.AppendLine($"<StandardPrice currency=\"USD\">{m.SalePrice}</StandardPrice>");
+                        myString.AppendLine($"<StandardPrice currency=\"USD\">{m.SalePrice:N2}</StandardPrice>");
                         break;
                 }
                 myString.AppendLine($"</{type}>");

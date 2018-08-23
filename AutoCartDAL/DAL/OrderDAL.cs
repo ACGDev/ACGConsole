@@ -814,8 +814,8 @@ namespace AutoCarOperations.DAL
                 if (order.shipemail.EndsWith("AutoCareGuys.com"))
                     shipEmail = "";
 
-                // Ship_Phone,Ship_Email,Ship_Service,CK_SKU  *** Jul 26, 18: took out CDC WC: || o.Product.mfgid.StartsWith("CDC")
-                if (o.Product.mfgid.StartsWith("CSS") )
+                // Ship_Phone,Ship_Email,Ship_Service,CK_SKU  *** Aug 20, 18: reinstated CDC with WC: 
+                if (o.Product.mfgid.StartsWith("CSS") || o.Product.mfgid.StartsWith("CDC") )
                     oText += $",{TrimTolength(order.shipphone, 15)},{shipEmail},WC,";
                 else
                     oText += $",{TrimTolength(order.shipphone, 15)},{shipEmail},R02,";

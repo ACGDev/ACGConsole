@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Entity.Migrations;
+using System.Globalization;
 using System.Linq;
+using System.Security.Policy;
 using System.Text;
 using System.Threading.Tasks;
 using AutoCarOperations.Model;
@@ -25,16 +27,53 @@ namespace AutoCarOperations.DAL
             }
         }
 
-        public static List<FeedModel> GetFeedModel(string connectionString)
+        public static List<FeedModel> GetASINforUpdateFeed(string connectionString, string feedType)
         {
+            string strUpdateFilter = "";
+            if (feedType == "Inventory")
+                strUpdateFilter = "a.UpdateInventoryOrHandling=1";
+            else
+                strUpdateFilter = "a.UpdatePrice=1";
+
+            var sqlQuery =
+                $@"select ASIN,HandlingTime,a.SalePrice,InventoryQty,b.SKU_UPC SKU from Channel_Sales_Helper a 
+                    join CK_ASINS b on a.ProductPriceCat = b.ProductPriceCat 
+                    where a.ASIN = '' and b.ActiveInAmazon = 1 and {strUpdateFilter} 
+                  Union
+                    select ASIN,HandlingTime,a.SalePrice,InventoryQty,b.SKU_UPC SKU from Channel_Sales_Helper a 
+                      join CK_ASINS b on a.ASIN = b.asin_no 
+                      where a.ASIN <> ''  and b.ActiveInAmazon = 1 and {strUpdateFilter} ";
+
             using (var context = new AutoCareDataContext(connectionString))
             {
-                List<FeedModel> li = context.Database.SqlQuery<FeedModel>(
-                    @"select ASIN,HandlingTime,a.SalePrice,InventoryQty,New_SKU SKU from Channel_Sales_Helper a 
-                      join CK_ASINS b on a.ProductPriceCat=b.ProductPriceCat and a.ASIN = b.asin_no 
-                      where  a.ASIN <> '' and a.`UpdateInventoryOrHandling`=1;").ToList();
+                List<FeedModel> li = context.Database.SqlQuery<FeedModel>(sqlQuery).ToList();
 
                 return li;
+            }
+        }
+        public static void UpdateProductAfterAmazonFeed(string connStr, List<FeedModel> liFeed, string feedType)
+        {
+            //*** Cannot handle global updates with ProductPriceCat only specificaton- need to do this manually now
+            StringBuilder sb = new StringBuilder("");
+            string timeNow = DateTime.Now.ToString("YYYY-mm-dd hh:mm");
+            foreach (FeedModel objFeed in liFeed)
+            {
+                if (feedType == "Price")
+                {
+                    sb.AppendFormat("update Channel_Sales_Helper set UpdatePrice=0 where ASIN ='{0}';", objFeed.ASIN);
+                    sb.AppendFormat("update CK_ASINS set SalePrice={0}, AmazonUpdateDate='{1}' where ASIN_no='{0}';", objFeed.SalePrice, timeNow, objFeed.ASIN);
+                }
+                else if (feedType == "Inventory")
+                {
+                    sb.AppendFormat("update Channel_Sales_Helper set `UpdateInventoryOrHandling`=0 where ASIN ='{0}';", objFeed.ASIN);
+                    sb.AppendFormat("update CK_ASINS set  AmazonUpdateDate='{0}' where ASIN_no='{1}';",timeNow, objFeed.ASIN);
+                }
+            }
+            
+            using (var context = new AutoCareDataContext(connStr))
+            {
+                context.Database.ExecuteSqlCommand(sb.ToString());
+                context.SaveChanges();
             }
         }
         public static void UpdateProduct(ConfigurationData config, int qbId, string sku)
