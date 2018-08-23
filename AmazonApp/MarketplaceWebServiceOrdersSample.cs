@@ -33,15 +33,19 @@ namespace AmazonApp
             this.client = client;
         }
         //I've changes the implementation according to the requirement
-        public ListOrdersResponse InvokeListOrders()
+        public ListOrdersResponse InvokeListOrders(bool getAllUnshipped = false)
         {
             // Create a request.
             ListOrdersRequest request = new ListOrdersRequest();
             string sellerId = ConfigurationHelper.SellerId;
             request.SellerId = sellerId;
             string mwsAuthToken = ConfigurationHelper.MWSToken;
-            request.MWSAuthToken = mwsAuthToken;        
+            request.MWSAuthToken = mwsAuthToken;
             DateTime createdAfter = DateTime.Now.AddDays(-1); // ** Sam: should be last 48 hours really
+            if (getAllUnshipped)
+            {
+                createdAfter = DateTime.Now.AddDays(-45);
+            }
             request.CreatedAfter = createdAfter;
             //DateTime createdBefore = DateTime.Now.AddDays(-1);
             //request.CreatedBefore = createdBefore;
@@ -49,7 +53,7 @@ namespace AmazonApp
             //request.LastUpdatedAfter = lastUpdatedAfter;
             //DateTime lastUpdatedBefore = new DateTime();
             //request.LastUpdatedBefore = lastUpdatedBefore;
-            
+
             request.OrderStatus = new List<string>{"Unshipped", "PartiallyShipped"}  ; 
             List<string> marketplaceId = new List<string>();
             marketplaceId.Add(ConfigurationHelper.MarketId1);

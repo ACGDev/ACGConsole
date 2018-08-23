@@ -33,7 +33,7 @@ namespace _3dCartImportConsole
         public static int numDaysToSync = 20;
         static void Main(string[] args)
         {
-            var SegmentToProcess = string.Empty;  // 1: Import JFW orders, 2: PlaceOrder, 3: UpdateOrderStatus from CK API, ALL: All
+            var SegmentToProcess = "3";  // 1: Import JFW orders, 2: PlaceOrder, 3: UpdateOrderStatus from CK API, ALL: All
             if (args.Length > 0)
             {
                 SegmentToProcess = args[0];
@@ -228,9 +228,9 @@ namespace _3dCartImportConsole
                 var manualAmazonOrderStatus = GetAmazonOrdersStatusFromExcel();
 
                 Log.Info("\r\n*** Fetching CK Order Status, Update JFW tracking and send Shipping Emails");
-                var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.order_status == 1 || ord.shipcomplete != "Shipped");
+                //var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.order_status == 1 || ord.shipcomplete != "Shipped");
                 // var orders = OrderDAL.FetchOrders(configData.ConnectionString, ord => ord.orderdate >= DateTime.Parse("10/01/2017") && (ord.order_status ==1 || ord.order_status == 4) );
-
+                var orders = OrderDAL.FetchOrders(configData.ConnectionString, I => I.orderno == "ACGA-172095");
                 Log.Info(String.Format("\r\n*** Number of Open Orders {0} ", orders.Count));
 
                 // SM: Read Changed_ACGOrderNo.txt for substituted order numbers in CK
@@ -256,7 +256,7 @@ namespace _3dCartImportConsole
 
                 Order_StatusSoapClient client = new Order_StatusSoapClient();
                 Orders_response Response = new Orders_response();
-                List<KeyValuePair<DateTime, Parts>> amazonPartList = new List<KeyValuePair<DateTime, Parts>>();
+                List<AmazonExcel> amazonPartList = new List<AmazonExcel>();
                 List<Parts> partList = new List<Parts>();
                 List<orders> shippedOrderList = new List<orders>();
                 List<Parts> jfwShippedList = new List<Parts>();
@@ -306,14 +306,30 @@ namespace _3dCartImportConsole
                                     //SM: Ignore cancelled status from CK API. This may be because the order was temporarily cancelled.
                                     if (partStatus.Status.ToLower() != "cancelled")
                                     {
-                                        var shippedDate = SetPartStatus(partStatus, manualAmazonOrderStatus, o.po_no);
-                                        //todo: map o.pono with amazonorderno, if exists then add into amazonPartList
-                                        //todo: if shipping_agent_used is WC then look in excel data
-                                        if (amazonOrders.Any() && amazonOrders.Exists(I => I.AmazonOrderId == o.po_no))
+                                        var shippedResult = SetPartStatus(partStatus, manualAmazonOrderStatus, o.po_no);
+                                        if (amazonOrders.Any())
                                         {
-                                            if (partStatus.Status.ToLower() != "shipped")
+                                            var amazonOrder =
+                                                amazonOrders.FirstOrDefault(I => I.AmazonOrderId == o.po_no);
+                                            if (amazonOrder != null && partStatus.Status.ToLower() == "shipped")
                                             {
-                                                amazonPartList.Add(new KeyValuePair<DateTime, Parts>(shippedDate, partStatus));
+                                                if (shippedResult == null)
+                                                {
+                                                    shippedResult = new AmazonExcel
+                                                    {
+                                                        StatusDate = DateTime.Now,
+                                                        AmazonOrder = o.po_no,
+                                                        ShipAgent = partStatus.Shipping_agent_used,
+                                                        ShipService = partStatus.Shipping_agent_service_used,
+                                                        TrackingNo = partStatus.Package_No
+                                                    };
+                                                    shippedResult.AmazonOrderItems = new List<KeyValuePair<string, decimal>>();
+                                                    foreach (var res in amazonOrder.OrderItem)
+                                                    {
+                                                        shippedResult.AmazonOrderItems.Add(new KeyValuePair<string, decimal>(res.OrderItemId, res.QuantityOrdered));
+                                                    }
+                                                }
+                                                amazonPartList.Add(shippedResult);
                                             }
                                         }
 
@@ -424,7 +440,7 @@ namespace _3dCartImportConsole
                 }
                 if (amazonPartList.Count > 0)
                 {
-                    
+                    SubmitAmazonFeed(configData, amazonPartList);
                 }
                 List<orders> orderwithdetails = null;
                 //Send Email to users
@@ -583,27 +599,78 @@ namespace _3dCartImportConsole
             //DeleteAllFile(coverKingTrackingPath + "/Tracking");
             #endregion
         }
-
-        private static DateTime SetPartStatus(Parts partStatus, List<AmazonExcel> manualAmazonOrderStatus, string poNo)
+        #region AMAZON
+        private static AmazonExcel SetPartStatus(Parts partStatus, List<AmazonExcel> manualAmazonOrderStatus, string poNo)
         {
-            DateTime now = DateTime.Now;
             if (partStatus.Shipping_agent_used == "WC")
             {
-                var manualEntryData =
-                    manualAmazonOrderStatus.FirstOrDefault(
-                        I => I.AmazonOrder == poNo);
-                if (manualEntryData != null)
+                var result = manualAmazonOrderStatus.FirstOrDefault(
+                    I => I.AmazonOrder == poNo);
+                if (result != null)
                 {
-                    partStatus.Shipping_agent_used = manualEntryData.ShipAgent;
+                    partStatus.Shipping_agent_used = result.ShipAgent;
                     partStatus.Shipping_agent_service_used =
-                        manualEntryData.ShipService;
-                    partStatus.Package_No = manualEntryData.TrackingNo;
-                    now = manualEntryData.StatusDate ?? DateTime.Now;
+                        result.ShipService;
+                    partStatus.Package_No = result.TrackingNo;
+                    partStatus.Status = "Shipped";
+                    return result;
                 }
             }
-            return now;
+            return null;
         }
 
+        private static void SubmitAmazonFeed(ConfigurationData config, List<AmazonExcel> amazonOrders)
+        {
+            List<Dictionary<string, object>> liDict = new List<Dictionary<string, object>>();
+            foreach (var amazon in amazonOrders)
+            {
+                if (amazon.ShipService == "R02")
+                {
+                    amazon.ShipService = "Ground";
+                    amazon.ShipAgent = "FedEx";
+                }
+                foreach (var item in amazon.AmazonOrderItems)
+                {
+                    liDict.Add(new Dictionary<string, object>()
+                    {
+                        {"AmazonOrderId", amazon.AmazonOrder },
+                        {"ShippedDate", amazon.StatusDate ?? DateTime.Now },
+                        {"CarrierCode", amazon.ShipAgent },
+                        {"ShippingMethod", amazon.ShipService },
+                        {"TrackingNo", amazon.TrackingNo },
+                        {"AmazonOrderItemCode", item.Key },
+                        {"Quantity", item.Value }
+                    });
+                }
+            }
+            var config2 = new MarketplaceWebServiceConfig();
+            // Set configuration to use US marketplace
+            config2.ServiceURL = config.ServiceURL;
+            // Set the HTTP Header for user agent for the application.
+            config2.SetUserAgentHeader(
+                config.AppName,
+                config.Version,
+                "C#");
+
+            var amazonClient = new MarketplaceWebServiceClient(config.AccessKey,
+                config.SecretKey,
+                config2);
+
+            SubmitFeedRequest request = new SubmitFeedRequest
+            {
+                Merchant = config.SellerId,
+                FeedContent = FeedRequestXML.GenerateOrderFulfillmentFeed(config.SellerId, liDict)
+            };
+            // Calculating the MD5 hash value exhausts the stream, and therefore we must either reset the
+            // position, or create another stream for the calculation.
+            request.ContentMD5 = MarketplaceWebServiceClient.CalculateContentMD5(request.FeedContent);
+            request.FeedContent.Position = 0;
+
+            request.FeedType = "_POST_ORDER_FULFILLMENT_DATA_";
+
+            var subResp = FeedSample.InvokeSubmitFeed(amazonClient, request);
+            request.FeedContent.Close();
+        }
         class AmazonExcel
         {
             public DateTime OrderDate { get; set; }
@@ -616,6 +683,7 @@ namespace _3dCartImportConsole
             public string UpdateAmazon { get; set; }
             public DateTime? ShipBy { get; set; }
             public DateTime? StatusDate { get; set; }
+            public List<KeyValuePair<string, decimal>> AmazonOrderItems { get; set; }
         }
         private static List<AmazonExcel> GetAmazonOrdersStatusFromExcel()
         {
@@ -643,7 +711,7 @@ namespace _3dCartImportConsole
                             CKOrderNo = Convert.ToString(reader[6]),
                             ShipAgent = Convert.ToString(reader[7]),
                             ShipService = Convert.ToString(reader[8]),
-                            TrackingNo = Convert.ToString(reader[9]),
+                            TrackingNo = Convert.ToString(reader[9]).TrimStart('\''),
                             StatusDate = reader[10] != DBNull.Value ? Convert.ToDateTime(reader["Status Date"]) : (DateTime?)null,
                             UpdateAmazon = Convert.ToString(reader[11])
                         });
@@ -663,9 +731,15 @@ namespace _3dCartImportConsole
             MarketplaceWebServiceOrders amazonClient = new MarketplaceWebServiceOrdersClient(configData.AccessKey,
                 configData.SecretKey, configData.AppName, configData.Version, config);
             MarketplaceWebServiceOrdersSample amazonOrders = new MarketplaceWebServiceOrdersSample(amazonClient);
-            var amazonResponse = amazonOrders.InvokeListOrders();
+            var amazonResponse = amazonOrders.InvokeListOrders(true);
+            foreach (var order in amazonResponse.ListOrdersResult.Orders)
+            {
+                var orderItemResponse = amazonOrders.InvokeListOrderItems(order.AmazonOrderId);
+                order.OrderItem = orderItemResponse.ListOrderItemsResult.OrderItems;
+            }
             return amazonResponse.ListOrdersResult.Orders;
         }
+        #endregion
 
         static List<List<TempCKVariant>> GetDataTableFromCsv(string path, bool isFirstRowHeader)
         {
