@@ -5,7 +5,7 @@ using AutoCarOperations.Model;
 namespace AutoCarOperations.DAL
 {
     [DbConfigurationType(typeof(MySql.Data.Entity.MySqlEFConfiguration))]
-    internal class AutoCareDataContext : DbContext
+    public class AutoCareDataContext : DbContext
     {
         public AutoCareDataContext(string connectionString)
             : base(connectionString)

@@ -34,7 +34,7 @@ namespace AmazonApp
             MarketplaceWebServiceOrders client = new MarketplaceWebServiceOrdersClient(ConfigurationHelper.AccessKey, ConfigurationHelper.SecretKey, ConfigurationHelper.AppName, ConfigurationHelper.Version, config);
             MarketplaceWebServiceOrdersSample amazonOrders = new MarketplaceWebServiceOrdersSample(client);
 
-            CreateProduct();
+            UpdateAmazonData();
 
             // Setup the orders service client
             try
@@ -74,12 +74,12 @@ namespace AmazonApp
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error occurred "+ex.Message);
-                Console.ReadKey();
+                Console.WriteLine("Error occurred "+ex.Message); 
+               Console.ReadKey();
             }
         }
 
-        private static void CreateProduct()
+        private static void UpdateAmazonData()
         {
             var config2 = new MarketplaceWebServiceConfig();
             // Set configuration to use US marketplace
@@ -93,15 +93,16 @@ namespace AmazonApp
             var amazonClient = new MarketplaceWebServiceClient(ConfigurationHelper.AccessKey,
                 ConfigurationHelper.SecretKey,
                 config2);
+
+            //{"Product", "_POST_PRODUCT_DATA_"},
             Dictionary<string, string> types = new Dictionary<string, string>
             {
-                {"Product", "_POST_PRODUCT_DATA_"},
                 {"Price", "_POST_PRODUCT_PRICING_DATA_"},
                 {"Inventory", "_POST_INVENTORY_AVAILABILITY_DATA_"},
             };
             foreach (var type in types)
             {
-                var liObj = ProductDAL.GetFeedModel(ConfigurationHelper.ConnectionString);
+                var liObj = ProductDAL.GetASINforUpdateFeed(ConfigurationHelper.ConnectionString, type.Key);
                 SendAmazonFeed(type, liObj);
             }
         }
@@ -138,37 +139,48 @@ namespace AmazonApp
             {
                 Merchant = ConfigurationHelper.SellerId,
                 FeedSubmissionId = subResp.SubmitFeedResult.FeedSubmissionInfo.FeedSubmissionId,//"50148017726",
-                FeedSubmissionResult = File.Open("feedSubmissionResult1.xml", FileMode.OpenOrCreate,
-                    FileAccess.ReadWrite)
+                FeedSubmissionResult = File.Create("feedSubmissionResult1.xml")
             };
             Thread.Sleep(10000);
             //need to handle error else the loop will be infinite
             while (true)
             {
-                var getResultResp = FeedSample.InvokeGetFeedSubmissionResult(amazonClient, feedReq);
+                GetFeedSubmissionResultResponse getResultResp = null;
+                
+                getResultResp = FeedSample.InvokeGetFeedSubmissionResult(amazonClient, feedReq);
+                
                 if (getResultResp != null)
                 {
-                    using (var stream = feedReq.FeedSubmissionResult)
-                    {
-                        XDocument doc = XDocument.Parse(stream.ReadToEnd()); //or XDocument.Load(path)
-                        string jsonText = JsonConvert.SerializeXNode(doc);
-                        dynamic dyn = JsonConvert.DeserializeObject<ExpandoObject>(jsonText);
-                        dynamic processingSummary = dyn.AmazonEnvelope.Message.ProcessingReport.ProcessingSummary;
-                        if (processingSummary.MessagesProcessed == processingSummary.MessagesSuccessful)
+
+                    //using (var op = File.Open("feedSubmissionResult1.xml", FileMode.Open))
+                    //{
+                        using (var stream = feedReq.FeedSubmissionResult)
                         {
-                            break;
+                            XDocument doc = XDocument.Parse(stream.ReadToEnd()); //or XDocument.Load(path)
+                            string jsonText = JsonConvert.SerializeXNode(doc);
+                            dynamic dyn = JsonConvert.DeserializeObject<ExpandoObject>(jsonText);
+                            dynamic processingSummary = dyn.AmazonEnvelope.Message.ProcessingReport.ProcessingSummary;
+                            if (processingSummary.MessagesProcessed == processingSummary.MessagesSuccessful)
+                            {
+                                ProductDAL.UpdateProductAfterAmazonFeed(ConfigurationHelper.ConnectionString, liObj, type.Key);
+                                break;
+                            }
+                            else
+                            {
+                                //send email with failed sku info - need to handle this
+                                Console.WriteLine("\n*** Feed Submission failed. Error: {0} ", jsonText);
+                            }
                         }
-                        else
-                        {
-                            //send email with failed sku info
-                            Console.WriteLine("\n*** Feed Submission failed. Error: {0} ", jsonText);
-                        }
-                    }
+                    //}
                 }
+                feedReq.FeedSubmissionResult.Close();
+                File.Delete("feedSubmissionResult1.xml");
+                feedReq.FeedSubmissionResult = File.Create("feedSubmissionResult1.xml");
+                Thread.Sleep(10000);
             }
             File.Delete("feedSubmissionResult1.xml");
-            
         }
+
         public static long CreateCustomer(Order order)
         {
             //check if customer already exist
