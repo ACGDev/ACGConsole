@@ -34,7 +34,13 @@ namespace AmazonApp
             MarketplaceWebServiceOrders client = new MarketplaceWebServiceOrdersClient(ConfigurationHelper.AccessKey, ConfigurationHelper.SecretKey, ConfigurationHelper.AppName, ConfigurationHelper.Version, config);
             MarketplaceWebServiceOrdersSample amazonOrders = new MarketplaceWebServiceOrdersSample(client);
 
-            UpdateAmazonData();
+            // AddAmazonASIN();
+
+            // UpdateAmazonPricingData();
+
+           // UpdateAmazonInventoryData();
+
+           // return;
 
             // Setup the orders service client
             try
@@ -79,20 +85,124 @@ namespace AmazonApp
             }
         }
 
-        private static void UpdateAmazonData()
+        private static void AddAmazonASIN()
         {
-            Dictionary<string, string> types = new Dictionary<string, string>
+            /* All qualified records are inserted in temporary table Channel_Sales_Helper_Details
+             * If the previous set of update was not complete, it does not allow the update to go forward
+             * This allow for updates in several stages.
+             * only first 100 records are used every time.
+             * */
+
+            KeyValuePair<string, string> type = new KeyValuePair<string, string>("Product", "_POST_PRODUCT_DATA_");
+
+            int nTotalAsins = 0;
+
+            while (true)
             {
-                {"Price", "_POST_PRODUCT_PRICING_DATA_"},
-                {"Inventory", "_POST_INVENTORY_AVAILABILITY_DATA_"},
-            };
-            foreach (var type in types)
-            {
-                var liObj = ProductDAL.GetASINforUpdateFeed(ConfigurationHelper.ConnectionString, type.Key);
+                Console.WriteLine("\n\n** New Cycle: Collecting data for Feed at {0}", DateTime.Now);
+                var liObj = ProductDAL.GetASINForAmazonFeed(ConfigurationHelper.ConnectionString, type.Key, ref nTotalAsins);
+                if (liObj.Count == 0)
+                {
+                    ProductDAL.UpdateProductAfterAmazonFeed(ConfigurationHelper.ConnectionString, liObj, type.Key);
+                    break;
+                }
+
+                Console.WriteLine("\n\nSending feed for {0} ASINs out of total {1}", liObj.Count, nTotalAsins);
+
                 SendAmazonFeed(type, liObj);
+
+                if (nTotalAsins <= liObj.Count)
+                {
+                    ProductDAL.UpdateProductAfterAmazonFeed(ConfigurationHelper.ConnectionString, liObj, type.Key, nTotalAsins);
+                    break;
+                }
+                Console.WriteLine("Going to sleep for 1 min at {0}", DateTime.Now);
+                Thread.Sleep(60000);
             }
         }
-        private static void SendAmazonFeed(KeyValuePair<string, string> type, List<FeedModel> liObj)
+        private static void UpdateAmazonInventoryData()
+        {
+        /* Change in logic - All qualified records are inserted in temporary table Channel_Sales_Helper_Details
+         * If the previous set of update was not complete, it does not allow the update to go forward
+         * This allow for updates in several stages.
+         * */
+
+
+        //Dictionary<string, string> types = new Dictionary<string, string>
+        //{
+        //    {"Price", "_POST_PRODUCT_PRICING_DATA_"},
+        //    {"Inventory", "_POST_INVENTORY_AVAILABILITY_DATA_"},
+        //};
+
+        // Update Price
+        //KeyValuePair<string, string> type = new KeyValuePair<string, string>("Price", "_POST_PRODUCT_PRICING_DATA_");
+        //var liObj = ProductDAL.GetASINForAmazonFeed(ConfigurationHelper.ConnectionString, type.Key);
+        //SendAmazonFeed(type, liObj);
+        //return;
+
+            int nTotalAsins = 0;
+            KeyValuePair<string, string> type =
+                new KeyValuePair<string, string>("Inventory", "_POST_INVENTORY_AVAILABILITY_DATA_");
+            while (true)
+            {
+                Console.WriteLine("\n\n** New Cycle: Collecting data for Feed at {0}", DateTime.Now);
+                var liObj = ProductDAL.GetASINForAmazonFeed(ConfigurationHelper.ConnectionString, type.Key, ref nTotalAsins);
+                if (liObj.Count == 0)
+                {
+                    ProductDAL.UpdateProductAfterAmazonFeed(ConfigurationHelper.ConnectionString, liObj, type.Key);
+                    break;
+                }
+                    
+                Console.WriteLine("\n\nSending feed for {0} ASINs out of total {1}", liObj.Count, nTotalAsins);
+
+                SendAmazonFeed(type, liObj);
+                if (nTotalAsins <= liObj.Count)
+                {
+                    ProductDAL.UpdateProductAfterAmazonFeed(ConfigurationHelper.ConnectionString, liObj, type.Key, nTotalAsins);
+                    break;
+                }
+                Console.WriteLine("Going to sleep for 30 sec at {0}", DateTime.Now);
+                Thread.Sleep(30000);
+            }
+
+            // Need to set the flags to 0 and update channel_sales_helper table as well as CK_ASINS table
+            
+        }
+        private static void UpdateAmazonPricingData()
+        {
+            /* Change in logic - All qualified records are inserted in temporary table Channel_Sales_Helper_Details
+             * If the previous set of update was not complete, it does not allow the update to go forward
+             * This allow for updates in several stages.
+             * */
+
+            int nTotalAsins = 0;
+            KeyValuePair<string, string> type =
+                new KeyValuePair<string, string>("Price", "_POST_PRODUCT_PRICING_DATA_");
+            while (true)
+            {
+                Console.WriteLine("\n\n** New Cycle: Collecting data for Feed at {0}", DateTime.Now);
+                var liObj = ProductDAL.GetASINForAmazonFeed(ConfigurationHelper.ConnectionString, type.Key, ref nTotalAsins);
+                if (liObj.Count == 0 )
+                {
+                    ProductDAL.UpdateProductAfterAmazonFeed(ConfigurationHelper.ConnectionString, liObj, type.Key, nTotalAsins);
+                    break;
+                }
+                Console.WriteLine("\n\nSending feed for {0} ASINs out of total {1}", liObj.Count, nTotalAsins);
+
+                SendAmazonFeed(type, liObj);
+                if (nTotalAsins <= liObj.Count)
+                {
+                    ProductDAL.UpdateProductAfterAmazonFeed(ConfigurationHelper.ConnectionString, liObj, type.Key, nTotalAsins);
+                    break;
+                }
+                Console.WriteLine("Going to sleep for 30 sec at {0}", DateTime.Now);
+                Thread.Sleep(30000);
+            }
+
+            // Need to set the flags to 0 and update channel_sales_helper table as well as CK_ASINS table
+
+        }
+        private static bool SendAmazonFeed(KeyValuePair<string, string> type, List<FeedModel> liObj)
         {
             var config2 = new MarketplaceWebServiceConfig();
             // Set configuration to use US marketplace
@@ -128,6 +238,7 @@ namespace AmazonApp
                 FeedSubmissionResult = File.Create("feedSubmissionResult1.xml")
             };
             Thread.Sleep(10000);
+            bool bRet = false;
             //need to handle error else the loop will be infinite
             while (true)
             {
@@ -144,17 +255,20 @@ namespace AmazonApp
                         {
                             XDocument doc = XDocument.Parse(stream.ReadToEnd()); //or XDocument.Load(path)
                             string jsonText = JsonConvert.SerializeXNode(doc);
+                            Console.WriteLine("\n*** Got Response: {0} ", jsonText);
                             dynamic dyn = JsonConvert.DeserializeObject<ExpandoObject>(jsonText);
                             dynamic processingSummary = dyn.AmazonEnvelope.Message.ProcessingReport.ProcessingSummary;
                             if (processingSummary.MessagesProcessed == processingSummary.MessagesSuccessful)
                             {
                                 ProductDAL.UpdateProductAfterAmazonFeed(ConfigurationHelper.ConnectionString, liObj, type.Key);
+                                bRet = true;
                                 break;
                             }
                             else
                             {
                                 //send email with failed sku info - need to handle this
                                 Console.WriteLine("\n*** Feed Submission failed. Error: {0} ", jsonText);
+                                bRet = false;
                             }
                         }
                     //}
@@ -162,9 +276,11 @@ namespace AmazonApp
                 feedReq.FeedSubmissionResult.Close();
                 File.Delete("feedSubmissionResult1.xml");
                 feedReq.FeedSubmissionResult = File.Create("feedSubmissionResult1.xml");
-                Thread.Sleep(10000);
+                Console.WriteLine("Going to sleep for 1 min at {0}",DateTime.Now);
+                Thread.Sleep(60000);
             }
             File.Delete("feedSubmissionResult1.xml");
+            return bRet;
         }
 
         public static long CreateCustomer(Order order)
@@ -246,11 +362,11 @@ namespace AmazonApp
                 BillingAddress = order.ShippingAddress.AddressLine1,
                 BillingAddress2 = (order.ShippingAddress.IsSetAddressLine2()
                     ? order.ShippingAddress.AddressLine2
-                    : "") + (order.ShippingAddress.IsSetAddressLine3() ? order.ShippingAddress.AddressLine3 :""),
+                    : "") + (order.ShippingAddress.IsSetAddressLine3() ? order.ShippingAddress.AddressLine3 : ""),
                 BillingCity = order.ShippingAddress.City,
                 BillingCountry = order.ShippingAddress.CountryCode,
                 BillingFirstName = nameSplit[0],
-                BillingLastName = string.Join(" ", nameSplit.Except(new []{nameSplit[0]})),
+                BillingLastName = string.Join(" ", nameSplit.Except(new[] { nameSplit[0] })),
                 BillingEmail = order.BuyerEmail,
                 BillingPhoneNumber = order.ShippingAddress.Phone == null ? "111-111-1111" : order.ShippingAddress.Phone,
                 BillingState = order.ShippingAddress.StateOrRegion,
@@ -309,7 +425,7 @@ namespace AmazonApp
                 // OR - simply map ASIN with our ASIN table and get the part no.
                 var orderItem = ProductDAL.FindOrderFromASIN(ConfigurationHelper.ConnectionString, item.ASIN, item.SellerSKU);
                 if (orderItem == null || orderItem.catalogid == null
-                    || orderItem.ItemId == null )
+                    || orderItem.ItemId == null)
                 {
                     MandrillMail.SendEmail(ConfigurationHelper.MandrilAPIKey, "Order Has to be processed manually. ",
                         "Order Has to be processed manually. OrderItem ASIN information is null. The order no is:" + order.AmazonOrderId,
@@ -335,17 +451,17 @@ namespace AmazonApp
                     //Order_Items Table : Add extra field additionalField4 >
                     //ResourceCode and Message
                 });
-                
+
             }
-            
-            
+
+
             var orderRes = RestHelper.AddRecord(acgOrder, "Orders", ConfigurationHelper.PrivateKey, ConfigurationHelper.Token,
                 ConfigurationHelper.Store);
             if (orderRes.Status == ACG.ActionStatus.Failed)
             {
                 MandrillMail.SendEmail(ConfigurationHelper.MandrilAPIKey, "Order Has to be processed manually",
-                    "Order Has to be processed manually. The order no is:" + order.AmazonOrderId+ Environment.NewLine +
-                    "Error: "+ orderRes.Description,
+                    "Order Has to be processed manually. The order no is:" + order.AmazonOrderId + Environment.NewLine +
+                    "Error: " + orderRes.Description,
                     "sales@autocareguys.com");
                 return null;
             }
@@ -354,7 +470,7 @@ namespace AmazonApp
             acgOrder.OrderID = orderId;
             var orderList = OrderDAL.Map_n_Add_ExtOrders(ConfigurationHelper.ConnectionString, "", new List<ACG.Order>() { acgOrder });
             // SAM: No need to sync orders - just place it to CK
-             
+
             var autoCarOpConfig = new AutoCarOperations.Model.ConfigurationData()
             {
                 ConnectionString = ConfigurationHelper.ConnectionString,
@@ -364,7 +480,7 @@ namespace AmazonApp
                 FTPUserName = ConfigurationHelper.FTPUserName,
                 FTPPassword = ConfigurationHelper.FTPPassword,
             };
-            if (order.OrderItem[0].ASIN == "B00JFEU78W" && order.OrderItem.Count==1)   // Avoid uploading Drawstring bag orders
+            if (order.OrderItem[0].ASIN == "B00JFEU78W" && order.OrderItem.Count == 1)   // Avoid uploading Drawstring bag orders
             {
                 Console.WriteLine(string.Format("Drawstring Bag, M4I98, ASIN B00JFEU78W - handle manually"));
             }
@@ -374,6 +490,17 @@ namespace AmazonApp
             }
             //mark the above orders as Submitted in local table
             OrderDAL.UpdateStatus(ConfigurationHelper.ConnectionString, orderList);
+
+            // Sep 5, 2018 - Write new order in AmazonOpenOrders.csv file
+            String currentAppPath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            String fileName = @"D:\test\ACG\ACGConsole_2018\3dCartImportConsole\bin\Debug\"+"AmazonOpenOrders.csv";
+            Console.WriteLine(String.Format("\r\n*** Appending new order to {0} ", fileName));
+            // CSV structure: Order Date,Amazon Order,Ship By,ASIN,Name,ACG Order,CK Order No,Status,Ship Agent,Ship Service,Tracking No,Status Date
+            DateTime dt = Convert.ToDateTime(acgOrder.OrderDate.ToString());
+            string strOrderLineforCSV = string.Format("{0},{1},{2},,{3} {4},{5}{6},,,,,,{7}",
+               dt.ToString("MM/dd/yyyy hh:mm"), acgOrder.PONo, order.LatestShipDate.ToString("MM/dd/yyyy hh:mm"), acgOrder.BillingFirstName, acgOrder.BillingLastName,
+                acgOrder.InvoiceNumberPrefix, acgOrder.InvoiceNumber, DateTime.Now.ToString("MM/dd/yyyy hh:mm"));
+            File.AppendAllText(fileName, strOrderLineforCSV + Environment.NewLine);
             return acgOrder;
         }
     }

@@ -41,7 +41,7 @@ namespace AmazonApp
             request.SellerId = sellerId;
             string mwsAuthToken = ConfigurationHelper.MWSToken;
             request.MWSAuthToken = mwsAuthToken;
-            DateTime createdAfter = DateTime.Now.AddDays(-1); // ** Sam: should be last 48 hours really
+            DateTime createdAfter = DateTime.Now.AddDays(-2); // ** Sam: should be last 48 hours really
             if (getAllUnshipped)
             {
                 createdAfter = DateTime.Now.AddDays(-45);
@@ -72,7 +72,18 @@ namespace AmazonApp
             //request.MaxResultsPerPage = maxResultsPerPage;
             //List<string> tfmShipmentStatus = new List<string>();
             //request.TFMShipmentStatus = tfmShipmentStatus;
-            return this.client.ListOrders(request);
+            try
+            {
+                ListOrdersResponse resp = this.client.ListOrders(request);
+                return resp;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                throw;
+            }
+            
+            
         }
         public ListOrderItemsResponse InvokeListOrderItems(string orderId)
         {

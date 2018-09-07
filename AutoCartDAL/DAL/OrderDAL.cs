@@ -113,7 +113,7 @@ namespace AutoCarOperations.DAL
         /// <param name="fetchDate"></param>
         /// <param name="numDaysToSync"></param>
         /// <returns></returns>
-        private static List<orders> SyncOrders(ConfigurationData config, bool fetchDate, int numDaysToSync = 20)
+        private static List<orders> SyncOrders(ConfigurationData config, bool fetchDate, int numDaysToSync = 50)
         {
             int nLastInvoice = 0;
             var strOrderStart = FetchLastOrderDate(config.ConnectionString, fetchDate, ref nLastInvoice, numDaysToSync);
@@ -507,7 +507,7 @@ namespace AutoCarOperations.DAL
                     MySqlCommand cmd = conn.CreateCommand();
                     // 4: Shipped, 5: Cancelled
                     cmd.CommandText =
-                        String.Format("select invoicenum from orders where order_status not in (4, 5) and orderdate<='{0}' order by invoicenum desc limit 1", strStartForAPI);
+                        String.Format("select invoicenum from orders where order_status not in (4, 5) and orderdate>='{0}' order by invoicenum limit 1", strStartForAPI);
                     //Command to get query needed value from DataBase
                     conn.Open();
                     MySqlDataReader reader = cmd.ExecuteReader();
@@ -963,7 +963,7 @@ namespace AutoCarOperations.DAL
         public static bool UpdateOrderDetail(string connectionString,
         string orderNo, string serialNo, string status, string shipAgent,
         string shipServiceCode, string trackingNo, string trackingLink, string mfgItemID, string variantID, int sequenceNo, 
-        ref int totalItemsShipped, ref DateTime? lastShipDate)
+        ref int totalItemsShipped, ref DateTime? lastShipDate, DateTime? ShipDateFromExcel)
         {
             bool orderStatusChanged = false;
             
@@ -972,6 +972,9 @@ namespace AutoCarOperations.DAL
                 // Update order details according to CK status
                 order_item_details order_det2 = context.OrderItemDetails.FirstOrDefault(I => I.order_no == orderNo && I.production_slno == serialNo);
                 order_item_details order_det = null;
+
+                if (ShipDateFromExcel == null)
+                    ShipDateFromExcel = DateTime.Now;
 
                 if (order_det2 == null || order_det2.status != status)
                 {
@@ -985,7 +988,7 @@ namespace AutoCarOperations.DAL
                         order_det =  JsonConvert.DeserializeObject<order_item_details>(JsonConvert.SerializeObject(order_det2));
                         order_det.production_slno = serialNo;
                         order_det.status = status;
-                        order_det.status_datetime = DateTime.Now;
+                        order_det.status_datetime = ShipDateFromExcel;
                         order_det.ship_agent = shipAgent;
                         order_det.ship_service_code = shipServiceCode;
                         order_det.tracking_no = trackingNo;
@@ -994,7 +997,7 @@ namespace AutoCarOperations.DAL
                         order_det.sku = mfgItemID.TrimEnd() + variantID.TrimEnd();
                         // SM: take care of Ship date
                         if (order_det.ship_date == null && status == "Shipped")
-                            order_det.ship_date = order_det.status_datetime;
+                            order_det.ship_date = ShipDateFromExcel;
 
                         context.OrderItemDetails.AddOrUpdate(order_det);                      
                     }
@@ -1010,7 +1013,7 @@ namespace AutoCarOperations.DAL
                     order_det = new order_item_details();
                     order_det.production_slno = serialNo;
                     order_det.status = status;
-                    order_det.status_datetime = DateTime.Now;
+                    order_det.status_datetime = ShipDateFromExcel;
                     order_det.ship_agent = shipAgent;
                     order_det.ship_service_code = shipServiceCode;
                     order_det.tracking_no = trackingNo;
@@ -1019,7 +1022,7 @@ namespace AutoCarOperations.DAL
                     order_det.sku = mfgItemID.TrimEnd() + variantID.TrimEnd();
                     order_det.order_no = orderNo;
                     if (status == "Shipped")
-                        order_det.ship_date = order_det.status_datetime;
+                        order_det.ship_date = ShipDateFromExcel;
 
                     order_det.sequence_no = sequenceNo;
                     // find order_item_id

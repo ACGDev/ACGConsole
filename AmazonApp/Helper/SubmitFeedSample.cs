@@ -32,11 +32,11 @@ namespace AmazonApp.Helper
                 {
                     Console.WriteLine("            GetFeedSubmissionResult");
                     GetFeedSubmissionResultResult getFeedSubmissionResultResult = response.GetFeedSubmissionResultResult;
-                    if (getFeedSubmissionResultResult.IsSetContentMD5())
-                    {
-                        Console.WriteLine("                ContentMD5");
-                        Console.WriteLine("                    {0}", getFeedSubmissionResultResult.ContentMD5);
-                    }
+                    //if (getFeedSubmissionResultResult.IsSetContentMD5())
+                    //{
+                    //    Console.WriteLine("                ContentMD5");
+                    //    Console.WriteLine("                    {0}", getFeedSubmissionResultResult.ContentMD5);
+                    //}
                 }
 
                 if (response.IsSetResponseMetadata())
@@ -50,24 +50,31 @@ namespace AmazonApp.Helper
                     }
                 }
 
-                Console.WriteLine("            ResponseHeaderMetadata");
-                Console.WriteLine("                RequestId");
-                Console.WriteLine("                    " + response.ResponseHeaderMetadata2.RequestId);
-                Console.WriteLine("                ResponseContext");
-                Console.WriteLine("                    " + response.ResponseHeaderMetadata2.ResponseContext);
-                Console.WriteLine("                Timestamp");
-                Console.WriteLine("                    " + response.ResponseHeaderMetadata2.Timestamp);
+                //Console.WriteLine("            ResponseHeaderMetadata");
+                //Console.WriteLine("                RequestId");
+                //Console.WriteLine("                    " + response.ResponseHeaderMetadata2.RequestId);
+                //Console.WriteLine("                ResponseContext");
+                //Console.WriteLine("                    " + response.ResponseHeaderMetadata2.ResponseContext);
+                //Console.WriteLine("                Timestamp");
+                //Console.WriteLine("                    " + response.ResponseHeaderMetadata2.Timestamp);
                 return response;
             }
             catch (MarketplaceWebServiceException ex)
             {
-                Console.WriteLine("Caught Exception: " + ex.Message);
-                Console.WriteLine("Response Status Code: " + ex.StatusCode);
-                Console.WriteLine("Error Code: " + ex.ErrorCode);
-                Console.WriteLine("Error Type: " + ex.ErrorType);
-                Console.WriteLine("Request ID: " + ex.RequestId);
-                Console.WriteLine("XML: " + ex.XML);
-                Console.WriteLine("ResponseHeaderMetadata: " + ex.ResponseHeaderMetadata);
+                if (ex.ErrorCode == "FeedProcessingResultNotReady")
+                {
+                    Console.WriteLine("{0} {1} ", ex.Message,DateTime.Now);
+                }
+                else
+                {
+                    Console.WriteLine("Caught Exception: " + ex.Message);
+                    Console.WriteLine("Response Status Code: " + ex.StatusCode);
+                    Console.WriteLine("Error Code: " + ex.ErrorCode);
+                    Console.WriteLine("Error Type: " + ex.ErrorType);
+                    Console.WriteLine("Request ID: " + ex.RequestId);
+                    Console.WriteLine("XML: " + ex.XML);
+                    Console.WriteLine("ResponseHeaderMetadata: " + ex.ResponseHeaderMetadata);
+                }
                 return null;
             }
         }
@@ -104,34 +111,27 @@ namespace AmazonApp.Helper
                         FeedSubmissionInfo feedSubmissionInfo = submitFeedResult.FeedSubmissionInfo;
                         if (feedSubmissionInfo.IsSetFeedSubmissionId())
                         {
-                            Console.WriteLine("                    FeedSubmissionId");
-                            Console.WriteLine("                        {0}", feedSubmissionInfo.FeedSubmissionId);
+                            Console.WriteLine("                FeedSubmissionId {0}", feedSubmissionInfo.FeedSubmissionId);         
                         }
                         if (feedSubmissionInfo.IsSetFeedType())
                         {
-                            Console.WriteLine("                    FeedType");
-                            Console.WriteLine("                        {0}", feedSubmissionInfo.FeedType);
+                            Console.WriteLine("                    FeedType  {0}", feedSubmissionInfo.FeedType);                  
                         }
                         if (feedSubmissionInfo.IsSetSubmittedDate())
                         {
-                            Console.WriteLine("                    SubmittedDate");
-                            Console.WriteLine("                        {0}", feedSubmissionInfo.SubmittedDate);
+                            Console.WriteLine("                    SubmittedDate {0}", feedSubmissionInfo.SubmittedDate);
                         }
                         if (feedSubmissionInfo.IsSetFeedProcessingStatus())
                         {
-                            Console.WriteLine("                    FeedProcessingStatus");
-                            Console.WriteLine("                        {0}", feedSubmissionInfo.FeedProcessingStatus);
+                            Console.WriteLine("                    FeedProcessingStatus {0}", feedSubmissionInfo.FeedProcessingStatus);               
                         }
                         if (feedSubmissionInfo.IsSetStartedProcessingDate())
                         {
-                            Console.WriteLine("                    StartedProcessingDate");
-                            Console.WriteLine("                        {0}", feedSubmissionInfo.StartedProcessingDate);
+                            Console.WriteLine("                    StartedProcessingDate {0}", feedSubmissionInfo.StartedProcessingDate);
                         }
                         if (feedSubmissionInfo.IsSetCompletedProcessingDate())
                         {
-                            Console.WriteLine("                    CompletedProcessingDate");
-                            Console.WriteLine("                        {0}",
-                                feedSubmissionInfo.CompletedProcessingDate);
+                            Console.WriteLine("                    CompletedProcessingDate {0}",feedSubmissionInfo.CompletedProcessingDate);
                         }
                     }
                 }
@@ -141,18 +141,14 @@ namespace AmazonApp.Helper
                     ResponseMetadata responseMetadata = response.ResponseMetadata;
                     if (responseMetadata.IsSetRequestId())
                     {
-                        Console.WriteLine("                RequestId");
-                        Console.WriteLine("                    {0}", responseMetadata.RequestId);
+                        Console.WriteLine("                RequestId {0}", responseMetadata.RequestId);             
                     }
                 }
 
                 Console.WriteLine("            ResponseHeaderMetadata");
-                Console.WriteLine("                RequestId");
-                Console.WriteLine("                    " + response.ResponseHeaderMetadata2.RequestId);
-                Console.WriteLine("                ResponseContext");
-                Console.WriteLine("                    " + response.ResponseHeaderMetadata2.ResponseContext);
-                Console.WriteLine("                Timestamp");
-                Console.WriteLine("                    " + response.ResponseHeaderMetadata2.Timestamp);
+                Console.WriteLine("                RequestId " + response.ResponseHeaderMetadata2.RequestId);
+                Console.WriteLine("                ResponseContext " + response.ResponseHeaderMetadata2.ResponseContext);
+                Console.WriteLine("                Timestamp " + response.ResponseHeaderMetadata2.Timestamp);
                 return response;
             }
             catch (MarketplaceWebServiceException ex)

@@ -10,6 +10,7 @@ using AutoCarOperations.Model;
 using DCartRestAPIClient;
 using Microsoft.JScript;
 using Convert = System.Convert;
+using MySql.Data.MySqlClient;
 
 namespace AutoCarOperations.DAL
 {
@@ -27,54 +28,160 @@ namespace AutoCarOperations.DAL
             }
         }
 
-        public static List<FeedModel> GetASINforUpdateFeed(string connectionString, string feedType)
+        public static List<FeedModel> GetASINForAmazonFeed(string connectionString, string feedType, ref int numTotalRecords) // ref long numTotalRecords
         {
-            string strUpdateFilter = "";
-            if (feedType == "Inventory")
-                strUpdateFilter = "a.UpdateInventoryOrHandling=1";
-            else
-                strUpdateFilter = "a.UpdatePrice=1";
+            /* First check Channel_Sales_Helper_Details to see if any record is left from previous update attempt. If so, take top 100 from there.
+             * If not, insert new set of values
+             * */
+            int numRecords = 5000;
+            //if (feedType == "Product")
+            //    numRecords = 5000;
 
-            var sqlQuery =
-                $@"select ASIN,HandlingTime,a.SalePrice,InventoryQty,b.SKU_UPC SKU from Channel_Sales_Helper a 
-                    join CK_ASINS b on a.ProductPriceCat = b.ProductPriceCat 
-                    where a.ASIN = '' and b.ActiveInAmazon = 1 and {strUpdateFilter} 
-                  Union
-                    select ASIN,HandlingTime,a.SalePrice,InventoryQty,b.SKU_UPC SKU from Channel_Sales_Helper a 
-                      join CK_ASINS b on a.ASIN = b.asin_no 
-                      where a.ASIN <> ''  and b.ActiveInAmazon = 1 and {strUpdateFilter} ";
+            string sqlQuery01 = string.Format(@"select FeedType, SKU, ASIN,SalePrice, InventoryQty,HandlingTime from channel_sales_helper_details  
+                where FeedType='{0}' and IsUpdated=false order by ASIN Limit 0,{1}", feedType, numRecords);
+            string sqlQuery02 = string.Format(@"select Count(*) cnt from channel_sales_helper_details  
+                where FeedType='{0}' and IsUpdated=false", feedType);
+            List<FeedModel> li = null;
+            using (var context = new AutoCareDataContext(connectionString))
+            {
+                var recTotal = context.Database.SqlQuery<int>(sqlQuery02).ToArray();
+                numTotalRecords = recTotal[0];
+
+                //  = Int32.Parse(<FeedModel>(sqlQuery02).ToString()) ;
+                li = context.Database.SqlQuery<FeedModel>(sqlQuery01).ToList();
+                if (li.Count > 0)
+                    return li;
+            }
+
+            // Does not work because of mySQL datetime format - WHY ?
+            //using (var context = new AutoCareDataContext(connectionString))
+            //{
+            //    var objDetail = context.Feed_helper_details.Where(d=> d.FeedType==feedType && d.IsUpdated==true);
+            //    context.Feed_helper_details.RemoveRange(objDetail);
+            //    context.SaveChanges();
+            //}
+
+            string strUpdateFilter = "";
+            string sqlQuery = "";
+            string strThisMySqlDate = DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss");
+            if (feedType == "Product")
+            {
+                sqlQuery =
+                    $@"insert into channel_sales_helper_details (ChannelName, ASIN, FeedType, SKU, SalePrice, HandlingTime, InventoryQty, IsUpdated, LastRequest, LastUpdate) 
+                    select 'Amazon', b.asin_no,'Product',b.SKU_UPC,a.SalePrice,a.HandlingTime,a.InventoryQty,false,'{strThisMySqlDate}',null
+                    from Channel_Sales_Helper a join CK_ASINS b on a.ProductPriceCat = b.ProductPriceCat
+                    where a.ASIN = '' and b.ActiveInAmazon = 0 and (b.ForceBlock <> 'Y' or b.ForceBlock is null) and AddProducts = 1 ; ";
+            }
+            else
+            {
+                if (feedType == "Inventory")
+                    strUpdateFilter = "a.UpdateInventoryOrHandling=1";
+                else if (feedType == "Price")
+                    strUpdateFilter = "a.UpdatePrice=1";
+
+                sqlQuery =
+                    $@"insert into channel_sales_helper_details (ChannelName, ASIN, FeedType, SKU, SalePrice, HandlingTime, InventoryQty, IsUpdated, LastRequest, LastUpdate) 
+                    select 'Amazon', b.asin_no,'{feedType}',b.SKU_UPC,a.SalePrice, a.HandlingTime,a.InventoryQty,false,'{strThisMySqlDate}',null 
+                    from Channel_Sales_Helper a join CK_ASINS b on a.ProductPriceCat = b.ProductPriceCat 
+                    where a.ASIN = '' and b.ActiveInAmazon = 1 and (b.ForceBlock <> 'Y' or b.ForceBlock is null) and {strUpdateFilter}; ";
+
+                sqlQuery +=
+                    $@"insert into channel_sales_helper_details (ChannelName, ASIN, FeedType, SKU, SalePrice, HandlingTime, InventoryQty, IsUpdated, LastRequest, LastUpdate) 
+                    select 'Amazon', b.asin_no,'{feedType}',b.SKU_UPC,a.SalePrice, a.HandlingTime,a.InventoryQty,false,'{strThisMySqlDate}',null 
+                    from Channel_Sales_Helper a join CK_ASINS b on a.ASIN = b.asin_no
+                    where a.ASIN <> ''  and b.ActiveInAmazon = 1 and (b.ForceBlock <> 'Y' or b.ForceBlock is null) and {strUpdateFilter} ";
+            }
+
+            // Delete all previous successful update records from channel_sales_helper_details
+            using (MySqlConnection conn = new MySqlConnection(connectionString))
+            {
+                MySqlCommand cmd = conn.CreateCommand();
+                cmd.CommandText =
+                    string.Format("delete from channel_sales_helper_details where FeedType='{0}' and IsUpdated=true", feedType);
+
+                MySqlCommand cmd2 = conn.CreateCommand();
+                cmd2.CommandText = sqlQuery;
+                conn.Open();
+                cmd.ExecuteNonQuery();
+                cmd2.ExecuteNonQuery();
+                conn.Close();
+            }
 
             using (var context = new AutoCareDataContext(connectionString))
             {
-                List<FeedModel> li = context.Database.SqlQuery<FeedModel>(sqlQuery).ToList();
-
-                return li;
+                var recTotal = context.Database.SqlQuery<int>(sqlQuery02).ToArray();
+                numTotalRecords = recTotal[0];
+                li = context.Database.SqlQuery<FeedModel>(sqlQuery01).ToList();
             }
+            return li;
         }
-        public static void UpdateProductAfterAmazonFeed(string connStr, List<FeedModel> liFeed, string feedType)
+        public static void UpdateProductAfterAmazonFeed(string connStr, List<FeedModel> liFeed, string feedType, int nTotalAsins = 0)
         {
-            //*** Cannot handle global updates with ProductPriceCat only specificaton- need to do this manually now
             StringBuilder sb = new StringBuilder("");
-            string timeNow = DateTime.Now.ToString("YYYY-mm-dd hh:mm");
-            foreach (FeedModel objFeed in liFeed)
+            string timeNow = DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss");
+            string feedUpdateField = "";
+            // Since liFeed is sorted on ASIN, we take the last one and update anything before that
+            if (liFeed.Count == 0 || nTotalAsins== liFeed.Count)
             {
+                // No feed data to be updated. Update Channel_Sales_Helperfor this feedtype
+                if (feedType == "Product")
+                    feedUpdateField = "AddProducts";
+                else if (feedType == "Price")
+                    feedUpdateField = "UpdatePrice";
+                else 
+                    feedUpdateField = "UpdateInventoryOrHandling";
+
+                sb.AppendFormat(@"update Channel_Sales_Helper set {0}=false, LastUpdateDate='{1}' 
+                    where {0}=true ;", feedUpdateField, timeNow);
+
+                Console.WriteLine("Setting flag in master table to false for {0} - field {1} ", feedType, feedUpdateField);
+            }
+            else
+            {
+                string lastASIN = liFeed.Last().ASIN;
+                string firstASIN = liFeed.First().ASIN;
+
+                sb.AppendFormat("update channel_sales_helper_details set IsUpdated=true, LastUpdate='{1}' where ASIN <='{0}' and FeedType='{2}';", lastASIN, timeNow, feedType);
+
                 if (feedType == "Price")
                 {
-                    sb.AppendFormat("update Channel_Sales_Helper set UpdatePrice=0 where ASIN ='{0}';", objFeed.ASIN);
-                    sb.AppendFormat("update CK_ASINS set SalePrice={0}, AmazonUpdateDate='{1}' where ASIN_no='{0}';", objFeed.SalePrice, timeNow, objFeed.ASIN);
+                    sb.AppendFormat(@"update CK_ASINS a join channel_sales_helper_details b on a.Asin_no=b.ASIN and a.SKU_UPC = b.SKU 
+                    set a.SalePrice=b.SalePrice, a.AmazonUpdateDate='{0}' 
+                    where b.ASIN>= '{1}' and  b.ASIN<='{2}' ;", timeNow, firstASIN, lastASIN);
                 }
                 else if (feedType == "Inventory")
                 {
-                    sb.AppendFormat("update Channel_Sales_Helper set `UpdateInventoryOrHandling`=0 where ASIN ='{0}';", objFeed.ASIN);
-                    sb.AppendFormat("update CK_ASINS set  AmazonUpdateDate='{0}' where ASIN_no='{1}';",timeNow, objFeed.ASIN);
+                    sb.AppendFormat(@"update CK_ASINS a join channel_sales_helper_details b on a.Asin_no=b.ASIN and a.SKU_UPC = b.SKU 
+                    set a.ActiveInAmazon=1, a.AmazonUpdateDate='{0}' 
+                    where b.ASIN>= '{1}' and  b.ASIN<='{2}' and b.InventoryQty>0;", timeNow, firstASIN, lastASIN);
+
+                    sb.AppendFormat(@"update CK_ASINS a join channel_sales_helper_details b on a.Asin_no=b.ASIN and a.SKU_UPC = b.SKU
+                    set a.ActiveInAmazon=0, a.AmazonUpdateDate='{0}' 
+                    where b.ASIN>= '{1}' and  b.ASIN<='{2}' and b.InventoryQty=0;", timeNow, firstASIN, lastASIN);
                 }
+                else
+                {
+                    sb.AppendFormat(@"update CK_ASINS a join channel_sales_helper_details b on a.Asin_no=b.ASIN and a.SKU_UPC = b.SKU 
+                    set a.ActiveInAmazon=1, a.AmazonUpdateDate='{0}' 
+                    where b.ASIN>= '{1}' and  b.ASIN<='{2}' and b.InventoryQty>0;", timeNow, firstASIN, lastASIN);
+                }
+                Console.WriteLine("Updating {0} local records at {1}", liFeed.Count, DateTime.Now);
             }
-            
-            using (var context = new AutoCareDataContext(connStr))
+               
+            using (MySqlConnection conn = new MySqlConnection(connStr))
             {
-                context.Database.ExecuteSqlCommand(sb.ToString());
-                context.SaveChanges();
+                MySqlCommand cmd = conn.CreateCommand();
+                cmd.CommandText = sb.ToString();
+                conn.Open();
+                cmd.ExecuteNonQuery();
+                conn.Close();
             }
+            Console.WriteLine("Updating Complete at  {0} ", DateTime.Now);
+            //using (var context = new AutoCareDataContext(connStr))
+            //{
+            //    context.Database.ExecuteSqlCommand(sb.ToString());
+            //    context.SaveChanges();
+            //}
         }
         public static void UpdateProduct(ConfigurationData config, int qbId, string sku)
         {
@@ -136,7 +243,7 @@ namespace AutoCarOperations.DAL
                     upd_dt = DateTime.Now;
 
                 /** Sam changed July 2018 - to get Categories - only the last level */
-                string thisCategory = null;
+            string thisCategory = null;
                 if (product.CategoryList.Count > 0)
                 {
                     thisCategory = product.CategoryList[0].CategoryName;
@@ -308,7 +415,7 @@ namespace AutoCarOperations.DAL
             using (var context = new AutoCareDataContext(connectionString))
             {
                 bool bTryMFGId = false;
-                var response = context.Database.SqlQuery<CKASINS>($"SELECT CA.ItemId,CA.VariantId,P.catalogid,CA.ResourceCode FROM CK_ASINS CA LEFT JOIN `3dc_products` P ON P.SKU = CA.SKU_UPC and not (P.categoriesaaa is null or P.categoriesaaa='_Test_Hidden') WHERE asin_no='{ASIN}'").ToList();
+                var response = context.Database.SqlQuery<CKASINS>($"SELECT CA.ItemId,CA.VariantId,P.catalogid,CA.ResourceCode FROM CK_ASINS CA LEFT JOIN `3dc_products` P ON P.SKU = CA.SKU_UPC and (CA.ForceBlock<>'Y' or CA.ForceBlock is null) and not (P.categoriesaaa is null or P.categoriesaaa='_Test_Hidden') WHERE asin_no='{ASIN}'").ToList();
                 if (response.Count == 0) bTryMFGId = true;
                 else if (response[0].ItemId == null || response[0].catalogid == null)
                     bTryMFGId = true;
@@ -316,7 +423,7 @@ namespace AutoCarOperations.DAL
                 if (bTryMFGId)
                 {
                     // Sam: Try to get item from manuf_sku if SKU does not map
-                    response = context.Database.SqlQuery<CKASINS>($"SELECT CA.ItemId,CA.VariantId,P.catalogid,CA.ResourceCode FROM CK_ASINS CA LEFT JOIN `3dc_products` P ON P.mfgid = CA.ItemID and not (P.categoriesaaa is null or P.categoriesaaa='_Test_Hidden')  WHERE asin_no='{ASIN}'").ToList();
+                    response = context.Database.SqlQuery<CKASINS>($"SELECT CA.ItemId,CA.VariantId,P.catalogid,CA.ResourceCode FROM CK_ASINS CA LEFT JOIN `3dc_products` P ON P.mfgid = CA.ItemID and (CA.ForceBlock<>'Y' or CA.ForceBlock is null) and not (P.categoriesaaa is null or P.categoriesaaa='_Test_Hidden')  WHERE asin_no='{ASIN}'").ToList();
                     if (response.Count == 0)
                         return null;
                 }

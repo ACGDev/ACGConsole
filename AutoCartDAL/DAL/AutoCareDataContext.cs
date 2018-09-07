@@ -15,7 +15,7 @@ namespace AutoCarOperations.DAL
             Configuration.ProxyCreationEnabled = false;
             Configuration.UseDatabaseNullSemantics = true;
         }
-
+        
         public DbSet<customers> Customers { get; set; }
         public DbSet<customer_groups> CustomerGroups { get; set; }        
         public DbSet<orders> Orders { get; set; }
@@ -35,6 +35,7 @@ namespace AutoCarOperations.DAL
 
         public DbSet<DownloadedItem> CKDownloadedItem { get; set; }
         public DbSet<AmazonVariant> CKAmazonVariant { get; set; }
+        public DbSet<channel_sales_helper_details> Feed_helper_details { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
