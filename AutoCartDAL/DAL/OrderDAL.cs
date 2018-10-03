@@ -93,8 +93,6 @@ namespace AutoCarOperations.DAL
                                         configData.FTPPassword, filePath, fileName, WebRequestMethods.Ftp.UploadFile);
                                     Console.WriteLine("  ... file successfully uploaded");
                                 }
-
-
                             }
                         }
                     }

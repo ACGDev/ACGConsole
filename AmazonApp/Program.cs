@@ -46,7 +46,7 @@ namespace AmazonApp
             try
             {
                 IMWSResponse response = null;
-                response = amazonOrders.InvokeListOrders();
+                response = amazonOrders.InvokeListOrders(true);  // send argument true to get last 4 days worth of orders
                 ResponseHeaderMetadata rhmd = response.ResponseHeaderMetadata;
                 Console.WriteLine("RequestId: " + rhmd.RequestId);
                 Console.WriteLine("Timestamp: " + rhmd.Timestamp);
@@ -423,7 +423,7 @@ namespace AmazonApp
                 // SAM: It will be better if we can capture the SKU (new) coming back from Amazon - Can put it in ASIN table.
 
                 // OR - simply map ASIN with our ASIN table and get the part no.
-                var orderItem = ProductDAL.FindOrderFromASIN(ConfigurationHelper.ConnectionString, item.ASIN, item.SellerSKU);
+               var orderItem = ProductDAL.FindOrderFromASIN(ConfigurationHelper.ConnectionString, item.ASIN, item.SellerSKU);
                 if (orderItem == null || orderItem.catalogid == null
                     || orderItem.ItemId == null)
                 {
@@ -493,7 +493,8 @@ namespace AmazonApp
 
             // Sep 5, 2018 - Write new order in AmazonOpenOrders.csv file
             String currentAppPath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-            String fileName = @"D:\test\ACG\ACGConsole_2018\3dCartImportConsole\bin\Debug\"+"AmazonOpenOrders.csv";
+            String fileName = currentAppPath+ "\\..\\..\\..\\3dCartImportConsole\\bin\\Debug\\AmazonOpenOrders.csv"; 
+             // @"D:\test\ACG\ACGConsole_2018\3dCartImportConsole\bin\Debug\"+"AmazonOpenOrders.csv";
             Console.WriteLine(String.Format("\r\n*** Appending new order to {0} ", fileName));
             // CSV structure: Order Date,Amazon Order,Ship By,ASIN,Name,ACG Order,CK Order No,Status,Ship Agent,Ship Service,Tracking No,Status Date
             DateTime dt = Convert.ToDateTime(acgOrder.OrderDate.ToString());
